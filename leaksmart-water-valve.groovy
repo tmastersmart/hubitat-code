@@ -1,12 +1,13 @@
 /**
- * ported to hubitat 4/12/2021 by tmastersmart
+ * Hubitat LeakSmart Water Valve with battery detection
+   ported to hubitat 4/12/2021 by tmastersmart
 
-   https://github.com/tmastersmart/SmartThings/blob/master/devicetypes/krlaframboise/leaksmart-water-valve.src/leaksmart-water-valve.groovy
+   https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy
  
   forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
 
- *LeakSMART Water Valve v 1.3   
- *     (Mode: 8830000L)
+ *LeakSMART Water Valve v 2  (from 1.3 orginal)    (Mode: 8830000L)
+ *    
  *  
  *  Capabilities:
  *      Configuration, Refresh, Switch, Valve, Polling
@@ -14,12 +15,10 @@
  *  Author: 
  *     Kevin LaFramboise (krlaframboise)
  *
- *  Url to Documentation:
- *      https://community.smartthings.com/t/release-leaksmart-water-valve/48669
  *
  *  Changelog:
 
-          04/12/2021 
+      2.0 04/12/2021 
           Ported to Hubitat
           removed smartthings code
           was skipping bat event now reads bat events. New bat event code
@@ -65,7 +64,7 @@
  */
 
 metadata {
-	definition (name: "LeakSmart Water Valve", namespace: "tmastersmart", author: "Tmaster", importUrl:"https://github.com/tmastersmart/SmartThings/raw/master/devicetypes/krlaframboise/leaksmart-water-valve.src/leaksmart-water-valve.groovy" ) {
+	definition (name: "LeakSmart Water Valve", namespace: "tmastersmart", author: "Tmaster", importUrl:"https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy" ) {
 		capability "Actuator"
 		capability "Battery"
 		capability "Configuration"
