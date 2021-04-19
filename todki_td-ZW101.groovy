@@ -4,7 +4,7 @@
  
  TODKI TD-ZW101    Reset device by pressing button 10 times ,, Hold down during reboot?
  
- 
+ Device supports power memory flash LED config and brightness.
  
  WARNING this is not working it is a code in process if you make changes and get it working please note the changes..
  port to hubitat is in process. Right now i cant get basic function to work
