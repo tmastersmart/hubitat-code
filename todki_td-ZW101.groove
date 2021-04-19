@@ -1,6 +1,6 @@
 /**
  *  Hubitat driver for Todki TD-ZW101 zwave switch.
- https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groove
+ https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groovy
  
  TODKI TD-ZW101    Reset device by pressing button 10 times ,, Hold down during reboot?
  
@@ -55,7 +55,7 @@ Parameter 10 default 0
 */
 
 metadata {
-	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groove") {
+	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groovy") {
 
 	        capability "Switch"
                 capability "Indicator"
@@ -66,16 +66,10 @@ metadata {
 		capability "Health Check"
                 capability "Configuration"
 
-		fingerprint inClusters: "0x5E,0x55,0x98,0x9F", deviceId: "0x10", mfr: "0326", prod: "0003", model: "0012", deviceJoinName: "TODKI TD-ZW101 Switch"
+		fingerprint profileId: "C216", inClusters: "0x5E,0x55,0x98,0x9F", outClusters: "", manufacturer: "TODKI", model: "TD-ZW101", deviceJoinName: "TODKI TD-ZW101 Switch"
+
 	}
 
-	simulator {
-		status "on": "command: 9881, payload: 002503FF"
-		status "off": "command: 9881, payload: 00250300"
-
-		reply "9881002001FF,delay 200,9881002502": "command: 9881, payload: 002503FF"
-		reply "988100200100,delay 200,9881002502": "command: 9881, payload: 00250300"
-	}
 
 	preferences
 	{
