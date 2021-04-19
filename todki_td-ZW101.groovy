@@ -7,6 +7,7 @@
  
  
  WARNING this is not working it is a code in process if you make changes and get it working please note the changes..
+ port to hubitat is in process. Right now i cant get basic function to work
  
  zwaveSecurePairingComplete: true
  deviceType: 3
