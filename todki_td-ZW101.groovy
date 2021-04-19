@@ -4,6 +4,10 @@
  
  TODKI TD-ZW101    Reset device by pressing button 10 times ,, Hold down during reboot?
  
+ 
+ 
+ WARNING this is not working it is a code in process if you make changes and get it working please note the changes..
+ 
  zwaveSecurePairingComplete: true
  deviceType: 3
 manufacturer: 806
