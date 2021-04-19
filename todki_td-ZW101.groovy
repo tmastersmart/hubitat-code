@@ -36,26 +36,41 @@ zwNodeInfo: D3 9C 80 04 10 01 5E 55 98 9F 68 23 F1 00 86 25 70 85 5C 8E 59 72 5A
  *
  *TODKI Wireless Smart Power Switch Plug  driver  - TD-ZW101
  *
-Parameter#12 default 2
-0= off when power restored
-1= on
-2= status before falure
+ 
+ test
+ 
+ CommandClassReport- class:0x9F, version:1
+ CommandClassReport- class:0x98, version:1
+ CommandClassReport- class:0x55, version:2
+ CommandClassReport- class:0x5E, version:2
+ 
+ infoConfigurationReport- parameterNumber:1, size:1, value:0
+ infoConfigurationReport- parameterNumber:8, size:1, value:0
+ infoConfigurationReport- parameterNumber:10, size:1, value:0 
+ infoConfigurationReport- parameterNumber:11, size:1, value:85
+ infoConfigurationReport- parameterNumber:12, size:1, value:2 
+ 
 
-Led
+Factory provided data 
 Parameter 8 default 0
 0= led on when off
 1= led on when on
 2= led off
 3= led on
 
-Led brightness
-Paramter 11 default 85
-1- 100
-
-Strobe alarm
 Parameter 10 default 0
 0= strobe off
 54 = alarm is on flashes at 400ms
+
+Paramter 11 default 85
+1- 100 Led brightness
+
+Parameter#12 default 2
+0= off when power restored
+1= on
+2= status before falure
+ 
+
 
 */
 
