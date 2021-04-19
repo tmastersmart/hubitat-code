@@ -1,6 +1,6 @@
 /**
  *  Hubitat driver for Todki TD-ZW101 zwave switch.
- 
+ https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groove
  
  TODKI TD-ZW101    Reset device by pressing button 10 times ,, Hold down during reboot?
  
@@ -55,7 +55,7 @@ Parameter 10 default 0
 */
 
 metadata {
-	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "") {
+	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groove") {
 
 	        capability "Switch"
                 capability "Indicator"
