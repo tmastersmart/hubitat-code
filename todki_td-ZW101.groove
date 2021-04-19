@@ -1,5 +1,21 @@
 /**
- *  TODKI TD-ZW101
+ *  Hubitat driver for Todki TD-ZW101 zwave switch.
+ 
+ 
+ TODKI TD-ZW101    Reset device by pressing button 10 times ,, Hold down during reboot?
+ 
+ zwaveSecurePairingComplete: true
+ deviceType: 3
+manufacturer: 806
+inClusters: 0x5E,0x55,0x98,0x9F
+secureInClusters: 0x86,0x25,0x70,0x85,0x8E,0x59,0x72,0x5A,0x73,0x6C,0x7A
+versionReport: 86120306010401FF00
+zwNodeInfo: D3 9C 80 04 10 01 5E 55 98 9F 68 23 F1 00 86 25 70 85 5C 8E 59 72 5A 73 6C 7A
+ 
+ 
+ 
+ 
+ 
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -10,8 +26,8 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *zw:Ls type:1001 mfr:0326 prod:0003 model:0012 ver:4.01 zwv:6.01 lib:03 cc:5E,55,98,9F
- *sec:86,25,70,85,8E,59,72,5A,73,6C,7A role:05 ff:8700 ui:8700
+ *
+ *sec:86,25,70,85,8E,59,72,5A,73,6C,7A 
  *
  *TODKI Wireless Smart Power Switch Plug  driver  - TD-ZW101
  *
@@ -39,19 +55,18 @@ Parameter 10 default 0
 */
 
 metadata {
-	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", ocfDeviceType: "oic.d.switch", runLocally: false, minHubCoreVersion: '000.019.00012', executeCommandsLocally: false) {
-		capability "Switch"
-        capability "Indicator"
+	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "") {
+
+	        capability "Switch"
+                capability "Indicator"
 		capability "Refresh"
 		capability "Polling"
 		capability "Actuator"
 		capability "Sensor"
 		capability "Health Check"
-        capability "Configuration"
+                capability "Configuration"
 
-		fingerprint inClusters: "0x25,0x98"
-		fingerprint deviceId: "0x10", inClusters: "0x98"
-                fingerprint mfr: "0326", prod: "0003", model: "0012", deviceJoinName: "TODKI TD-ZW101 Switch"
+		fingerprint inClusters: "0x5E,0x55,0x98,0x9F", deviceId: "0x10", mfr: "0326", prod: "0003", model: "0012", deviceJoinName: "TODKI TD-ZW101 Switch"
 	}
 
 	simulator {
