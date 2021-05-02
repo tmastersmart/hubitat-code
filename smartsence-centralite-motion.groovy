@@ -1,14 +1,12 @@
 /**
 
-ported to hubitat 05/02/21 by tmastersat v1.0
+SmartSense CentraLite Motion Sensor with temp 
 
+ported to hubitat 05/02/21 by tmastersat v1.0
+https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartsence-centralite-motion.groovy
 
 
 forked from https://raw.githubusercontent.com/michaelahess/SmartThingsPublic/master/devicetypes/smartthings/smartsense-motion-temp-sensor.src/smartsense-motion-temp-sensor.groovy
-
-
-
- *  SmartSense Motion/Temp Sensor
  *
  *  Copyright 2014 SmartThings
  *
@@ -24,62 +22,29 @@ forked from https://raw.githubusercontent.com/michaelahess/SmartThingsPublic/mas
  */
 
 metadata {
-	definition (name: "SmartSense Motion/Temp Sensor", namespace: "smartthings", author: "SmartThings") {
-		capability "Motion Sensor"
-		capability "Configuration"
-		capability "Battery"
+	definition (name: "SmartSense CentraLite Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl:"https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartsence-centralite-motion.groovy" ) {
+	capability "Motion Sensor"
+	capability "Configuration"
+	capability "Battery"
         capability "Temperature Measurement"
-		capability "Refresh"
-		capability "Sensor"
+	capability "Refresh"
+	capability "Sensor"
         
         command "enrollResponse"
 
-		fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305-S"
+	fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305-S"
         fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305"
         fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3325"
         fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3326"
 	}
 
-	simulator {
-		status "active": "zone report :: type: 19 value: 0031"
-		status "inactive": "zone report :: type: 19 value: 0030"
-	}
 
 	preferences {
-		input title: "Temperature Offset", description: "This feature allows you to correct any temperature variations by selecting an offset. Ex: If your sensor consistently reports a temp that's 5 degrees too warm, you'd enter \"-5\". If 3 degrees too cold, enter \"+3\".", displayDuringSetup: false, type: "paragraph", element: "paragraph"
+		input title: "Temperature Offset", description: "Enter your temp offset", displayDuringSetup: false, type: "paragraph", element: "paragraph"
 		input "tempOffset", "number", title: "Degrees", description: "Adjust temperature by this many degrees", range: "*..*", displayDuringSetup: false
 	}
 
-	tiles(scale: 2) {
-		multiAttributeTile(name:"motion", type: "generic", width: 6, height: 4){
-			tileAttribute ("device.motion", key: "PRIMARY_CONTROL") {
-				attributeState "active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0"
-				attributeState "inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff"
-			}
-		}
-		valueTile("temperature", "device.temperature", width: 2, height: 2) {
-			state("temperature", label:'${currentValue}°', unit:"F",
-				backgroundColors:[
-					[value: 31, color: "#153591"],
-					[value: 44, color: "#1e9cbb"],
-					[value: 59, color: "#90d2a7"],
-					[value: 74, color: "#44b621"],
-					[value: 84, color: "#f1d801"],
-					[value: 95, color: "#d04e00"],
-					[value: 96, color: "#bc2323"]
-				]
-			)
-		}
-		valueTile("battery", "device.battery", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-			state "battery", label:'${currentValue}% battery', unit:""
-		}
-		standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "default", action:"refresh.refresh", icon:"st.secondary.refresh"
-		}
 
-		main(["motion", "temperature"])
-		details(["motion", "temperature", "battery", "refresh"])
-	}
 }
 
 def parse(String description) {
