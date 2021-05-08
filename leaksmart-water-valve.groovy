@@ -3,7 +3,7 @@
    ported to hubitat by tmastersmart
    https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy
  
-  
+   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
  *
  *    
  *  
@@ -78,12 +78,8 @@ metadata {
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve"
 		fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02", outClusters: "0019"
 	}
-// my iris branded valve
-//manufacturer: WAXMAN
-//model: House Water Valve - MDL-TBD
-///softwareBuild:
-//inClusters: 0000,0001,0003,0004,0005,0006,0020,0B02,FC02
-//outClusters: 0003,0019
+// need fingerprints for other valves
+
 	preferences {
 		input "debugOutput", "bool", 
 			title: "Enable debug logging?", 
