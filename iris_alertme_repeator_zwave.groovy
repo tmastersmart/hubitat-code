@@ -1,6 +1,7 @@
 /**
- *  Iris AlertMe Repeator Z-Wave
-    
+ *  Iris v1 Z-Wave Repeater plug
+    https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_repeator_zwave.groovy
+
 
 
 
@@ -26,9 +27,8 @@ def getDriverVersion() {[platform: "Hubitat", major: 2, minor: 0, build: 0]}
 metadata
 {
 	
-	definition (name: "Iris AlertMe Repeator Z-Wave", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator.groovy") {
+	definition (name: "Iris AlertMe Repeator Z-Wave", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zwave.groovy") {
 
-	{
 		capability "Polling"
 		capability "Refresh"
 		capability "Sensor"
