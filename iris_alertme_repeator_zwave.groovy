@@ -2,7 +2,7 @@
  *  Iris v1 Z-Wave Repeater plug
     https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_repeator_zwave.groovy
 
-
+    v1.2 05/8/21  
 
 
   Forked from:
