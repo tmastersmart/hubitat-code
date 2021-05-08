@@ -1,7 +1,8 @@
 /* Iris AlertMe Smart Plug 
 USA version  
 
-https://github.com/tmastersmart/hubitat/blob/master/alertme/drivers/alertme_smartplug.groovy
+https://github.com/tmastersmart/hubitat-code/edit/main/iris_alertme_smartplug.groovy
+https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
 
  * 05/05/2021 v1.3 Power recovered detection adjusted
  * 05/04/2021 v1.2   
@@ -24,7 +25,7 @@ https://github.com/tmastersmart/hubitat/blob/master/alertme/drivers/alertme_smar
 
 
 metadata {
-	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat/master/alertme/drivers/alertme_smartplug.groovy") {
+	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
 
 
 		capability "Actuator"
