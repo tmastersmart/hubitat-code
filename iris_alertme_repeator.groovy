@@ -1,7 +1,11 @@
-/*Iris AlertMe Repeator Zigbe
+/*Iris v1 AlertMe Repeator Zigbe
 
-    04-04-2021 v1.1  
-*   04/11/2021 v1.0
+
+
+    05/08/2021 v1.2
+    04/04/2021 v1.1  
+    04/11/2021 v1.0
+ 
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator.groovy
 
 
