@@ -100,10 +100,10 @@ def parse(String description) {
 	def result = []
 	def evt = zigbee.getEvent(description)
 	if (evt) {
-        logDebug "${device} :Received Event: $evt"
+//        logDebug "${device} :Received Event: $evt"
 		if (evt.name == "switch") {
 			def val = (evt.value == "on") ? "open" : "closed"
-			logDebug "${device}: Valve: $val Contact:$val Switch: $evt.value"
+			logDebug "${device}: Valve:$val Contact:$val Switch:$evt.value"
 			result << createEvent(name: "contact", value: val)
 			result << createEvent(name: "valve", value: val)
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
@@ -125,9 +125,9 @@ def parse(String description) {
         
         
         
-//		else {
-//			logDebug "Ignored Event: $evt"
-//		}
+	else {
+			logDebug "${device}: Ignored Event: $evt"
+		}
 		result << createEvent(evt)
 	}
 //	else {
@@ -216,6 +216,7 @@ private configureBatteryReporting() {
 	def minSeconds = (10 * 60) // 10 Minutes
 	def maxSeconds = (4 * 60 * 60) // 4 Hours	
 	zigbee.configureReporting(0x0001, 0x0020, 0x20, minSeconds, maxSeconds, 0x01)
+    logDebug "${device}: Set bat reports to 10 min min 4hr max"
 }
 
 private getSwitchReport() {
