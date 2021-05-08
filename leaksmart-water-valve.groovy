@@ -1,28 +1,26 @@
 /**
- * Hubitat LeakSmart Water Valve with battery detection
-   ported to hubitat 4/12/2021 by tmastersmart
-
+ * Hubitat LeakSmart/Iris Water Valve with battery detection
+   ported to hubitat by tmastersmart
    https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy
  
-  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
-
- *LeakSMART Water Valve v 2  (from 1.3 orginal)    (Mode: 8830000L)
+  
+ *
  *    
  *  
- *  Capabilities:
- *      Configuration, Refresh, Switch, Valve, Polling
- *
- *  Author: 
- *     Kevin LaFramboise (krlaframboise)
- *
- *
+ *  Capabilities:Configuration, Refresh, Switch, Valve, Polling
  *  Changelog:
+     2.1 05/03/2012 
+         Fixed log reports
 
       2.0 04/12/2021 
           Ported to Hubitat
           removed smartthings code
           was skipping bat event now reads bat events. New bat event code
 
+
+ *  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
+ *  Author:Kevin LaFramboise (krlaframboise)
+ * (from 1.3 orginal)    (Mode: 8830000L)
  *
  *    1.3 (10/23/2017)
  *      - Added support for valve attribute events.
@@ -106,12 +104,10 @@ def parse(String description) {
 	def result = []
 	def evt = zigbee.getEvent(description)
 	if (evt) {
-        logDebug "Received Event: $evt"
+        logDebug "${device} :Received Event: $evt"
 		if (evt.name == "switch") {
 			def val = (evt.value == "on") ? "open" : "closed"
-			logDebug "Set Valve to $val"
-            logDebug "Set Contact to $val"
-            logDebug "Set Switch to $evt.value"
+			logDebug "${device}: Valve: $val Contact:$val Switch: $evt.value"
 			result << createEvent(name: "contact", value: val)
 			result << createEvent(name: "valve", value: val)
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
@@ -127,7 +123,7 @@ def parse(String description) {
             def batteryLevel = (int) batteryPercentages * 100
             if (batteryLevel > 100) {batteryLevel​ = 100}
             if (batteryLevel < 1) {batteryLevel​ = 0}            
-            logDebug "Set Battery to ${batteryLevel}% $volts v"
+            logDebug "${device}: Battery ${batteryLevel}% $volts v"
             result << createEvent(name: "battery", value: batteryLevel, unit:"%")
         }
         
@@ -181,12 +177,12 @@ def off() {
 }
 
 def open() {
-	logDebug "Opening"
+	logDebug "${device} Opening"
 	zigbee.on()
 }
 
 def close() {
-	logDebug "Closing"
+	logDebug "${device} Closing"
 	zigbee.off()
 }
 
@@ -194,16 +190,16 @@ def poll() {
 	def minimumPollMinutes = (3 * 60) // 3 Hours
 	def lastPoll = device.currentValue("lastPoll")
 	if ((new Date().time - lastPoll) > (minimumPollMinutes * 60 * 1000)) {
-		logDebug "Poll: Refreshing because lastPoll was more than ${minimumPollMinutes} minutes ago."
+		logDebug "${device}: Poll: LastPoll was more than ${minimumPollMinutes} minutes ago."
 		return refresh()
 	}
 	else {
-		logDebug "Poll: Skipped because lastPoll was within ${minimumPollMinutes} minutes"
+		logDebug "${device}: Poll: Skipped to soon within ${minimumPollMinutes} minutes"
 	}
 }
 
 def refresh() {
-	logDebug "Refreshing"	
+	logDebug "${device}: Refreshing"	
 	return zigbee.onOffRefresh() + 
 		getBatteryReport() +
 		zigbee.onOffConfig() + 
@@ -212,7 +208,7 @@ def refresh() {
 
 def configure() {
     
-	logDebug "Configuring Reporting and Bindings."
+	logDebug "${device}: Configuring Reporting and Bindings."
 	state.configured = true
 	return zigbee.onOffConfig() + 
 		configureBatteryReporting() +
