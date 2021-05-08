@@ -5,8 +5,8 @@
     05/08/2021 v1.2
     04/04/2021 v1.1  
     04/11/2021 v1.0
- 
-https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
+ https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_repeator_zigbe.groov
+ https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
 
 
 
