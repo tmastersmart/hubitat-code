@@ -6,7 +6,7 @@
     04/04/2021 v1.1  
     04/11/2021 v1.0
  
-https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator.groovy
+https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
 
 
 
@@ -57,7 +57,7 @@ dev:6142021-05-04 11:32:27.716 am warnIris AlertMe Repeator Zigbe : Received : c
 
 metadata {
 
-	definition (name: "Iris AlertMe Repeator Zigbe", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator.groovy") {
+	definition (name: "Iris AlertMe Repeator Zigbe", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
