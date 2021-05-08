@@ -1,5 +1,5 @@
-/* Iris AlertMe Smart Plug 
-USA version  
+/* Iris v1 AlertMe Smart Plug 
+USA version  (usa version is diffrent)
 
 https://github.com/tmastersmart/hubitat-code/edit/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
@@ -7,12 +7,10 @@ https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.gro
  * 05/05/2021 v1.3 Power recovered detection adjusted
  * 05/04/2021 v1.2   
  * 04/11/2021 v1
- *fingerprint model:"SmartPlug2.5", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00EF,00EE", outClusters:""
-
  tested on Iris Plug with Firmware : 2013-09-26
 
 
- * orginal by 
+ * Forked from  
  * name: "AlertMe Smart Plug" 
  * namespace: "BirdsLikeWires", 
  * author: "Andrew Davison", 
