@@ -123,11 +123,9 @@ def parse(String description) {
             result << createEvent(name: "battery", value: batteryLevel, unit:"%")
         }
         
+     
         
-        
-	else {
-			logDebug "${device}: Ignored Event: $evt"
-		}
+
 		result << createEvent(evt)
 	}
 //	else {
