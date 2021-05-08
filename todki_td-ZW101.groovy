@@ -75,7 +75,7 @@ Parameter#12 default 2
 */
 
 metadata {
-	definition(name: "TODKI TD-ZW101", namespace: "smartthings", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groovy") {
+	definition(name: "TODKI TD-ZW101", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/todki_td-ZW101.groovy") {
 
 	        capability "Switch"
                 capability "Indicator"
