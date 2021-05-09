@@ -1,22 +1,26 @@
 /*
- *  Everspring/Utilitech Water Sensor
+ *  Everspring/Utilitech Water Sensor 
+    Everspring Flood Sensor       ST812-2
+    Utilitech Water Leak Detector TST01-1 (Lowe's)
 
 
+    Hubitat log cleanup and include links added
 
-deviceId: 1
-deviceType: 11
-manufacturer: 96
-inClusters: 0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71
-MSR: 0060-000B-0001
-zwWakeupInterval: 3600
-zwNodeInfo: 52 9C 00 04 A1 02 86 72 85 5C 84 80 70 9C 20 71 68 23
+    v2.0  05/08/2021
 
 
+https://github.com/tmastersmart/hubitat-code/edit/main/Everspring_Utilitech_Water_Sensor.groovy
+https://github.com/tmastersmart/hubitat-code/raw/main/Everspring_Utilitech_Water_Sensor.groovy
 
+  reset device press 10 times. remove batteries. reinstall and exclude. 
+  include pressing the button several times slowely or it will reset..
+  Wait and Wait.
 
+  If include fails check zwave log and if the device is in the log you must remove before retying
+
+>> Forked from....
  *
- *      Everspring Flood Sensor       ST812-2
- *      Utilitech Water Leak Detector TST01-1 (Lowe's)
+ *     
  *
  *  Author: tosa68
  *  Date:   2014-07-17
@@ -30,13 +34,6 @@ zwNodeInfo: 52 9C 00 04 A1 02 86 72 85 5C 84 80 70 9C 20 71 68 23
  *  Configure after initial association happens before userWakeUpInterval can be set,
  *  so device will start with default wake up interval of 3600 sec (1 hr).
  *
- *  To set userWakeUpInterval, from the mobile app:
- *    1) enter custom value in device preferences, then
- *         new interval will be set when device next wakes up
- *       OR
- *    3) press 'configure' when the device is awake:
- *         - either just after initial association (within about 10min),
- *         - after power up (remove/reinsert batteries)
  *    
  * 
  *  Copyright 2014 Tony Saye
@@ -58,28 +55,28 @@ preferences {
 }
 
 metadata {
-	definition (name: "Utilitech Water Sensor", namespace: "Hubitat", author: "tosa68") {
+	definition (name: "Utilitech Water Sensor", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/Everspring_Utilitech_Water_Sensor.groovy") {
 		capability "Water Sensor"
 		capability "Battery"
 		capability "Configuration"
      
-        fingerprint deviceId: "0xA102", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Everspring/Utilitech Water Sensor"
-        fingerprint mfr: "96", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Everspring/Utilitech Water Sensor"
+        fingerprint deviceId: "0xA102", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Everspring Flood Sensor"
+        fingerprint mfr: "96", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Utilitech Water Leak Detector"
         
 	}
 }
 
 def parse(String description) {
-	log.debug "parse: $description"
+	log.debug "${device.displayName} parse: $description"
 
 	def parsedZwEvent = zwave.parse(description, [0x9C: 1, 0x71: 1, 0x84: 2, 0x30: 1, 0x70: 1])
 	def result = []
 
     if (parsedZwEvent) {
         result = zwaveEvent(parsedZwEvent)
-        log.debug "Parsed ${parsedZwEvent} to ${result.inspect()}"
+        log.debug "${device.displayName} Parsed ${parsedZwEvent} to ${result.inspect()}"
     } else {
-        log.debug "Non-parsed event: ${description}"
+        log.debug "${device.displayName}: Non-parsed event: ${description}"
     }
 
 	return result
@@ -189,7 +186,7 @@ def zwaveEvent(hubitat.zwave.commands.wakeupv2.WakeUpIntervalReport cmd) {
 
 def zwaveEvent(hubitat.zwave.Command cmd) {
 	
-    log.debug "COMMAND CLASS: ${cmd}"
+    log.debug "${device.displayName} COMMAND CLASS: ${cmd}"
     createEvent(descriptionText: "Command not handled: ${cmd}")
 }
 
