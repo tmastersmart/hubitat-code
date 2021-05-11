@@ -1,5 +1,7 @@
 /*Iris v1 AlertMe Repeator Zigbe
-// Item #388560 Model #REP901
+// Item #388560 Model #REP901 REP800
+// need more info on 901 what is its firmware date
+
 
     05/11/2021 v1.3  Power stats testing
     05/08/2021 v1.2
@@ -731,12 +733,15 @@ def processMap(Map map) {
 			} else {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
-// Item #388560 Model #REP901
-//			logging("${device} : Device : ${deviceModel}", "info")
+// Item #388560 Model #REP901 need more info on 901
+// REP800 uses Firmware : 2013-09-26
+            if (deviceFirmware == "2013-09-26") {deviceFirmware = "09-26-2013"}// proper USA date
+            
+//            logging("${device} : Device : ${deviceModel}", "info")
 			logging("${device} : Firmware : ${deviceFirmware}", "info")
-            logging("${device} : Model  : ${deviceModel} REP901", "info")
+            logging("${device} : Model  : ${deviceModel} REP800", "info")
 			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", "${deviceModel} REP901")
+            updateDataValue("model", "${deviceModel} REP800")
 			updateDataValue("firmware", deviceFirmware)
 
 		} else {
