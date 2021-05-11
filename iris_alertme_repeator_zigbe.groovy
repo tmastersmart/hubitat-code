@@ -18,8 +18,8 @@ This driver still has some unused code that will be removed later
 
 
 You have to pair this as zigbee and then zwave.
-Hold down button while plugging in then press about 6 times to reset. Once flashing pair zigbee
-Then pair zwawave by pressing the button  be slow or it could activate reset.
+Hold down button while plugging in then press about 10 times to reset. Once flashing pair zigbee
+Then pair zwave exact zwave process is not clear try pairing before zigbee or after.
 Zwave driver is required for zwave part.
 
 
@@ -661,6 +661,13 @@ def processMap(Map map) {
 // 00F3, 01 [00, 01, 37, A6, 00, 00]
 // 00F3, 00 [00, 02, ED, A6, 00, 00]    
  
+      } else if (map.clusterId == "0006") {
+        logging("${device} : Not joined - in process ${map.clusterId} MAP:${map.data}", "warn")
+
+      } else if (map.clusterId == "0013") {
+        logging("${device} : Not joined - in process ${map.clusterId} MAP:${map.data}", "warn")
+    
+        
     } else if (map.clusterId == "00F3") {
         logging("${device} : Button Pressed Cluster:${map.clusterId} MAP:${map.data}", "warn")
 
