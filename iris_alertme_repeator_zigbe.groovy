@@ -1,5 +1,7 @@
 /*Iris v1 AlertMe Repeator Zigbe
-// Item #388560 Model #REP901 REP800
+
+
+// Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 // need more info on 901 what is its firmware date
 
 
@@ -15,7 +17,10 @@ So far the mains bat code doesnt work on this unit.
 This driver still has some unused code that will be removed later
 
 
- Repeator plugs have a zigbee and a zwave repeator. You must add them both so 2 drivers
+You have to pair this as zigbee and then zwave.
+Hold down button while plugging in then press about 6 times to reset. Once flashing pair zigbee
+Then pair zwawave by pressing the button  be slow or it could activate reset.
+Zwave driver is required for zwave part.
 
 
 fingerprint model:"RepeaterPlug REP901", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00F3", outClusters:""
