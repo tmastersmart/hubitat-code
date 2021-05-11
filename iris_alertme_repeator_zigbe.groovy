@@ -1,7 +1,7 @@
 /*Iris v1 AlertMe Repeator Zigbe
+// Item #388560 Model #REP901
 
-
-
+    05/11/2021 v1.3  Power stats testing
     05/08/2021 v1.2
     04/04/2021 v1.1  
     04/11/2021 v1.0
@@ -9,43 +9,14 @@
  https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
 
 
+So far the mains bat code doesnt work on this unit. 
+This driver still has some unused code that will be removed later
 
- Bat reports are very often not sure if it reports more with a bad bat
 
  Repeator plugs have a zigbee and a zwave repeator. You must add them both so 2 drivers
 
 
-
-
-Pressing button on ac gives
-       2021-05-04 11:33:24.389 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 4 bits of data: [21, 00, 30, 00]
-dev:6142021-05-04 11:33:23.392 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 7 bits of data: [20, 00, 0B, 43, 46, 1A, EA]
-dev:6142021-05-04 11:33:19.106 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00F3, attrId: null, command: 00 with value: null and 6 bits of data: [00, 02, 7F, 73, 00, 00]
-dev:6142021-05-04 11:33:18.862 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 4 bits of data: [23, 00, 30, 02]
-dev:6142021-05-04 11:33:18.837 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00F3, attrId: null, command: 01 with value: null and 6 bits of data: [00, 01, 4A, 72, 00, 00]
-
-
-pressing button on bat gives
-dev:6142021-05-04 11:32:33.345 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 4 bits of data: [21, 00, 30, 00]
-dev:6142021-05-04 11:32:32.344 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 7 bits of data: [20, 00, 0B, 43, 46, 1A, EA]
-dev:6142021-05-04 11:32:27.858 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00F3, attrId: null, command: 00 with value: null and 6 bits of data: [00, 02, ED, A6, 00, 00]
-dev:6142021-05-04 11:32:27.737 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00C0, attrId: null, command: 0A with value: null and 4 bits of data: [23, 00, 30, 02]
-dev:6142021-05-04 11:32:27.716 am warnIris AlertMe Repeator Zigbe : Received : cluster: null, clusterId: 00F3, attrId: null, command: 01 with value: null and 6 bits of data: [00, 01, 37, A6, 00, 00]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+fingerprint model:"RepeaterPlug REP901", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00F3", outClusters:""
 
  * using modified UK plug code
  * Forked from https://raw.githubusercontent.com/birdslikewires/hubitat/master/alertme/drivers/alertme_smartplug.groovy
@@ -61,9 +32,7 @@ metadata {
 
 		capability "Battery"
 		capability "Configuration"
-
 		capability "Initialize"
-
 		capability "PowerSource"
 		capability "PresenceSensor"
 		capability "Refresh"
@@ -79,16 +48,16 @@ metadata {
 //		attribute "batteryWithUnit", "string"
 		attribute "mode", "string"
 		attribute "stateMismatch", "boolean"
-//		attribute "temperatureWithUnit", "string"
+//		attribute "temperature", "string"
 		attribute "uptime", "string"
 		attribute "uptimeReadable", "string"
 
-		fingerprint profileId: "C216", inClusters: " 00F0,00F3", outClusters: "", manufacturer: "AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
+		fingerprint profileId: "C216", inClusters: "00F0,00F3", outClusters: "", manufacturer: "AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
 		
 	}
 
 }
-
+// Item #388560 Model #REP901
 //manufacturer: AlertMe
 //model: RepeaterPlug
 //profileId: C216
@@ -250,7 +219,7 @@ void reportToDev(map) {
 	}
 
 //	logging("${device} : UNKNOWN DATA!", "warn")
-//	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 //	logging("${device} : Splurge! : ${map}", "trace")
 
 }
@@ -448,115 +417,60 @@ def parse(String description) {
 }
 
 
-def processMap(Map map) {
 
-	logging("${device} : processMap() : ${map}", "trace")
+def processMap(Map map) {
+//   u
+//	 logging("${device} : debug  Cluster:${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")
 
 	// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
-
-//	if (map.clusterId == "00EE") { wrong cluster for usa version must be 00F3
-    if (map.clusterId == "00F3") {   
-
-		// Relay actuation and power state messages.
-
-//		if (map.command == "80") { does not work
-        if (map.command == "00") {    
-
-			// Power States
-
-			def powerStateHex = "undefined"
-			powerStateHex = receivedData[2]
-            
-            logging("${device} : debug  Cluster:${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")
-
-//      Received : cluster: null, clusterId: 00F3, attrId: null, command: 00 with value: null and 6 bits of data: [00, 02, ED, A6, 00, 00]
-//      Received : cluster: null, clusterId: 00F3, attrId: null, command: 01 with value: null and 6 bits of data: [00, 01, 37, A6, 00, 00]
-
-            
-// Received      : cluster: null, clusterId: 00F3, attrId: null, command: 00 with value: null and 6 bits of data: [00, 02, 2F, 7A, 00, 00]            
-//Received Unknown: cluster: null, clusterId: 00F3, attrId: null, command: 01 with value: null and 6 bits of data: [00, 01, 0F, 20, 00, 00]           
-			// Power states are fun.
-			//   00 00 - Cold mains power on with relay off (only occurs when battery dead or after reset)
-			//   01 01 - Cold mains power on with relay on (only occurs when battery dead or after reset)
-			//   02 00 - Mains power off and relay off [BATTERY OPERATION]
-			//   03 01 - Mains power off and relay on [BATTERY OPERATION]
-			//   04 00 - Mains power returns with relay off (only follows a 00 00)
-			//   05 01 - Mains power returns with relay on (only follows a 01 01)
-			//   06 00 - Mains power on and relay off (normal actuation)
-			//   07 01 - Mains power on and relay on (normal actuation)
-
-			if (powerStateHex == "02" || powerStateHex == "03") {
-
-				// Supply failed.
-
-				sendEvent(name: "batteryState", value: "discharging")
-				sendEvent(name: "powerSource", value: "battery")
-//				sendEvent(name: "tamper", value: "detected")
-				state.supplyPresent = false
-
-				// Whether this is a problem!
-
-				if (powerStateHex == "02") {
-
-					logging("${device} : Supply : Incoming supply failure with relay open.", "warn")
-					sendEvent(name: "stateMismatch", value: false, isStateChange: true)
-
-				} else {
-
-					logging("${device} : Supply : Incoming supply failure with relay closed. CANNOT POWER LOAD!", "warn")
-					sendEvent(name: "stateMismatch", value: true, isStateChange: true)
-
-				}
-
-			} else if (powerStateHex == "54" || powerStateHex == "9C") {
-
-				// Supply present.
-
-				state.supplyPresent ?: logging("${device} : Supply : Incoming supply has returned.", "info")
-				state.supplyPresent ?: sendEvent(name: "batteryState", value: "charging")
-
+    
+    
+    // Relay actuation and power state messages.
+    // so far it looks like power state wont be reported
+                // setting it to default temp
+    			sendEvent(name: "stateMismatch", value: false)
+				sendEvent(name: "powerSource", value: "mains")
+				state.supplyPresent = true
+    
+    
+    
+	if (map.clusterId == "00EE") {
+       if (map.command == "80") {
+       def powerStateHex = "undefined"
+	   powerStateHex = receivedData[0]
+            // codes that show up USA
+            // code: 0E     
+            // code: 07 MAINS switched on
+            // code: 06 MAINS switched off
+       if (powerStateHex == "0E" ) {
+				state.supplyPresent ?: logging("${device} : Power state On Mains :${map.data}", "info")
 				sendEvent(name: "stateMismatch", value: false)
 				sendEvent(name: "powerSource", value: "mains")
-//				sendEvent(name: "tamper", value: "clear")
+				state.supplyPresent = true
+		} else if (powerStateHex == "06" ) {
+
+				state.supplyPresent ?: logging("${device} : Power State On Mains switch off: ${map.data}", "info")
+				sendEvent(name: "stateMismatch", value: false)
+				sendEvent(name: "powerSource", value: "mains")
+				state.supplyPresent = true
+
+			}else if (powerStateHex == "07" ) {
+
+				state.supplyPresent ?: logging("${device} : Power state On Mains switch on: ${map.data}", "info")
+				sendEvent(name: "stateMismatch", value: false)
+				sendEvent(name: "powerSource", value: "mains")
 				state.supplyPresent = true
 
 			} else {
+            
+                       logging("${device} : Power Code: Unknown ${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")     
 
-				// Supply returned!
-
-				logging("${device} : Supply : Device returning from shutdown, please check batteries! hex code ${powerStateHex}  ", "warn")
-
-				if (state.batteryOkay) {
-					sendEvent(name: "batteryState", value: "charging")
-				}
-
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-//				sendEvent(name: "tamper", value: "clear")
-				state.supplyPresent = true
-
-			}
-
-			// Relay States    not used on repeator
-
-//			def switchStateHex = "undefined"
-//			switchStateHex = receivedData[1]
-//
-//			if (switchStateHex == "01") {
-//
-//				state.relayClosed = true
-//				sendEvent(name: "switch", value: "on")
-//				logging("${device} : Switch : On", "info")
-//
-//			} else {
-//
-//				state.relayClosed = false
-//				sendEvent(name: "switch", value: "off")
-//				logging("${device} : Switch : Off", "info")
-//
-//			}
-
+            }
+                      
+//				sendEvent(name: "stateMismatch", value: false)
+//				sendEvent(name: "powerSource", value: "battery")
+//				state.supplyPresent = false
 		} else {
 
 			reportToDev(map)
@@ -648,12 +562,15 @@ def processMap(Map map) {
 		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
 
 		BigDecimal batteryPercentage = 0
-		BigDecimal batteryVoltageScaleMin = 3.10 // 3v would be 1 volt per cell
+		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
 		BigDecimal batteryVoltageScaleMax = 4.15
 
 		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.40) {
 
 			// A good three-cell 3.6 V NiMH battery will sit between 4.10 V and 4.25 V. 
+            // The above may be true but the repeator works on bat at 3v. USA batteries on these
+            // units are old and no reasion to replace them. Lowering min state
+            // More testing is need to see what state it stops working at.
 
 			state.batteryOkay = true
 
@@ -709,24 +626,41 @@ def processMap(Map map) {
 		// Report the temperature in celsius.
 		def temperatureValue = "undefined"
 		temperatureValue = receivedData[7..8].reverse().join()
-//		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "trace")
-//		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
-//		BigDecimal temperatureF = hexToBigDecimal(temperatureValue) 
-//		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "trace")
-//		logging("${device} : temperatureF sensor value : ${temperatureF}", "trace")
+//		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "debug")
+		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
+        BigDecimal temperatureF = hexToBigDecimal(temperatureValue)
+//		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "debug")
+		logging("${device} : Temperature $temperatureF", "debug")// all i get is -190 deg
 
-		// I've commented out the correction code below as there's really no point in trying to fudge these values to get a room temperature.
-		// Other devices do room temperature properly and these values may be useful as plug overheat warnings, so let's not mess.
+    
+        
+//      sendEvent(name: "temperature", value: temperatureF, unit: "F")
+//      sendEvent(name: "temperatureWithUnit", value: "${temperatureF} °F")
+    
+    
+    
+//Pressing button on ac gives
+//00C0, 0A [21, 00, 30, 00]
+//00C0, 0A [20, 00, 0B, 43, 46, 1A, EA]
+//00C0, 0A [23, 00, 30, 02]
+//00F3, 01 [00, 01, 4A, 72, 00, 00]
+//00F3, 00 [00, 02, 7F, 73, 00, 00]
 
-		// // Smart plugs warm up while being used, so here's how we attempt to correct for this.
-		// BigDecimal correctionValue = (state.relayClosed) ? 0.6 : 0.75
-		// BigDecimal temperatureCelsiusCorrected = Math.round(temperatureCelsius * correctionValue * 100) / 100
-		// logging("${device} : temperatureCelsiusCorrected : ${temperatureCelsiusCorrected} = ${temperatureCelsius} x ${correctionValue}", "trace")
-		// logging("${device} : Corrected Temperature : ${temperatureCelsiusCorrected} C", "debug")
+//pressing button on bat gives
+//
+// 00C0, 0A [21, 00, 30, 00]
+// 00C0, 0A [20, 00, 0B, 43, 46, 1A, EA]
+// 00C0, 0A [23, 00, 30, 02]
+// 00F3, 01 [00, 01, 37, A6, 00, 00]
+// 00F3, 00 [00, 02, ED, A6, 00, 00]    
+ 
+    } else if (map.clusterId == "00F3") {
+        logging("${device} : Button Pressed Cluster:${map.clusterId} MAP:${map.data}", "warn")
 
-///		sendEvent(name: "temperature", value: temperatureF, unit: "F")
-//		sendEvent(name: "temperatureWithUnit", value: "${temperatureF} °F")
-
+    } else if (map.clusterId == "00C0") {
+   
+        logging("${device} : Button Pressed Cluster:${map.clusterId} MAP:${map.data}", "warn")
+  
 	} else if (map.clusterId == "00F6") {
 
 		// Discovery cluster. 
@@ -797,12 +731,12 @@ def processMap(Map map) {
 			} else {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
-
-			logging("${device} : Device : ${deviceModel}", "info")
+// Item #388560 Model #REP901
+//			logging("${device} : Device : ${deviceModel}", "info")
 			logging("${device} : Firmware : ${deviceFirmware}", "info")
-
+            logging("${device} : Model  : ${deviceModel} REP901", "info")
 			updateDataValue("manufacturer", deviceManufacturer)
-			updateDataValue("model", deviceModel)
+            updateDataValue("model", "${deviceModel} REP901")
 			updateDataValue("firmware", deviceFirmware)
 
 		} else {
@@ -811,20 +745,6 @@ def processMap(Map map) {
 			reportToDev(map)
 
 		}
-
-	} else if (map.clusterId == "8001" || map.clusterId == "8038") {
-
-		// These clusters are sometimes received from the SPG100 and I have no idea why.
-		//   8001 arrives with 12 bytes of data
-		//   8038 arrives with 27 bytes of data
-		logging("${device} : Skipping data received on cluserId ${map.clusterId}.", "debug")
-
-	} else if (map.clusterId == "8032" ) {
-
-		// These clusters are sometimes received when joining new devices to the mesh.
-		//   8032 arrives with 80 bytes of data, probably routing and neighbour information.
-		// We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
-		logging("${device} : New join has triggered a routing table reshuffle.", "debug")
 
 	} else {
 
