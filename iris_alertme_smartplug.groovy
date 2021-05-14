@@ -1,7 +1,7 @@
 /* Iris AlertMe Smart Plug 
 USA version  model# SPG800 FCC ID WJHSP11
 
-https://github.com/tmastersmart/hubitat-code/edit/main/iris_alertme_smartplug.groovy
+https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
 
    05/14/2021 v1.6 More power codes recorded firmware detection
