@@ -13,9 +13,6 @@
  https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
 
 
-So far the mains bat code doesnt work on this unit. 
-This driver still has some unused code that will be removed later
-
 
 You have to pair this as zigbee and then zwave.
 Hold down button while plugging in then press about 10 times to reset. Once flashing pair zigbee
