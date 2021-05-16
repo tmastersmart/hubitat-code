@@ -4,6 +4,9 @@
 
     v1.2 05/8/21  
 
+ REP901 has updates to zwave
+ REP800 has zwave problems. This is the version I have that drops off. I cant do anymore without a REP901
+ it looks like REP800 was a recalled version and zwave cant be used.
 
   Forked from:
 
