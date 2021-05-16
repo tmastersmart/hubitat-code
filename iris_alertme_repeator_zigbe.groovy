@@ -4,7 +4,7 @@
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 // need more info on 901 what is its firmware date
 
-
+    05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
     05/08/2021 v1.2
     04/04/2021 v1.1  
@@ -23,7 +23,20 @@ Then pair zwave exact zwave process is not clear try pairing before zigbee or af
 Zwave driver is required for zwave part.
 
 
-fingerprint model:"RepeaterPlug REP901", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00F3", outClusters:""
+fingerprint model:"RepeaterPlug", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00F3", outClusters:""
+
+Tested on  REP800 uses Firmware : 2013-09-26 
+
+REP901 is the new version Need firmware versions.
+
+
+version photos
+https://livingwithiris.com/2013/12/17/the-difference-inside-generation-1-and-2-range-extenders/#more-1188
+
+
+
+
+
 
  * using modified UK plug code
  * Forked from https://raw.githubusercontent.com/birdslikewires/hubitat/master/alertme/drivers/alertme_smartplug.groovy
@@ -59,7 +72,7 @@ metadata {
 		attribute "uptime", "string"
 		attribute "uptimeReadable", "string"
 
-		fingerprint profileId: "C216", inClusters: "00F0,00F3", outClusters: "", manufacturer: "AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
+		fingerprint profileId: "C216", inClusters: "00F0,00F3", outClusters: "", manufacturer: "Iris/AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
 		
 	}
 
@@ -735,8 +748,8 @@ def processMap(Map map) {
 
 			logging("${device} : device version received in ${versionInfoBlockCount} blocks : ${versionInfoDump}", "debug")
 
-			String deviceManufacturer = "AlertMe"
-			String deviceModel = ""
+			String deviceManufacturer = "Iris/AlertMe"
+			String deviceModel = "" // will say RepeaterPlug
 			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
 
 			// Sometimes the model name contains spaces.
@@ -745,15 +758,20 @@ def processMap(Map map) {
 			} else {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
-// Item #388560 Model #REP901 need more info on 901
-// REP800 uses Firmware : 2013-09-26
-            if (deviceFirmware == "2013-09-26") {deviceFirmware = "09-26-2013"}// proper USA date
+
+// Firmware : 09-26-2013 Model  : RepeaterPlug manufacturer Iris/AlertMe
+            deviceModel ="${deviceModel} REP901?"// Item #388560 Model #REP901 need firmware date on REP901
             
-//            logging("${device} : Device : ${deviceModel}", "info")
-			logging("${device} : Firmware : ${deviceFirmware}", "info")
-            logging("${device} : Model  : ${deviceModel} REP800", "info")
+            if (deviceFirmware == "2013-09-26") {
+                deviceFirmware = "09-26-2013"
+                deviceModel = "REP800"
+            }// REP800 uses Firmware : 2013-09-26  Old version
+            
+            
+            logging("${device}: Firmware: ${deviceFirmware} Model: ${deviceModel} manufacturer: ${deviceManufacturer}", "info")
+
 			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", "${deviceModel} REP800")
+            updateDataValue("model", deviceModel)
 			updateDataValue("firmware", deviceFirmware)
 
 		} else {
