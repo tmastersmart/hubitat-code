@@ -3,7 +3,8 @@ USA version  model# SPG800 FCC ID WJHSP11
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
-
+   
+   05/16/2021 v1.7 logging cleanup
    05/14/2021 v1.6 More power codes recorded firmware detection
 
 
@@ -644,9 +645,9 @@ def processMap(Map map) {
 			reportToDev(map)
 
 		}
-//8001
+//8001  It does this when another smart plug is reconnected. Some type of reaction to power up
    	} else if (map.clusterId == "8001") {
-          logging("${device} : Unknown. Reacting to Another smartplug", "trace")	     
+          logging("${device} : Unknown. Communicating with another Smartplug. ${map.clusterId} MAP:${map.data}", "info")	     
         
         
 } else if (map.clusterId == "00F0") {
@@ -675,13 +676,14 @@ def processMap(Map map) {
 			lqiRangingHex = receivedData[0]
 			lqiRanging = zigbee.convertHexToInt(lqiRangingHex)
 			sendEvent(name: "lqi", value: lqiRanging)
-			logging("${device} : lqiRanging : ${lqiRanging}", "debug")
-
+		logging("${device} : Ranging lqi:${lqiRanging} ", "debug")
+//            logging("${device} : lqi:${lqiRanging} ", "info")
 			if (receivedData[1] == "77") {
 				// This is ranging mode, which must be temporary. Make sure we come out of it.
 				state.rangingPulses++
 				if (state.rangingPulses > 30) {
 					"${state.operatingMode}Mode"()
+                    logging("${device} : Ranging Pulse: ${state.rangingPulse}. To Long Stopping", "warn")
 				}
 
 			} else if (receivedData[1] == "FF") {
@@ -693,7 +695,7 @@ def processMap(Map map) {
 
 				// This is the ranging report received when the device reboots.
 				// After rebooting a refresh is required to bring back remote control.
-				logging("${device} : reboot ranging report received", "debug")
+				logging("${device} : reboot ranging report received", "warn")
 				refresh()
 
 			} else {
@@ -719,10 +721,10 @@ def processMap(Map map) {
 			int versionInfoBlockCount = versionInfoBlocks.size()
 			String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
 
-			logging("${device} : device version received in ${versionInfoBlockCount} blocks : ${versionInfoDump}", "debug")
+			logging("${device} : device version received in ${versionInfoBlockCount}", "debug")
 
-			String deviceManufacturer = "AlertMe"
-			String deviceModel = ""
+			String deviceManufacturer = "Iris/AlertMe" // Is this not stored in the device?
+			String deviceModel = "" 
 			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
 
 			// Sometimes the model name contains spaces.
@@ -732,16 +734,16 @@ def processMap(Map map) {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
 
-//firmware: 2012-09-20 Problem
-//firmware: 2013-09-26 OK 
-          
+//firmware: 2012-09-20 Has Problems
+            
+            if (deviceModel  == "SmartPlug2.5") {deviceModel = "SPG800"}// SmartPlug2.5 is the USA model SPG800
             if (deviceFirmware == "2012-09-20") {deviceFirmware = "09-20-2012 Old"}// Older version
             if (deviceFirmware == "2013-09-26") {deviceFirmware = "09-26-2013 Current"}// last version
-            
-			logging("${device} : Firmware : ${deviceFirmware}", "info")
-            logging("${device} : Model  : ${deviceModel} SPG800", "info")
-			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", "${deviceModel} SPG800")
+           
+            logging("${device}: Firmware:${deviceFirmware} Model:${deviceModel} Manufacturer:${deviceManufacturer}", "info")
+			
+            updateDataValue("manufacturer", deviceManufacturer)
+            updateDataValue("model", "${deviceModel}")
 			updateDataValue("firmware", deviceFirmware)
             
             
