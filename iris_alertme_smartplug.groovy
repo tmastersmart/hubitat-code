@@ -1,35 +1,25 @@
 /* Iris AlertMe Smart Plug 
 USA version  model# SPG800 FCC ID WJHSP11
 
+
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
    
-   05/16/2021 v1.7 logging cleanup
-   05/14/2021 v1.6 More power codes recorded firmware detection
+ * 05/16/2021 v1.7 
+ * 04/11/2021 v1   Release
 
 
-   05/11/2021 v1.5 More power testing
- * 05/05/2021 v1.4 Power recovered detection adjusted
- * 05/05/2021 v1.3 Power recovered detection adjusted
- * 05/04/2021 v1.2   
- * 04/11/2021 v1
- *fingerprint model:"SmartPlug2.5", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00EF,00EE", outClusters:""
+  tested on:
+ firmware: 2012-09-20 Problems
+  trying to debug device dropping off,flashing Then sending 0006 and 0013 clusters
 
- tested on Iris Plug with Firmware : 2013-09-26
+ firmware: 2013-09-26 OK 
+ endpointId: 02 profileId: C216 inClusters: 00F0,00EF,00EE
 
-//firmware: 2012-09-20 Problems
-//endpointId: 02 
-//trying to debug device dropping off,flashing Then sending 0006 and 0013 clusters
-//Some plugs give bat report
-//some may report 12.795v bat voltage
-//
-//
-//firmware: 2013-09-26 OK 
-//endpointId: 02 profileId: C216 inClusters: 00F0,00EF,00EE
+ fingerprint model:"SmartPlug2.5", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00EF,00EE", outClusters:""
 
 
-
-
+Hold down button while plugging in to factory reset. Should start double flashing
 
 
 
