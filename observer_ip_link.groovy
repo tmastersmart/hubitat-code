@@ -3,6 +3,9 @@
 Ambent weather station driver for MMPWS scripts
 
 http://pws.winnfreenet.com get script
+https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
+
+
 
 Script reads from station and post to hub localy
 with no need to pull data from the Ambent Weather
