@@ -1,16 +1,20 @@
-/*Ambent weather station driver for MMPWS scripts
+/*Observer IP link
+
+Ambent weather station driver for MMPWS scripts
 
 http://pws.winnfreenet.com get script
 
 Script reads from station and post to hub localy
 with no need to pull data from the Ambent Weather
+This id the drive that the script post to. Also need
+Maker installed and setup.
 
 v1 beta   05/25/2021
 
 */
 
 metadata {
-    definition (name: "PWS Local Weather Station", namespace: "tmastersmart", author: "tmaster",importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
+    definition (name: "PWS Local Weather Station", namespace: "tmastersmart", author: "tmaster",importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/observer_ip_link.groovy") {
 
         capability "Illuminance Measurement"
         capability "Relative Humidity Measurement"
