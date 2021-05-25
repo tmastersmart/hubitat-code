@@ -10,7 +10,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
 Script reads from station and post to hub localy
 with no need to pull data from the Ambent Weather
 This id the drive that the script post to. Also need
-Maker installed and setup.
+Maker API installed and setup.
 
 v1 beta   05/25/2021
 
