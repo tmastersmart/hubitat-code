@@ -2,7 +2,9 @@
 
 Ambent weather station driver for MMPWS scripts
 
-http://pws.winnfreenet.com get script
+Compatible with: WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
+
+http://pws.winnfreenet.com get script here
 https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
 
 SolarRad must be set to W/m2 on station. 
