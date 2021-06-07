@@ -5,22 +5,26 @@ Ambent weather station driver for MMPWS scripts
 http://pws.winnfreenet.com get script
 https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
 
+SolarRad must be set to W/m2 on station. 
 
 
 Script reads from station and post to hub localy
 with no need to pull data from the Ambent Weather
 
-This is the driver that the script post to.
+This is the driver that the script will post to.
 Also need Maker API installed and setup.
 
-The script needs this device ID the device ID of the maker API and the Token
+Create a Outdoor and indoor sensor using this driver
+Give permission in the API maker then enter the 
+ID #s for the sensors and API in the script.
 
-v1 beta   05/25/2021
 
+v1.2 beta   06/02/2021
+v1.3        06/07/2021
 */
 
 metadata {
-    definition (name: "PWS Local Weather Station", namespace: "tmastersmart", author: "tmaster",importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/observer_ip_link.groovy") {
+    definition (name: "PWS Observer IP Link", namespace: "tmastersmart", author: "tmaster",importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/observer_ip_link.groovy") {
 
         capability "Illuminance Measurement"
         capability "Relative Humidity Measurement"
@@ -31,8 +35,13 @@ metadata {
         capability "Battery"
         capability "Motion Sensor"
         capability "Power Meter"
+        capability "PowerMeter"
+        capability "EnergyMeter"
         capability "Energy Meter"
         
+        command "setModel", ["Number"]
+        command "setVersion", ["Number"]
+        command "setAgent", ["Number"]
         command "setBattery", ["Number"]
         command "setIlluminance", ["Number"]
         command "setRelativeHumidity", ["Number"]
@@ -46,8 +55,11 @@ metadata {
         command "setPWSDate", ["Number"]
         command "setDew", ["Number"]  
         command "wet"
-        command "dry"        
-
+        command "dry" 
+        command "initialize" 
+        command "setUVI", ["Number"]
+        command "setRAD", ["Number"]
+                           
         attribute "windDirection", "number"     //Hubitat  OpenWeather
         attribute "windSpeed", "number"         //Hubitat  OpenWeather
         attribute "wind_cardinal", "string"
@@ -57,6 +69,7 @@ metadata {
         attribute "PWSDate", "Number"
         attribute "Dew", "Number"
         attribute "Battery", "Number"
+        attribute "uvi", "Number"
     }
     preferences {
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
@@ -71,19 +84,18 @@ def logsOff(){
 
 def installed() {
     log.warn "installed..."
-   /* arrived()
-    accelerationInactive()
-    COClear()
-    close()
-    setIlluminance(50)
-    setCarbonDioxide(350)
-    setRelativeHumidity(35)
-    motionInactive()
-    smokeClear()
-    setTemperature(70)
-    dry()*/
     runIn(1800,logsOff)
+    updateDataValue("manufacturer", "Ambent Weather")
+    updateDataValue("model", "Observer IP")
+    updateDataValue("firmware", "Observer IP")
 }
+
+def initialize() {
+    updateDataValue("manufacturer", "Ambent Weather")
+    updateDataValue("model", "Observer IP")
+	updateDataValue("firmware", "Observer IP")
+}
+    
 
 def updated() {
     log.info "updated..."
@@ -101,6 +113,26 @@ def setBattery(battery) {
     if (txtEnable) log.info "${descriptionText}"
     sendEvent(name: "battery", value: battery, descriptionText: descriptionText, unit: "%")
 }
+def setVersion(version) {
+    def descriptionText = "${device.displayName} Firmware is ${version} "
+//    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("firmware", version)
+//    sendEvent(name: "firmware", value: version, descriptionText: descriptionText, unit: "")
+}
+
+def setModel(version) {
+    def descriptionText = "${device.displayName} Model is ${version} "
+//    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("model", version)
+//    sendEvent(name: "firmware", value: version, descriptionText: descriptionText, unit: "")
+}
+
+def setAgent(agent) {
+    def descriptionText = "${device.displayName} Software is ${agent} "
+//    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("agent", agent)
+//  This is the version of MMPWS running on another PC
+}
 
 
 def setIlluminance(lux) {
@@ -109,6 +141,18 @@ def setIlluminance(lux) {
     sendEvent(name: "illuminance", value: lux, descriptionText: descriptionText, unit: "Lux")
 }
 
+def setUVI(uvi) {
+    def descriptionText = "${device.displayName} UVI Index is ${uvi} "
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "ultraviolet", value: uvi, descriptionText: descriptionText, unit: "uvi")
+}
+def setRAD(solarrad) {
+    def descriptionText = "${device.displayName} Solar Rad is ${solarrad} "
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "solarrad", value: solarrad, descriptionText: descriptionText, unit: "wm2")
+	sendEvent(name: "energy", value: solarrad, unit: "wm2")
+    sendEvent(name: "power", value: solarrad, unit: "wm2")
+}
 
 
 def setRelativeHumidity(humid) {
@@ -164,7 +208,7 @@ def setGust(Gust) {
 def setPWSDate(PWSDate) {
     def descriptionText = "${device.displayName}  Date is ${PWSDate}"
     if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "PWSDate", value: PWSDate, descriptionText: descriptionText, unit: "Date")
+    sendEvent(name: "PWSDate", value: PWSDate, descriptionText: descriptionText, unit: "")
 }
 def setDew(Dew) {
     def descriptionText = "${device.displayName}  Dewpoint is ${Dew}"
