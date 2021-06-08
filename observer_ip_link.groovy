@@ -23,6 +23,7 @@ ID #s for the sensors and API in the script.
 
 v1.2 beta   06/02/2021
 v1.3        06/07/2021
+v1.4        
 */
 
 metadata {
@@ -41,37 +42,65 @@ metadata {
         capability "EnergyMeter"
         capability "Energy Meter"
         
-        command "setModel", ["Number"]
-        command "setVersion", ["Number"]
-        command "setAgent", ["Number"]
+        
+        command "setWeather",["string"]
+        command "setModel", ["string"]
+        command "setVersion", ["string"]
+        command "setAgent", ["string"]
         command "setBattery", ["Number"]
         command "setIlluminance", ["Number"]
         command "setRelativeHumidity", ["Number"]
         command "setTemperature", ["Number"]
         command "setPressure", ["Number"]
-        command "setRain", ["Number"]
+        command "setAltemeter", ["Number"]
+        command "setRainR", ["Number"]
+        command "setRainD", ["Number"]
+        command "setRainH", ["Number"]
+        command "setRainM", ["Number"]
+        command "setRainY", ["Number"]
+        command "setRain24", ["Number"]
         command "setWind", ["Number"]
         command "setWindDirection", ["Number"]
         command "setWind_cardinal", ["Number"]
         command "setGust", ["Number"]
+        command "setDGust", ["Number"]
         command "setPWSDate", ["Number"]
         command "setDew", ["Number"]  
         command "wet"
-        command "dry" 
+        command "dry"
         command "initialize" 
         command "setUVI", ["Number"]
         command "setRAD", ["Number"]
                            
+        attribute "Agent", "string"
+        attribute "Model", "string"
+        attribute "Version", "string"
+		attribute "Rain", "Number"       
+        attribute "RainDaily", "Number"
+        attribute "RainRate", "Number"
+        attribute "RainHour", "Number"
+        attribute "RainMonth", "Number"
+        attribute "RainYear", "Number"
+        attribute "Rain24", "Number"
+        attribute "Wind", "Number"   
         attribute "windDirection", "number"     //Hubitat  OpenWeather
         attribute "windSpeed", "number"         //Hubitat  OpenWeather
-        attribute "wind_cardinal", "string"
-		attribute "Rain", "Number"
-        attribute "Wind", "Number"
+        attribute "WindDGust", "string"
+        attribute "WindGust", "string"
+        attribute "Altemeter", "string"
+        attribute "Pressure", "string"
+        attribute "Temperature", "string"
+        attribute "RelativeHumidity", "string"
+        attribute "humidity", "string"
         attribute "Gust", "Number"
         attribute "PWSDate", "Number"
         attribute "Dew", "Number"
         attribute "Battery", "Number"
         attribute "uvi", "Number"
+        attribute "RAD", "Number"
+        
+
+      
     }
     preferences {
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
@@ -136,7 +165,11 @@ def setAgent(agent) {
 //  This is the version of MMPWS running on another PC
 }
 
-
+def setWeather(weather) {
+    def descriptionText = "${device.displayName} Weather status ${weather}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "weather", value: weather, descriptionText: descriptionText, unit: "text")
+}
 def setIlluminance(lux) {
     def descriptionText = "${device.displayName} Illuminance is ${lux} lux"
     if (txtEnable) log.info "${descriptionText}"
@@ -171,28 +204,72 @@ def setTemperature(temp) {
 }
 
 def setPressure(Pressure) {
-    def descriptionText = "${device.displayName}  Pressure is ${Pressure}"
+    def descriptionText = "${device.displayName}  Relative Pressure in inga is ${Pressure}"
     if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "pressure", value: Pressure, descriptionText: descriptionText, unit: "mbar")
+    sendEvent(name: "pressure", value: Pressure, descriptionText: descriptionText, unit: "inga")
 }
 
-def setRain(Rain) {
-    def descriptionText = "${device.displayName}  Rain is ${Rain}"
+def setAltemeter(Altemeter) {
+    def descriptionText = "${device.displayName}  Altemeter in Mbar is ${Altemeter}"
     if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "Altemeter", value: Altemeter, descriptionText: descriptionText, unit: "mbar")
+}
+def setRainR(Rain) {
+    def descriptionText = "${device.displayName}  Rain Rate is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "RainRate", value: Rain, descriptionText: descriptionText, unit: "Inches")
+}
+def setRainD(Rain) {
+    def descriptionText = "${device.displayName}  Daily Rain is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "RainDaily", value: Rain, descriptionText: descriptionText, unit: "Inches")
     sendEvent(name: "Rain", value: Rain, descriptionText: descriptionText, unit: "Inches")
+
+}
+def setRainH(Rain) {
+    def descriptionText = "${device.displayName}  Hourly Rain is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "RainHour", value: Rain, descriptionText: descriptionText, unit: "Inches")
+}
+def setRainM(Rain) {
+    def descriptionText = "${device.displayName}  Monthly is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "RainMonth", value: Rain, descriptionText: descriptionText, unit: "Inches")
+}
+def setRainY(Rain) {
+    def descriptionText = "${device.displayName}  Yearly Rain is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}'"
+    sendEvent(name: "RainYear", value: Rain, descriptionText: descriptionText, unit: "Inches")
+}
+
+def setRain24(Rain) {
+    def descriptionText = "${device.displayName}  Last 24 Hrs Rain is ${Rain}"
+    if (txtEnable) log.info "${descriptionText}'"
+    sendEvent(name: "Rain24", value: Rain, descriptionText: descriptionText, unit: "Inches")
 }
 
 def setWind(Wind) {
-    def descriptionText = "${device.displayName}  Wind is ${Wind}"
+    def descriptionText = "${device.displayName}  Current Wind is ${Wind}"
     if (txtEnable) log.info "${descriptionText}"
     sendEvent(name: "Wind", value: Wind, descriptionText: descriptionText, unit: "mph")
     sendEvent(name: "windSpeed", value: Wind, descriptionText: descriptionText, unit: "mph")
+}
+def setGust(Gust) {
+    def descriptionText = "${device.displayName}  Wind Gusting at ${Gust}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "WindGust", value: Gust, descriptionText: descriptionText, unit: "mph")
+}
+
+def setDGust(Gust) {
+    def descriptionText = "${device.displayName}  Daily Wind Gust is ${Gust}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "WindDGust", value: Gust, descriptionText: descriptionText, unit: "mph")
 }
 
 def setWindDirection(windDirection) {
     def descriptionText = "${device.displayName}  Wind Direction is ${windDirection}"
     if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "windDirection", value: windDirection, descriptionText: descriptionText, unit: "mph")
+    sendEvent(name: "windDirection", value: windDirection, descriptionText: descriptionText, unit: "dir")
 }
 def setWind_cardinal(wind_cardinal) {
     def descriptionText = "${device.displayName}  Wind cardinal is ${wind_cardinal}"
@@ -202,11 +279,7 @@ def setWind_cardinal(wind_cardinal) {
 
 
 
-def setGust(Gust) {
-    def descriptionText = "${device.displayName}  Wind Gust is ${Gust}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "Gust", value: Gust, descriptionText: descriptionText, unit: "mph")
-}
+
 def setPWSDate(PWSDate) {
     def descriptionText = "${device.displayName}  Date is ${PWSDate}"
     if (txtEnable) log.info "${descriptionText}"
