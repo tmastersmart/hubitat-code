@@ -587,7 +587,7 @@ def processMap(Map map) {
 			powerValueHex = receivedData[0..1].reverse().join()
 			logging("${device} : power byte flipped : ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
-			logging("${device} : Current Power: ${powerValue} Watts", "info")
+			logging("${device} : Current Power: ${powerValue} Watts", "debug")
 
 			sendEvent(name: "power", value: powerValue, unit: "W")
 			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
@@ -608,7 +608,7 @@ def processMap(Map map) {
 			BigDecimal energyValueDecimal = BigDecimal.valueOf(energyValue / 3600 / 1000)
 			energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
 
-			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "info")
+			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "debug")
 
 			sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh")
 			sendEvent(name: "energyWithUnit", value: "${energyValueDecimal} kWh")
