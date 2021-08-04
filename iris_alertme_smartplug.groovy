@@ -5,6 +5,7 @@ USA version  model# SPG800 FCC ID WJHSP11
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
    
+ * 08/04/2021 v1.8  Better logging on energy totals
  * 05/16/2021 v1.7 
  * 04/11/2021 v1   Release
 
@@ -586,7 +587,7 @@ def processMap(Map map) {
 			powerValueHex = receivedData[0..1].reverse().join()
 			logging("${device} : power byte flipped : ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
-			logging("${device} : power sensor reports : ${powerValue}", "debug")
+			logging("${device} : Current Power: ${powerValue} Watts", "info")
 
 			sendEvent(name: "power", value: powerValue, unit: "W")
 			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
@@ -607,7 +608,7 @@ def processMap(Map map) {
 			BigDecimal energyValueDecimal = BigDecimal.valueOf(energyValue / 3600 / 1000)
 			energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
 
-			logging("${device} : Energy : ${energyValueDecimal} kWh", "info")
+			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "info")
 
 			sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh")
 			sendEvent(name: "energyWithUnit", value: "${energyValueDecimal} kWh")
