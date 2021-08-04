@@ -4,25 +4,28 @@ USA version  model# SPG800 FCC ID WJHSP11
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
-   
- * 08/04/2021 v1.8  Better logging on energy totals
+ 
+ * 08/05/2021 v1.9  Cleanup on logging power states  removal of unneeded info
+ * 08/04/2021 v1.8.2 Better logging on energy total cleanup
  * 05/16/2021 v1.7 
  * 04/11/2021 v1   Release
 
 
   tested on:
- firmware: 2012-09-20 Problems
-  trying to debug device dropping off,flashing Then sending 0006 and 0013 clusters
-
+ firmware: 2012-09-20 Problems device dropping off,flashing Then sending 0006 and 0013 clusters
  firmware: 2013-09-26 OK 
- endpointId: 02 profileId: C216 inClusters: 00F0,00EF,00EE
+
+ Please report other firmware versions           
+ 
 
  fingerprint model:"SmartPlug2.5", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00EF,00EE", outClusters:""
 
 
 Hold down button while plugging in to factory reset. Should start double flashing
 
-
+Energy is total since start
+Power  is current watts
+Battery USA model has no battery but still reports 12 volts. 
 
  * orginal by 
  * name: "AlertMe Smart Plug" 
@@ -39,7 +42,7 @@ Hold down button while plugging in to factory reset. Should start double flashin
 metadata {
 	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
 
-
+        capability "Battery"
 		capability "Actuator"
 		capability "Configuration"
 		capability "EnergyMeter"
@@ -63,10 +66,10 @@ metadata {
 		//attribute "batteryVoltage", "string"
 		//attribute "batteryVoltageWithUnit", "string"
 		//attribute "batteryWithUnit", "string"
-		attribute "energyWithUnit", "string"
+//		attribute "energyWithUnit", "string"
 		attribute "mode", "string"
-		attribute "powerWithUnit", "string"
-		attribute "stateMismatch", "boolean"
+		attribute "power", "string"
+//		attribute "stateMismatch", "boolean"
 //		attribute "temperatureWithUnit", "string"
 		attribute "uptime", "string"
 		attribute "uptimeReadable", "string"
@@ -108,14 +111,14 @@ def initialize() {
 
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
+//	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "lqi", value: 0)
 	sendEvent(name: "operation", value: "unknown", isStateChange: false)
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
 	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
-	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
+//	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "presence", value: "not present")
-	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
+//	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
 	sendEvent(name: "switch", value: "unknown")
 //	sendEvent(name: "temperature", value: 0, unit: "F", isStateChange: false)
 //	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
@@ -123,15 +126,16 @@ def initialize() {
 	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
 
 	// Remove disused state variables from earlier versions.
-	state.remove("temperature")
+	state.remove("powerWithUnit")
+    state.remove("energyWithUnit")
+    state.remove("temperature")
 	state.remove("temperatureWithUnit")	
-	state.remove("battery")
 	state.remove("batteryState")
-	state.remove("batteryVoltage")
 	state.remove("batteryVoltageWithUnit")
 	state.remove("batteryWithUnit")
 	state.remove("supplyPresent")
-
+	state.remove("stateMismatch")
+    
 	// Remove unnecessary device details.
 	removeDataValue("application")
 
@@ -290,10 +294,10 @@ def quietMode() {
 	// We don't receive any of these in quiet mode, so reset them.
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
+//	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "operation", value: "quiet")
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
-	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
+//	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
 	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
 //	sendEvent(name: "temperature", value: 0, unit: "F", isStateChange: false)
@@ -451,7 +455,13 @@ def processMap(Map map) {
 	if (map.clusterId == "00EE") {
        if (map.command == "80") {
        def powerStateHex = "undefined"
+       def powerStateDisplay = "undefined"    
 	   powerStateHex = receivedData[0]
+       // we dont have a battery we are always on mains
+       sendEvent(name: "powerSource", value: "mains") 
+//       state.supplyPresent = true
+//      sendEvent(name: "stateMismatch", value: false) // whats this for remove it  
+            // cleanup logging power states.   More info needed on codes
             // State:09  MAP:[09, 01] 
             // State:0F  MAP:[0F, 01] button press
             // State:08  MAP:[08, 00] plugged in
@@ -463,83 +473,19 @@ def processMap(Map map) {
             // code: 0E     
             // code: 07 MAINS switched on
             // code: 06 MAINS switched off
-       if (powerStateHex == "0E" ) {
-				state.supplyPresent ?: logging("${device} : Power state:${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-       } else if (powerStateHex == "0B" ) {
-
-				state.supplyPresent ?: logging("${device} : Joining ?: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true   
+//       if (powerStateHex == "0E" ) {powerStateDisplay="Power state"}
+       if (powerStateHex == "0B" ) {powerStateDisplay="Joining"}
+//       if (powerStateHex == "09" ) {powerStateDisplay="Power state"}
+       if (powerStateHex == "0C" ) {powerStateDisplay="Power Restored"}
+       if (powerStateHex == "08" ) {powerStateDisplay="Power Restored"}
+       if (powerStateHex == "0A" ) {powerStateDisplay="Button Pressed"}
+       if (powerStateHex == "0F" ) {powerStateDisplay="Button Pressed"}
+       if (powerStateHex == "0D" ) {powerStateDisplay="Button Pressed"}
+       if (powerStateHex == "06" ) {powerStateDisplay="Last Power restore memory was :OFF"}
+       if (powerStateHex == "07" ) {powerStateDisplay="Last Power restore memory was :ON"}
            
-           
-           
-       } else if (powerStateHex == "09" ) {
-
-				state.supplyPresent ?: logging("${device} : Power code 09: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true   
-           
-       } else if (powerStateHex == "0C" ) {
-
-				state.supplyPresent ?: logging("${device} : Power Restored: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true    
-
-       } else if (powerStateHex == "08" ) {
-
-				state.supplyPresent ?: logging("${device} : Power Restored: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true    
-       } else if (powerStateHex == "0A" ) {
-
-				state.supplyPresent ?: logging("${device} : Button Pressed. ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true    
-       
-       } else if (powerStateHex == "0F" ) {
-
-				state.supplyPresent ?: logging("${device} : Button Pressed ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true    
-           
-		} else if (powerStateHex == "0D" ) {
-
-				state.supplyPresent ?: logging("${device} : Button Pressed ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true    
-           
-           
-           
-       
-       } else if (powerStateHex == "06" ) {
-
-				state.supplyPresent ?: logging("${device} : Power restored in :off ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-
-		}else if (powerStateHex == "07" ) {
-
-				state.supplyPresent ?: logging("${device} : Power restored in :on ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-
-			} else { 
-            
-                       logging("${device} : Power Code: Unknown ${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")     
-
-            }
+        logging("${device} : ${powerStateDisplay} :${map.data}", "debug")
+}     
                       
 //				sendEvent(name: "stateMismatch", value: false)
 //				sendEvent(name: "powerSource", value: "battery")
@@ -556,23 +502,21 @@ def processMap(Map map) {
 
 				state.relayClosed = true
 				sendEvent(name: "switch", value: "on")
-				logging("${device} : Switch : On", "info")
+				logging("${device} : Switch : ON", "info")
 
 			} else {
 
 				state.relayClosed = false
 				sendEvent(name: "switch", value: "off")
 				logging("${device} : Switch : Off", "info")
-
 			}
+}
 
-		} else {
 
-			reportToDev(map)
 
-		}
+	 
 
-	} else if (map.clusterId == "00EF") {
+else if (map.clusterId == "00EF") {
 
 		// Power and energy messages.
 
@@ -590,7 +534,7 @@ def processMap(Map map) {
 			logging("${device} : Current Power: ${powerValue} Watts", "debug")
 
 			sendEvent(name: "power", value: powerValue, unit: "W")
-			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
+//			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
 
 		} else if (map.command == "82") {
 
@@ -611,7 +555,7 @@ def processMap(Map map) {
 			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "debug")
 
 			sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh")
-			sendEvent(name: "energyWithUnit", value: "${energyValueDecimal} kWh")
+//			sendEvent(name: "energyWithUnit", value: "${energyValueDecimal} kWh")
 
 			// Uptime
 
@@ -642,7 +586,7 @@ def processMap(Map map) {
         
         
 } else if (map.clusterId == "00F0") {
-		// These devices have no bat but some report voltage  12v-30v
+
         // record voltage for testing
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
@@ -650,10 +594,13 @@ def processMap(Map map) {
 		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
         batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-		logging("${device} : Voltage: ${batteryVoltage}", "debug")
-		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+		logging("${device} : Voltage: ${batteryVoltage} Battery 100%", "debug")
+		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")// 12v but some report 30v ?
+        sendEvent(name: "battery", value: 100, unit: "%")
 //		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
-		// Doesnt have temp sensor will report -190 or 0 buit never valid 
+
+        
+        // Temp sensor removed data does not make sence. No temp sensor?
 
     
     
@@ -726,6 +673,7 @@ def processMap(Map map) {
 			}
 
 //firmware: 2012-09-20 Has Problems
+// Please report other firmware versions and any problems it has.            
             
             if (deviceModel  == "SmartPlug2.5") {deviceModel = "SPG800"}// SmartPlug2.5 is the USA model SPG800
             if (deviceFirmware == "2012-09-20") {deviceFirmware = "09-20-2012 Old"}// Older version
@@ -756,16 +704,13 @@ def processMap(Map map) {
 		logging("${device} : New join has triggered a routing table reshuffle.", "debug")
 
        } else  if (map.clusterId == "0006") {
-        logging("${device} : Flashing light error: ${map.clusterId} :${map.data}", "info")
-        logging("${device} : This is a join error of some type. Divice needs to be reset and rejoined with internal v1 driver. Device is having trouble rejoining. ", "info")
+        logging("${device} : Flashing light error: ${map.clusterId} :${map.data}", "warn")
+        logging("${device} : This is a join error of some type. Divice needs to be reset and rejoined with internal v1 driver. Device is having trouble rejoining. ", "warn")
         } else if  (map.clusterId == "0013") {
-        logging("${device} : Flashing light error: ${map.clusterId} :${map.data}", "info")
-        logging("${device} : Bad device? ", "info")
-    
-    
-    
-    } else {
-   //	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+        logging("${device} : Flashing light error: (bad unit?) ${map.clusterId} :${map.data}", "warn")
+    }
+    else {
+   	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
   // Not a clue what we've received.
 		reportToDev(map)
 
