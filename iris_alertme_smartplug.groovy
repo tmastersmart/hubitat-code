@@ -4,8 +4,8 @@ USA version  model# SPG800 FCC ID WJHSP11
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
- 
- * 08/05/2021 v1.9  Cleanup on logging power states  removal of unneeded info
+
+ * 08/05/2021 v2.0  Cleanup on logging power states  removal of unneeded info
  * 08/04/2021 v1.8.2 Better logging on energy total cleanup
  * 05/16/2021 v1.7 
  * 04/11/2021 v1   Release
@@ -135,7 +135,8 @@ def initialize() {
 	state.remove("batteryWithUnit")
 	state.remove("supplyPresent")
 	state.remove("stateMismatch")
-    
+
+    state.remove("batteryOkay")
 	// Remove unnecessary device details.
 	removeDataValue("application")
 
@@ -502,7 +503,7 @@ def processMap(Map map) {
 
 				state.relayClosed = true
 				sendEvent(name: "switch", value: "on")
-				logging("${device} : Switch : ON", "info")
+                logging("${device} : Switch : ON ${state.power} Watts", "info")
 
 			} else {
 
@@ -532,7 +533,7 @@ else if (map.clusterId == "00EF") {
 			logging("${device} : power byte flipped : ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
 			logging("${device} : Current Power: ${powerValue} Watts", "debug")
-
+            state.power = powerValue
 			sendEvent(name: "power", value: powerValue, unit: "W")
 //			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
 
@@ -600,8 +601,18 @@ else if (map.clusterId == "00EF") {
 //		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
 
         
-        // Temp sensor removed data does not make sence. No temp sensor?
-
+        // Temp sensor data does not make sence. Just for testing
+        // what i get is 7780 /16 = -8 deg 
+        // (I dont think this has a temp sensor I think this field is something else)
+    logging("${device} : Bat Volt Temp [00F0]  MAP:${map.data}", "trace")	     
+        // Report the temperature in celsius.
+//		def temperatureValue = "undefined"
+//		temperatureValue = receivedData[7..8].reverse().join()
+//		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "trace")
+//		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) /16 
+//		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "info")
+//		sendEvent(name: "temperature", value: temperatureCelsius, unit: "C")
+ 
     
     
     
