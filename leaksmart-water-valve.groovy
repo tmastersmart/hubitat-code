@@ -1,14 +1,20 @@
 /**
  * Hubitat LeakSmart/Iris Water Valve with battery detection
    ported to hubitat by tmastersmart
-   https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy
- 
+
+
+
+
+   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
    https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
+
  *
  *    
  *  
  *  Capabilities:Configuration, Refresh, Switch, Valve, Polling
  *  Changelog:
+     2.1 08/07/2021   Changed logging on battery
+     
      2.1 05/03/2012 
          Fixed log reports
 
@@ -70,9 +76,10 @@ metadata {
 		capability "Switch"
 		capability "Valve"
 		capability "Polling"
-
+        
 		attribute "lastPoll", "number"	
-		
+		attribute "batteryVoltage", "string"
+        
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve" //leakSMART Valve
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve" //Waxman House Water Valve
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve"
@@ -100,12 +107,13 @@ def parse(String description) {
 	def result = []
 	def evt = zigbee.getEvent(description)
 	if (evt) {
-//        logDebug "${device} :Received Event: $evt"
+        logDebug "${device} :Received Event: ${evt.name} ${evt}"
 		if (evt.name == "switch") {
 			def val = (evt.value == "on") ? "open" : "closed"
-			logDebug "${device}: Valve:$val Contact:$val Switch:$evt.value"
+//			logDebug "${device}: Valve:$val Contact:$val Switch:$evt.value"
 			result << createEvent(name: "contact", value: val)
 			result << createEvent(name: "valve", value: val)
+            log.info "${device}: Valve ${val}"
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
 			result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
 		}
@@ -118,8 +126,14 @@ def parse(String description) {
 	        def batteryPercentages = (volts - minVolts ) / (maxVolts - minVolts)	
             def batteryLevel = (int) batteryPercentages * 100
             if (batteryLevel > 100) {batteryLevel​ = 100}
-            if (batteryLevel < 1) {batteryLevel​ = 0}            
-            logDebug "${device}: Battery ${batteryLevel}% $volts v"
+               
+            if (batteryLevel < 90) { 
+               log.warn "${device}: Unplugged battery discharging ${volts} v"
+               } 
+            
+//          logDebug "${device}: Battery ${batteryLevel}% $volts v"
+            log.info "${device}: Battery ${batteryLevel}% ${volts} v"
+//          result << createEvent(name: "batteryVoltage", value: volts, unit:"V")
             result << createEvent(name: "battery", value: batteryLevel, unit:"%")
         }
         
@@ -211,10 +225,10 @@ def configure() {
 }
 
 private configureBatteryReporting() {
-	def minSeconds = (10 * 60) // 10 Minutes
+	def minSeconds = (30 * 60) // 30 Minutes
 	def maxSeconds = (4 * 60 * 60) // 4 Hours	
 	zigbee.configureReporting(0x0001, 0x0020, 0x20, minSeconds, maxSeconds, 0x01)
-    logDebug "${device}: Set bat reports to 10 min min 4hr max"
+    logDebug "${device}: Set bat reports to 30 min min 4hr max"
 }
 
 private getSwitchReport() {
