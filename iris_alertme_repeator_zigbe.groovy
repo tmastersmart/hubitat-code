@@ -3,7 +3,7 @@ https://fcc.report/FCC-ID/WJHRP11/
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 
-    08/06/2021 v1.5 Remove pwower and uptime
+    08/06/2021 v1.5 Remove power and uptime
     05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
     05/08/2021 v1.2
