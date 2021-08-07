@@ -1,15 +1,15 @@
 /*Iris v1 AlertMe Repeator Zigbe
-
+https://fcc.report/FCC-ID/WJHRP11/
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
-// need more info on 901 what is its firmware date
 
+    08/06/2021 v1.5 Remove pwower and uptime
     05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
     05/08/2021 v1.2
     04/04/2021 v1.1  
     04/11/2021 v1.0
- https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_repeator_zigbe.groov
+ https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_repeator_zigbe.groovy
  https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy
 
 
@@ -26,9 +26,6 @@ Tested on  REP800 uses Firmware : 2013-09-26
 
 REP901 is the new version Need firmware versions.
 
-
-version photos
-https://livingwithiris.com/2013/12/17/the-difference-inside-generation-1-and-2-range-extenders/#more-1188
 
 
 
@@ -50,7 +47,7 @@ metadata {
 		capability "Battery"
 		capability "Configuration"
 		capability "Initialize"
-		capability "PowerSource"
+//		capability "PowerSource"
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "SignalStrength"
@@ -61,13 +58,13 @@ metadata {
 
 		attribute "batteryState", "string"
 		attribute "batteryVoltage", "string"
-		attribute "batteryVoltageWithUnit", "string"
+//attribute "batteryVoltageWithUnit", "string"
 //		attribute "batteryWithUnit", "string"
 		attribute "mode", "string"
-		attribute "stateMismatch", "boolean"
+//		attribute "stateMismatch", "boolean"
 //		attribute "temperature", "string"
-		attribute "uptime", "string"
-		attribute "uptimeReadable", "string"
+//		attribute "uptime", "string"
+//		attribute "uptimeReadable", "string"
 
 		fingerprint profileId: "C216", inClusters: "00F0,00F3", outClusters: "", manufacturer: "Iris/AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
 		
@@ -113,21 +110,18 @@ def initialize() {
 	sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
 	sendEvent(name: "batteryState", value: "unknown", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-	sendEvent(name: "batteryVoltageWithUnit", value: "unknown", isStateChange: false)
+// ndEvent(name: "batteryVoltageWithUnit", value: "unknown", isStateChange: false)
 //	sendEvent(name: "batteryWithUnit", value: "unknown", isStateChange: false)
 
 	sendEvent(name: "lqi", value: 0)
 	sendEvent(name: "operation", value: "unknown", isStateChange: false)
 
-	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
+//	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
 
 	sendEvent(name: "presence", value: "not present")
-	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
+//	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
 
-//	sendEvent(name: "temperature", value: 0, unit: "C", isStateChange: false)
-//	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
-	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
-	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
+
 
 	// Remove old settings. Upgrade for debugging
 	state.remove("switch")
@@ -137,7 +131,7 @@ def initialize() {
 	state.remove("uptimeReceived")
 	state.remove("presentAt")
 	state.remove("relayClosed")
-	state.remove("rssi")
+	state.remove("batteryVoltageWithUnit")
 	state.remove("supplyPresent")
     state.remove("batteryWithUnit")
    
@@ -300,15 +294,15 @@ def quietMode() {
 	// We don't receive any of these in quiet mode, so reset them.
 	sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-	sendEvent(name: "batteryVoltageWithUnit", value: ".", isStateChange: false)
+//	sendEvent(name: "batteryVoltageWithUnit", value: ".", isStateChange: false)
 //	sendEvent(name: "batteryWithUnit", value: ".", isStateChange: false)
 //	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
 //	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "operation", value: "quiet")
 //	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
 //	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
-	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
-	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
+//	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
+//	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
 //	sendEvent(name: "temperature", value: 0, unit: "C", isStateChange: false)
 //	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
 
@@ -436,121 +430,40 @@ def parse(String description) {
 
 
 def processMap(Map map) {
-//   u
-//	 logging("${device} : debug  Cluster:${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")
-
 	// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
-    
-    
-    // Relay actuation and power state messages.
-    // so far it looks like power state wont be reported
-                // setting it to default temp
-    			sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-    
+ 
+//    logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
     
     
 	if (map.clusterId == "00EE") {
-       if (map.command == "80") {
-       def powerStateHex = "undefined"
-	   powerStateHex = receivedData[0]
-            // codes that show up USA
-            // code: 0E     
-            // code: 07 MAINS switched on
-            // code: 06 MAINS switched off
-       if (powerStateHex == "0E" ) {
-				state.supplyPresent ?: logging("${device} : Power state On Mains :${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-		} else if (powerStateHex == "06" ) {
-
-				state.supplyPresent ?: logging("${device} : Power State On Mains switch off: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-
-			}else if (powerStateHex == "07" ) {
-
-				state.supplyPresent ?: logging("${device} : Power state On Mains switch on: ${map.data}", "info")
-				sendEvent(name: "stateMismatch", value: false)
-				sendEvent(name: "powerSource", value: "mains")
-				state.supplyPresent = true
-
-			} else {
-            
-                       logging("${device} : Power Code: Unknown ${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")     
-
-            }
-                      
-//				sendEvent(name: "stateMismatch", value: false)
-//				sendEvent(name: "powerSource", value: "battery")
-//				state.supplyPresent = false
-		} else {
-
+// nothing ever gets sent from this cluster             
 			reportToDev(map)
-
-		}
-
 	} else if (map.clusterId == "00EF") {
-
-		// Power and energy messages.
-
-		if (map.command == "81") {
-
-			// Power Reading
-
-			def powerValueHex = "undefined"
-			int powerValue = 0
-
-			// These power readings are so frequent that we only log them in debug or trace.
-			powerValueHex = receivedData[0..1].reverse().join()
-			logging("${device} : power byte flipped : ${powerValueHex}", "trace")
-			powerValue = zigbee.convertHexToInt(powerValueHex)
-			logging("${device} : power sensor reports : ${powerValue}", "debug")
-
-//			sendEvent(name: "power", value: powerValue, unit: "W")
-//			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
-
-		} else if (map.command == "82") {
-
-			// Command 82 returns energy summary in watt-hours with an uptime counter.
-
-	
-
-			// Uptime
-
-			String uptimeValueHex = "undefined"
-			uptimeValueHex = receivedData[4..8].reverse().join()
-			logging("${device} : uptime byte flipped : ${uptimeValueHex}", "trace")
-
-			BigInteger uptimeValue = new BigInteger(uptimeValueHex, 16)
-			logging("${device} : uptime counter reports : ${uptimeValue}", "debug")
-
-			def newDhmsUptime = []
-			newDhmsUptime = millisToDhms(uptimeValue * 1000)
-			String uptimeReadable = "${newDhmsUptime[3]}d ${newDhmsUptime[2]}h ${newDhmsUptime[1]}m"
-
-			logging("${device} : Uptime : ${uptimeReadable}", "debug")
-
-			sendEvent(name: "uptime", value: uptimeValue, unit: "s")
-			sendEvent(name: "uptimeReadable", value: uptimeReadable)
-
-		} else {
-
-			// Unknown power or energy data.
+// Power and energy messages none on this device.
 			reportToDev(map)
 
-		}
+    } else if (map.clusterId == "00F0") {
 
-	} else if (map.clusterId == "00F0") {
+//    logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
+//        if (map.command == "FB") {debug  Cluster:00F0   State:FB
+        
 
-		// Device status cluster.
+//Parse : catchall: C216 00F0 02 02 0040 00 D75E 01 00 0000 FB 01 1D4EB10A16930C4277CEFF0100     
 
-		// Report the battery voltage and calculated percentage.
-		def batteryVoltageHex = "undefined"
+// Report the battery voltage and calculated percentage.
+//        def mainsTest = "undefined"
+//        mainsTest= receivedData[10]
+//        logging("${device} : test is this mains bat : ${mainsTest}", "trace")
+//        if (mainsTest == "FF"){
+//       		logging("${device} : Power On Mains :${mainsTest}", "info")
+//				sendEvent(name: "stateMismatch", value: false)
+//				sendEvent(name: "powerSource", value: "mains")
+//				state.supplyPresent = true
+//       }
+
+        
+        def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 
 		batteryVoltageHex = receivedData[5..6].reverse().join()
@@ -565,18 +478,12 @@ def processMap(Map map) {
 		batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		//logging("${device} : batteryVoltage sensor value : ${batteryVoltage}", "debug")
 
-		if (getDataValue("firmware").startsWith("2010")) {
-			// Early firmware fudges the voltage reading to match other 3 volt battery devices. Cheeky.
-			// This converts to a reasonable approximation of the actual voltage. All newer firmwares report accurately.
-			batteryVoltage = batteryVoltage * 1.40
-			logging("${device} : early firmware requires batteryVoltage correction!", "debug")
-		}
 
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
 
 		logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
 		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
+//		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
 
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
@@ -640,20 +547,8 @@ def processMap(Map map) {
 
 		}
 
-		// Report the temperature in celsius.
-		def temperatureValue = "undefined"
-		temperatureValue = receivedData[7..8].reverse().join()
-//		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "debug")
-		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
-        BigDecimal temperatureF = hexToBigDecimal(temperatureValue)
-//		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "debug")
-		logging("${device} : Temperature $temperatureF", "debug")// all i get is -190 deg
-
-    
-        
-//      sendEvent(name: "temperature", value: temperatureF, unit: "F")
-//      sendEvent(name: "temperatureWithUnit", value: "${temperatureF} °F")
-    
+		// Report the temperature in celsius. No sensor 
+   
     
     
 //Pressing button on ac gives
