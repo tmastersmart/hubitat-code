@@ -120,13 +120,21 @@ def parse(String description) {
         
         if (evt.name == "batteryVoltage") {
             def battest = evt.value 
-	        def maxVolts = 6.0
-	        def minVolts = 5.0
+//	        def maxVolts = 6.1
+//	        def minVolts = 3.5
 	        def volts = (battest)
-	        def batteryPercentages = (volts - minVolts ) / (maxVolts - minVolts)	
-            def batteryLevel = (int) batteryPercentages * 100
-            if (batteryLevel > 100) {batteryLevel​ = 100}
-               
+//	        def batteryPercentages = (volts - minVolts ) / (maxVolts - minVolts)	
+//            def batteryLevel = (int) batteryPercentages * 100
+//            if (batteryLevel > 100) {batteryLevel​ = 100}
+            batteryLevel = 100
+            if (volts < 6)   {batteryLevel = 90}
+            if (volts < 5.5) {batteryLevel = 80}
+            if (volts < 5)   {batteryLevel = 60}
+            if (volts < 4.5) {batteryLevel = 50}
+            if (volts < 4)   {batteryLevel = 20}
+            if (volts <= 3.5) {batteryLevel = 0}
+  
+            
             if (batteryLevel < 90) { 
                log.warn "${device}: Unplugged battery discharging ${volts} v"
                } 
