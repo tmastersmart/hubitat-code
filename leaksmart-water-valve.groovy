@@ -1,48 +1,36 @@
 /**
- * Hubitat LeakSmart/Iris Water Valve with battery detection
-   ported to hubitat by tmastersmart
+ * Hubitat LeakSmart/Iris Water Valve 
+   ported to hubitat by tmastersmart 
+   Correct a falure to detect battery 
 
-
-
+LeakSmart Valve FCC ID: W7Z-ZICM357SP2
+https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
+tested on firmware:113B-03E8-0000001D 
 
    https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
    https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
- *
- *    
- *  
- *  Capabilities:Configuration, Refresh, Switch, Valve, Polling
- *  Changelog:
-     2.1 08/07/2021   Changed logging on battery
-     
-     2.1 05/03/2012 
-         Fixed log reports
+  Changelog:
 
-      2.0 04/12/2021 
-          Ported to Hubitat
-          removed smartthings code
-          was skipping bat event now reads bat events. New bat event code
+    2.2.1 08/08/2021   Changed logging on battery
+    2.1 05/03/2012   Fixed log reports
+    2.0 04/12/2021   Ported to Hubitat
+
+
+To reset the valve controller, rapidly press the center button 5 times. The Blue LED light will begin to flash
+indicating it is reset and ready to join the system.
+Note:
+The device may require a power cycled before a reset. Removing AC adapter and bat. Then power back up.
 
 
  *  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
- *  Author:Kevin LaFramboise (krlaframboise)
- * (from 1.3 orginal)    (Mode: 8830000L)
- *
- *    1.3 (10/23/2017)
- *      - Added support for valve attribute events.
- *
- *    1.2.1 (08/12/2017)
- *      - Create switch events when the open/close state changes.
- *
- *    1.2.1 (08/12/2017)
- *      - Create switch events when the open/close state changes.
- *
- *    1.2 (08/20/2016)
- *      - Changed lower battery limit to 5.0
- *
- *    1.1.3 (05/23/2016)
- *      - Changed lower battery limit to 5.5
- *
+ 
+ *  Author:Kevin LaFramboise (krlaframboise)(from 1.3 orginal)    (Mode: 8830000L)
+ *    1.3 (10/23/2017) - Added support for valve attribute events.
+ *    1.2.1 (08/12/2017) - Create switch events when the open/close state changes.
+ *    1.2.1 (08/12/2017) - Create switch events when the open/close state changes.
+ *    1.2 (08/20/2016)   - Changed lower battery limit to 5.0
+ *    1.1.3 (05/23/2016) - Changed lower battery limit to 5.5
  *    1.1.2 (05/22/2016)
  *      - Added battery capability and tile
  *      - Added debug logging for battery map.
@@ -50,10 +38,7 @@
  *      - Changed minimum batterr reporting interval to 10 minutes
  *        to avoid duplicates.  
  *      - Changed upper battery voltage to 6.0.
- *
- *    1.0.3 (05/22/2016)
- *      - Initial Release
- *      - Bug fixes
+ *    1.0.3 (05/22/2016) - Initial Release Bug fixes
  *
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -117,22 +102,30 @@ def parse(String description) {
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
 			result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
 		}
-        
+// 1.35 volts is a dead battery 1.35*4= 5.4
+// 1.5 * 4 = 6 but 6.1 is the normal reading for a new battery
+//        
         if (evt.name == "batteryVoltage") {
             def battest = evt.value 
 //	        def maxVolts = 6.1
-//	        def minVolts = 3.5
+//	        def minVolts = 3.5 
 	        def volts = (battest)
 //	        def batteryPercentages = (volts - minVolts ) / (maxVolts - minVolts)	
 //            def batteryLevel = (int) batteryPercentages * 100
 //            if (batteryLevel > 100) {batteryLevel​ = 100}
+// this routine was causing a flakey result using manual            
+            
             batteryLevel = 100
             if (volts < 6)   {batteryLevel = 90}
-            if (volts < 5.5) {batteryLevel = 80}
-            if (volts < 5)   {batteryLevel = 60}
-            if (volts < 4.5) {batteryLevel = 50}
-            if (volts < 4)   {batteryLevel = 20}
-            if (volts <= 3.5) {batteryLevel = 0}
+            if (volts < 5.9) {batteryLevel = 80}
+            if (volts < 5.85) {batteryLevel = 70}
+            if (volts < 5.8) {batteryLevel = 60}
+            if (volts < 5.65) {batteryLevel = 50}           
+            if (volts < 5.6) {batteryLevel = 40}
+            if (volts < 5.55) {batteryLevel = 30}
+            if (volts < 5.5) {batteryLevel = 20}
+            if (volts < 5.4) {batteryLevel = 10}
+            if (volts <= 5.3){batteryLevel = 0}
   
             
             if (batteryLevel < 90) { 
@@ -167,22 +160,7 @@ def parse(String description) {
 	return result
 }
 
-//private getBatteryLevel(rawValue) {
-//	def maxVolts = 6.0
-//	def minVolts = 5.0
-//	def volts = (rawValue / 10)
-//	def batteryPercentages = (volts - minVolts) / (maxVolts - minVolts)	
-//	def batteryLevel = (int) batteryPercentages * 100
-//	if (batteryLevel > 100) {
-//		return 100
-//	}
-//	else if (batteryLevel < 0) {
-//		return 0
-//	}
-//	else {
-//		return batteryLevel
-//	}	
-//}
+
 
 def on() {
 	open()
