@@ -13,8 +13,8 @@ https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
    https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
   Changelog:
-    2.4 08/13/2021   force battery report / cleanup   
-    2.3 08/10/2021   New mains and battery detection added. Old battery detection is now EST
+    2.4.1 08/13/2021   force battery report / cleanup   
+    2.3   08/10/2021   New mains and battery detection added. Old battery detection is now EST
     2.2.2 08/10/2021  
     2.2.1 08/08/2021 Changed logging on battery routines
     2.1 05/03/2012   
@@ -76,9 +76,7 @@ metadata {
         attribute "lastPollD", "number"
         attribute "batteryEST", "number"
 		attribute "batteryVoltage", "string"
-        attribute "model","string"
-        attribute "firmwareMT","string"
-        attribute "manufacture","string"
+
         
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve v2.10" //leakSMART Valve
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve" //Waxman House Water Valve
@@ -242,7 +240,7 @@ def refresh() {
 
 def configure() {
 
-    logDebug "${device}: Configuring: model: ${model} firmware: ${firmwareMT} maker:${manufacture}"
+    logDebug "${device}: Configuring"
 	state.configured = true
     
 
