@@ -13,6 +13,7 @@ https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
    https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
   Changelog:
+    2.5.0 08/14/2021   update 
     2.4.1 08/13/2021   force battery report / cleanup   
     2.3   08/10/2021   New mains and battery detection added. Old battery detection is now EST
     2.2.2 08/10/2021  
@@ -72,7 +73,7 @@ metadata {
 		capability "Polling"
         capability "Power Source"
         
-		attribute "lastPoll", "number"
+//		attribute "lastPoll", "number"
         attribute "lastPollD", "number"
         attribute "batteryEST", "number"
 		attribute "batteryVoltage", "string"
@@ -132,7 +133,7 @@ def parse(String description) {
 	def evt = zigbee.getEvent(description) // test for known events by the hub drivers
     if (evt) {
         logDebug "${device} :Received Event: ${evt.name} ${evt}"
-        result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
+//        result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
      	result << createEvent(name: "lastPollD", value: new Date().format("MMM dd yyyy hh:mm", location.timeZone))
 // valve status        
         if (evt.name == "switch") {
@@ -211,22 +212,28 @@ def close() {
 
 def poll() {
     
-	def minimumPollMinutes = (3 * 60) // 3 Hours
-	def lastPoll = device.currentValue("lastPoll")
-	if ((new Date().time - lastPoll) > (minimumPollMinutes * 60 * 1000)) {
-		logDebug "${device}: Polling: Sending refresh cmd"
-        
-		return refresh()
-	}
-	else {
+//	def minimumPollMinutes = (3 * 60) // 3 Hours
+//	def lastPoll = device.currentValue("lastPoll")
+//	if ((new Date().time - lastPoll) > (minimumPollMinutes * 60 * 1000)) {
+//		logDebug "${device}: Polling: Sending refresh cmd"
+//        
+//		return refresh()
+//	}
+//	else {
 //        logDebug "${device}: Skipping Poll: must be > ${minimumPollMinutes} minutes"
-        log.info "${device}: Skipping Poll: must be > ${minimumPollMinutes} minutes"
-	}
+//        log.info "${device}: Skipping Poll: must be > ${minimumPollMinutes} minutes"
+//	}
+// last pool time format is wrong not working
+    
+    return refresh()
 }
 
+//  Meed more firmware fingerprints
+//  Firmware: 113B-03E8-0000001D
 
 def refresh() {
-//    logDebug "${device}: Refreshing"
+    //    logDebug "${device}: Refreshing"
+    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
     log.info "${device}: Refreshing"
     return zigbee.onOffRefresh() +
     getBatteryReport() +
@@ -239,9 +246,14 @@ def refresh() {
 }
 
 def configure() {
-
+    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
     logDebug "${device}: Configuring"
 	state.configured = true
+    state.remove("lastPoll")
+    state.remove("waitForGetInfo")
+    removeDataValue("lastPoll")
+    if (device.data.firmwareMT == "113B-03E8-0000001D"){ state.firm = "113B-03E8-0000001D Tested"}
+    else {state.firm = "Unknown Submit your Version ${device.data.firmwareMT}"}
     
 
 return   zigbee.onOffConfig() +configureBatteryReporting() +
