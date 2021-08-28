@@ -172,11 +172,7 @@ def zwaveEvent(hubitat.zwave.commands.alarmv2.AlarmReport cmd, results) {
 			createSmokeOrCOEvents(cmd.alarmLevel ? "tested" : "testClear", results)
 			break
 		
-				 case 14:
-            createSmokeOrCOEvents(cmd.alarmLevel ? "tested" : "Failed", results)
-            results << createEvent(descriptionText: "$device.displayName Reports unit failed", isStateChange: true)
-			break
-		
+
 		
 		case 13:  // sent every hour -- not sure what this means, just a wake up notification?
 			if (cmd.alarmLevel == 255) {
@@ -199,8 +195,14 @@ def zwaveEvent(hubitat.zwave.commands.alarmv2.AlarmReport cmd, results) {
 
 		
 		default:
+			
 			results << createEvent(displayed: true, descriptionText: "Alarm $cmd.alarmType ${cmd.alarmLevel == 255 ? 'activated' : cmd.alarmLevel ?: 'deactivated'}".toString())
 			break
+
+ 	if (cmd.alarmType == 14) {
+	    createSmokeOrCOEvents(cmd.alarmLevel ? "tested" : "Failed", results)
+            results << createEvent(descriptionText: "$device.displayName Reports unit failed", isStateChange: true)
+	}
 	}
 }
 
