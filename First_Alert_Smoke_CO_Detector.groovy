@@ -188,7 +188,12 @@ def zwaveEvent(hubitat.zwave.commands.alarmv2.AlarmReport cmd, results) {
 				results << response(zwave.batteryV1.batteryGet())
 			}
 			break
-               
+             
+		 case 14:
+            createSmokeOrCOEvents(cmd.alarmLevel ? "tested" : "Failed", results)
+            results << createEvent(descriptionText: "$device.displayName Reports unit failed", isStateChange: true)
+			break
+		
 		default:
 			results << createEvent(displayed: true, descriptionText: "Alarm $cmd.alarmType ${cmd.alarmLevel == 255 ? 'activated' : cmd.alarmLevel ?: 'deactivated'}".toString())
 			break
