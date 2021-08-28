@@ -2,6 +2,10 @@
 /**
 First Alert Smoke and CO alarm driver for hubitat
 
+THIS IS A ALPHA TEST DO NOT USE IN PRODUCTION...........
+MANY problems wit this need detection for bad unit
+
+
 08/27/2021 v2.0  Bad unit detection added. smartthings code removed. Proper copyright added.
 
 
