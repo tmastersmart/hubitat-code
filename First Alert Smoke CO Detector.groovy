@@ -33,7 +33,7 @@ https://raw.githubusercontent.com/SmartThingsCommunity/SmartThingsPublic/master/
  */
 
 metadata {
-	definition (name: "First Alert Smoke CO Detector", namespace: "Hubitat", author: "keltymd") {
+	definition (name: "First Alert Smoke CO Detector", namespace: "tmastersmart", author: "Tmaster", importUrl:"") {
 		capability "Smoke Detector"
 		capability "Carbon Monoxide Detector"
 		capability "Sensor"
