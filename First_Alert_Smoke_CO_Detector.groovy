@@ -6,6 +6,10 @@ First Alert Smoke and CO alarm driver for hubitat
 
 
 Split into 2 forks one for smoke only one for smoke CO
+https://github.com/tmastersmart/hubitat-code/blob/main/First_Alert_Smoke_CO_Detector.groovy
+
+
+
 
 Fingerprints needed
 
