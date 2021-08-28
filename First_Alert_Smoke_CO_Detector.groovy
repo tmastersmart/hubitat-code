@@ -7,6 +7,8 @@ First Alert Smoke and CO alarm driver for hubitat
 
 Split into 2 forks one for smoke only one for smoke CO
 https://github.com/tmastersmart/hubitat-code/blob/main/First_Alert_Smoke_CO_Detector.groovy
+https://github.com/tmastersmart/hubitat-code/raw/main/First_Alert_Smoke_CO_Detector.groovy
+
 
 
 
@@ -37,7 +39,7 @@ https://raw.githubusercontent.com/SmartThingsCommunity/SmartThingsPublic/master/
  */
 
 metadata {
-	definition (name: "First Alert Smoke CO Detector", namespace: "tmastersmart", author: "Tmaster", importUrl:"") {
+	definition (name: "First Alert Smoke CO Detector", namespace: "tmastersmart", author: "Tmaster", importUrl:"https://github.com/tmastersmart/hubitat-code/raw/main/First_Alert_Smoke_CO_Detector.groovy") {
 		capability "Smoke Detector"
 		capability "Carbon Monoxide Detector"
 		capability "Sensor"
