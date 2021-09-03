@@ -6,7 +6,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.gr
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
  
 
- * 09/03/2011 v2.1  unknown commands logging
+ * 09/03/2011 v2.1  unknown commands logging, Battery reporting removed.
  * 08/05/2021 v2.0  Cleanup on logging power states  removal of unneeded info
  * 08/04/2021 v1.8.2 Better logging on energy total cleanup
  * 05/16/2021 v1.7 
@@ -44,7 +44,7 @@ Battery USA model has no battery but still reports 12 volts.
 metadata {
 	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
 
-        capability "Battery"
+//        capability "Battery"
 		capability "Actuator"
 		capability "Configuration"
 		capability "EnergyMeter"
@@ -66,7 +66,7 @@ metadata {
 
 		//attribute "batteryState", "string"
 		//attribute "batteryVoltage", "string"
-		//attribute "batteryVoltageWithUnit", "string"
+		attribute "VoltageWithUnit", "string"
 		//attribute "batteryWithUnit", "string"
 //		attribute "energyWithUnit", "string"
 		attribute "mode", "string"
@@ -132,7 +132,8 @@ def initialize() {
     state.remove("energyWithUnit")
     state.remove("temperature")
 	state.remove("temperatureWithUnit")	
-	state.remove("batteryState")
+	state.remove("battery")
+    state.remove("batteryVoltage")
 	state.remove("batteryVoltageWithUnit")
 	state.remove("batteryWithUnit")
 	state.remove("supplyPresent")
@@ -593,23 +594,23 @@ else if (map.clusterId == "00EF") {
     
         
 } else if (map.clusterId == "00F0") {
-
-        // record voltage for testing
+        // These units have no battery but report internal voltage 12v but some report 30v ?
+        // record voltage for testing as batteryVoltageWithUnit
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 		batteryVoltageHex = receivedData[5..6].reverse().join()
 		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
         batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-		logging("${device} : Voltage: ${batteryVoltage} Battery 100%", "debug")
-		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")// 12v but some report 30v ?
-        sendEvent(name: "battery", value: 100, unit: "%")
-//		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
+		logging("${device} : Internal Voltage: ${batteryVoltage}", "debug")
+//		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V") 
+//       sendEvent(name: "battery", value: 100, unit: "%")
+        sendEvent(name: "VoltageWithUnit", value: batteryVoltage, unit: "V") 
 
         
         // Temp sensor data does not make sence. Just for testing
         // what i get is 7780 /16 = -8 deg 
-        // (I dont think this has a temp sensor I think this field is something else)
+        // I dont think this has a temp sensor 
     logging("${device} : Bat Volt Temp [00F0]  MAP:${map.data}", "trace")	     
         // Report the temperature in celsius.
 //		def temperatureValue = "undefined"
