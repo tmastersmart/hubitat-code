@@ -1,10 +1,12 @@
 /* Iris AlertMe Smart Plug 
 USA version  model# SPG800 FCC ID WJHSP11
-
+Hubitat iris smart plug driver  AlertMe USA version smart plug
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
+ 
 
+ * 09/03/2011 v2.1  unknown commands logging
  * 08/05/2021 v2.0  Cleanup on logging power states  removal of unneeded info
  * 08/04/2021 v1.8.2 Better logging on energy total cleanup
  * 05/16/2021 v1.7 
@@ -234,6 +236,7 @@ void reportToDev(map) {
 	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 //	logging("${device} : Splurge! : ${map}", "trace")
 
+
 }
 
 
@@ -445,8 +448,10 @@ def processMap(Map map) {
 //  0006,  <unknown 
 //  0013,  <unknown while pairing 6 and 13 will be sent 
     
-// 8001, command: 00 [A2, 00, 62, C0, 52, 04, 00, 6F, 0D, 00, 24, 8C]  other smart plug plugged in.  
-	// AlertMe values are always sent in a data element.
+// 8001, command: 00 [A2, 00, 62, C0, 52, 04, 00, 6F, 0D, 00, 24, 8C]  other smart plug plugged in.
+// dont know what 8038 is
+// 8038, attrId: null, command: 00 with value: null and 27 bits of data: [00, 00, 00, F8, FF, 07, 2A, 00, 10, 00, 10, BC, CE, B6, B2, AC, A2, A3, A5, A4, AA, A5, A7, A3, 9D, 9D, 9D]
+// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
     
 
@@ -583,8 +588,9 @@ else if (map.clusterId == "00EF") {
 		}
 //8001  It does this when another smart plug is reconnected. Some type of reaction to power up
    	} else if (map.clusterId == "8001") {
-          logging("${device} : Unknown. Communicating with another Smartplug. ${map.clusterId} MAP:${map.data}", "info")	     
-        
+          logging("${device} : Another Smartplug plugged in. ${map.clusterId}", "info")	     
+          logging("${device} : Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
+    
         
 } else if (map.clusterId == "00F0") {
 
@@ -705,7 +711,11 @@ else if (map.clusterId == "00EF") {
          reportToDev(map)
         }
         
-	
+	}  else if (map.clusterId == "8038" ) {
+       logging("${device} : cluster: ${map.cluster} seen before but unknown", "debug")
+       logging("${device} : Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
+       
+
 
 	}  else if (map.clusterId == "8032" ) {
 
@@ -797,3 +807,5 @@ private boolean logging(String message, String level) {
 	return didLog
 
 }
+
+
