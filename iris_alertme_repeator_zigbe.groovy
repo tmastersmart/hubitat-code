@@ -663,7 +663,7 @@ def processMap(Map map) {
           
             if (deviceFirmware == "2013-09-26") {
                 deviceFirmware = "09-26-2013"
-                deviceModel = "RepeaterPlug REP901"
+                deviceModel = "RepeaterPlug REP800"
             }
             
           
