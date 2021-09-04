@@ -1,8 +1,11 @@
 /*Iris v1 AlertMe Repeator Zigbe
 https://fcc.report/FCC-ID/WJHRP11/
 
+Iris v1 repeader zigbee driver for hubitat
+
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 
+    09/04/2021 v1.6 Model detection fix
     08/06/2021 v1.5 Remove power and uptime
     05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
@@ -488,6 +491,8 @@ def processMap(Map map) {
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
 		BigDecimal batteryVoltageScaleMax = 4.15
+        
+        state.batteryOkay = true
 
 		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.40) {
 
@@ -652,15 +657,17 @@ def processMap(Map map) {
 			}
 
 // Firmware : 09-26-2013 Model  : RepeaterPlug manufacturer Iris/AlertMe
-            deviceModel ="${deviceModel} REP901?"// Item #388560 Model #REP901 need firmware date on REP901
-            
+// Item #388560 Model #REP901 need firmware date on REP901            
+                
+//          if (deviceModel  == "RepeaterPlug") {deviceModel = "RepeaterPlug REP901"}
+          
             if (deviceFirmware == "2013-09-26") {
                 deviceFirmware = "09-26-2013"
-                deviceModel = "REP800"
-            }// REP800 uses Firmware : 2013-09-26  Old version
+                deviceModel = "RepeaterPlug REP901"
+            }
             
-            
-            logging("${device}: Firmware: ${deviceFirmware} Model: ${deviceModel} manufacturer: ${deviceManufacturer}", "info")
+          
+            logging("${device}: Firmware: ${deviceFirmware} Md: ${deviceModel}", "info")
 
 			updateDataValue("manufacturer", deviceManufacturer)
             updateDataValue("model", deviceModel)
