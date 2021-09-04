@@ -5,7 +5,7 @@ Iris v1 repeader zigbee driver for hubitat
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 
-    09/04/2021 v1.6 Model detection fix
+    09/04/2021 v1.6 Model detection fix. Change flag
     08/06/2021 v1.5 Remove power and uptime
     05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
@@ -111,7 +111,7 @@ def initialize() {
 	// ...but don't arbitrarily reset the state of the device's main functions or tamper status.
 
 	sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
-	sendEvent(name: "batteryState", value: "unknown", isStateChange: false)
+//	sendEvent(name: "batteryState", value: "unknown", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
 // ndEvent(name: "batteryVoltageWithUnit", value: "unknown", isStateChange: false)
 //	sendEvent(name: "batteryWithUnit", value: "unknown", isStateChange: false)
@@ -130,7 +130,7 @@ def initialize() {
 	state.remove("switch")
     state.remove("tamper")
 	state.remove("temperature")	
-	state.remove("temperatureWithUnit")
+	state.remove("batteryState")
 	state.remove("uptimeReceived")
 	state.remove("presentAt")
 	state.remove("relayClosed")
@@ -468,7 +468,7 @@ def processMap(Map map) {
         
         def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
-
+//        sendEvent(name: "batteryState", value: "Pending")
 		batteryVoltageHex = receivedData[5..6].reverse().join()
 		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
 
@@ -511,15 +511,18 @@ def processMap(Map map) {
 				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
 			} else {
 				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
+                sendEvent(name: "batteryState", value: "Discharged")
 			}
 
 			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
 //			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
 
 			if (batteryVoltage > batteryVoltageScaleMax) {
-				!state.supplyPresent ?: sendEvent(name: "batteryState", value: "charged")
+//				!state.supplyPresent ?: 
+                sendEvent(name: "batteryState", value: "charged")
 			} else {
-				!state.supplyPresent ?: sendEvent(name: "batteryState", value: "charging")
+//				!state.supplyPresent ?: 
+                sendEvent(name: "batteryState", value: "charging")
 			}
 
 		} else if (batteryVoltage < batteryVoltageScaleMin) {
