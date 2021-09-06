@@ -4,8 +4,11 @@ https://fcc.report/FCC-ID/WJHRP11/
 Iris v1 repeader zigbee driver for hubitat
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
+notice acording to old reports the REP800 had a defect in the ZWAVE side so dont pair ZWAVE
 
-    09/04/2021 v1.6 Model detection fix. Change flag
+    09/06/2021 v1.8 Battery fix / Powerfalure detection
+    09/04/2021 v1.7 Button support added 
+               v1.6 Model detection fix. Change flag
     08/06/2021 v1.5 Remove power and uptime
     05/16/2021 v1.4  
     05/11/2021 v1.3  Power stats testing
@@ -50,7 +53,8 @@ metadata {
 		capability "Battery"
 		capability "Configuration"
 		capability "Initialize"
-//		capability "PowerSource"
+        capability "PowerSource"
+        capability "ReleasableButton"
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "SignalStrength"
@@ -436,45 +440,41 @@ def processMap(Map map) {
 	// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
  
-//    logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
+   logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
     
-    
-	if (map.clusterId == "00EE") {
-// nothing ever gets sent from this cluster             
-			reportToDev(map)
-	} else if (map.clusterId == "00EF") {
-// Power and energy messages none on this device.
-			reportToDev(map)
+	if (map.clusterId == "0006") {
+		// Match Descriptor Request I have never seen on this device
+		logging("${device} : Sending Match Descriptor Response", "debug")
+		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
+        
+    } else if (map.clusterId == "00EF") {
+     // Relay actuation and power state messages. 
+     // doesnt send anything. Logging just in case.   
+    logging("${device} : Mains cluster: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} data: ${receivedData}", "trace")
+   
 
     } else if (map.clusterId == "00F0") {
 
-//    logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
-//        if (map.command == "FB") {debug  Cluster:00F0   State:FB
-        
-
-//Parse : catchall: C216 00F0 02 02 0040 00 D75E 01 00 0000 FB 01 1D4EB10A16930C4277CEFF0100     
+	logging("${device} : Power cluster: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} data: ${receivedData}", "trace")
+      
+       
+    inspect = receivedData[2]  
+    inspect2 = zigbee.convertHexToInt(inspect)  
+    logging("${device} : debug data Hex:${inspect} dec:${inspect2}", "trace")   
+//    logging("${device} : Battery/Power Cluster:${map.clusterId}   State:${map.command}", "trace")
 
 // Report the battery voltage and calculated percentage.
-//        def mainsTest = "undefined"
-//        mainsTest= receivedData[10]
-//        logging("${device} : test is this mains bat : ${mainsTest}", "trace")
-//        if (mainsTest == "FF"){
-//       		logging("${device} : Power On Mains :${mainsTest}", "info")
-//				sendEvent(name: "stateMismatch", value: false)
-//				sendEvent(name: "powerSource", value: "mains")
-//				state.supplyPresent = true
-//       }
+
 
         
         def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 //        sendEvent(name: "batteryState", value: "Pending")
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
+//		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")// debuging not needed
 
 		if (batteryVoltageHex == "FFFF") {
-			// Occasionally a weird battery reading can be received. Ignore it.
-			logging("${device} : batteryVoltageHex skipping anomolous reading : ${batteryVoltageHex}", "debug")
+			logging("${device} : skipping bad bat value : ${batteryVoltageHex}", "debug")
 			return
 		}
 
@@ -483,8 +483,10 @@ def processMap(Map map) {
 
 
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
+        batteryVoltage = batteryVoltage + 1 // Kludge for low value being reported
+        
 
-		logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
+//		logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
 		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
 //		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
 
@@ -500,6 +502,9 @@ def processMap(Map map) {
             // The above may be true but the repeator works on bat at 3v. USA batteries on these
             // units are old and no reasion to replace them. Lowering min state
             // More testing is need to see what state it stops working at.
+            //
+            // Update when battery reads 4.2 the unit reports 3.181  a 1.02 offset has been added.
+            
 
 			state.batteryOkay = true
 
@@ -517,12 +522,21 @@ def processMap(Map map) {
 			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
 //			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
 
+            if (batteryVoltage < state.lastBatteryVoltage  ){
+                state.supplyPresent = false
+                logging("${device} : Power Falure Detected discharging ${state.lastBatteryVoltage} > ${batteryVoltage}", "debug") 
+            }
+            if (batteryVoltage > state.lastBatteryVoltage){
+                state.supplyPresent = true
+                logging("${device} : Power on Mains charging ${state.lastBatteryVoltage} < ${batteryVoltage}", "debug") 
+            }
+            state.lastBatteryVoltage = (batteryVoltage - 0.02)
+            
 			if (batteryVoltage > batteryVoltageScaleMax) {
-//				!state.supplyPresent ?: 
-                sendEvent(name: "batteryState", value: "charged")
+//			!state.supplyPresent ?: 
+            sendEvent(name: "batteryState", value: "charged")
 			} else {
-//				!state.supplyPresent ?: 
-                sendEvent(name: "batteryState", value: "charging")
+			!state.supplyPresent ?: sendEvent(name: "batteryState", value: "charging")
 			}
 
 		} else if (batteryVoltage < batteryVoltageScaleMin) {
@@ -579,14 +593,29 @@ def processMap(Map map) {
 
       } else if (map.clusterId == "0013") {
         logging("${device} : Not joined - in process ${map.clusterId} MAP:${map.data}", "warn")
-    
-        
+
+       
+} else if (map.clusterId == "8001") {
+//cluster: null, clusterId: 8001, attrId: null, command: 00 with value: null and 12 bits of data: [E0, 00, 72, B3, 6F, 03, 00, 6F, 0D, 00, E6, C5]
+//debug  Cluster:8001   State:00
+//catchall: 0000 8001 00 00 0040 00 C5E6 00 00 0000 00 00 E00072B36F03006F0D00E6C5  
+// This is sent when returning from power falure But not always. Likely boot up message 
+       
+       logging("${device} : Returning from power falure", "info")
+       state.supplyPresent = true
+       sendEvent(name: "PowerSource", value: "mains", isStateChange: true)
+       
+      // does this 2 times needs debounce 
     } else if (map.clusterId == "00F3") {
-        logging("${device} : Button Pressed Cluster:${map.clusterId} MAP:${map.data}", "warn")
+        logging("${device} : Button pushed:${map.clusterId} MAP:${map.data}", "trace")
+        logging("${device} : Button 1 pushed", "info")
+		sendEvent(name: "pushed", value: 1, isStateChange: true)
 
     } else if (map.clusterId == "00C0") {
    
-        logging("${device} : Button Pressed Cluster:${map.clusterId} MAP:${map.data}", "warn")
+        logging("${device} : Button released:${map.clusterId} MAP:${map.data}", "trace")
+        logging("${device} : Button 1 released", "info")
+		sendEvent(name: "released", value: 1, isStateChange: true)
   
 	} else if (map.clusterId == "00F6") {
 
