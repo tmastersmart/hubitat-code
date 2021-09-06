@@ -523,12 +523,16 @@ def processMap(Map map) {
 //			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
 
             if (batteryVoltage < state.lastBatteryVoltage  ){
-                state.supplyPresent = false
-                logging("${device} : Power Falure Detected discharging ${state.lastBatteryVoltage} > ${batteryVoltage}", "debug") 
+                if (state.supplyPresent){
+                    logging("${device} : Power Falure Detected discharging ${state.lastBatteryVoltage} > ${batteryVoltage}", "debug") 
+                    state.supplyPresent = false
+                  }
             }
             if (batteryVoltage > state.lastBatteryVoltage){
-                state.supplyPresent = true
-                logging("${device} : Power on Mains charging ${state.lastBatteryVoltage} < ${batteryVoltage}", "debug") 
+                if(!state.supplyPresent){
+                    logging("${device} : Power on Mains charging ${state.lastBatteryVoltage} < ${batteryVoltage}", "debug") 
+                    state.supplyPresent = true
+                }
             }
             state.lastBatteryVoltage = (batteryVoltage - 0.02)
             
