@@ -1,5 +1,7 @@
 /*Observer IP link
 
+(c) 2021 by winnfreenet.com
+
 Ambent weather station driver for MMPWS scripts
 
 Compatible with: WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
@@ -23,7 +25,11 @@ ID #s for the sensors and API in the script.
 
 v1.2 beta   06/02/2021
 v1.3        06/07/2021
-v1.4        
+v1.4  
+
+
+http://www.winnfreenet.com/wp/2021/09/observer-ip-driver-for-hubitat/
+http://pws.winnfreenet.com/
 */
 
 metadata {
