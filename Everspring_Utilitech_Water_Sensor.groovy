@@ -17,6 +17,11 @@ https://github.com/tmastersmart/hubitat-code/raw/main/Everspring_Utilitech_Water
   Wait and Wait.
 
   If include fails check zwave log and if the device is in the log you must remove before retying
+  
+  
+  If you use this please post a comment here 
+  http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/
+  
 
 >> Forked from....
  *
