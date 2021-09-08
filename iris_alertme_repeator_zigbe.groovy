@@ -1,11 +1,12 @@
-/*Iris v1 AlertMe Repeator Zigbe
+/*Iris v1 AlertMe Repeater Zigbe
 https://fcc.report/FCC-ID/WJHRP11/
 
-Iris v1 repeader zigbee driver for hubitat
+Iris v1 Repeater zigbee driver for hubitat
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 notice acording to old reports the REP800 had a defect in the ZWAVE side so dont pair ZWAVE
 
+    09/08/2021 v1.9 Mispellings
     09/06/2021 v1.8 Battery fix / Powerfalure detection
     09/04/2021 v1.7 Button support added 
                v1.6 Model detection fix. Change flag
@@ -48,7 +49,7 @@ REP901 is the new version Need firmware versions.
 
 metadata {
 
-	definition (name: "Iris AlertMe Repeator Zigbe", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
+	definition (name: "Iris AlertMe Repeater Zigbe", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
