@@ -29,6 +29,9 @@ The device may require a power cycled before a reset. Removing AC adapter and ba
 
 
 
+Pust comments here
+http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
+
 Aditional code merged into orginal from fork at
 
  *  Copyright 2016 SmartThings
