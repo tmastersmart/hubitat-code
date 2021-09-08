@@ -29,6 +29,10 @@ Energy is total since start
 Power  is current watts
 Battery USA model has no battery but still reports 12 volts. 
 
+
+Post comments here
+http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/
+
  * orginal by 
  * name: "AlertMe Smart Plug" 
  * namespace: "BirdsLikeWires", 
