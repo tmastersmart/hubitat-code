@@ -19,7 +19,7 @@ web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water
 import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
   Changelog:
-    2.5.1 09/09/2021   Mains detection now estimated from last batt reading            
+    2.5.2 09/09/2021   Mains detection now estimated from last batt reading            
     2.5.0 08/14/2021   update 
     2.4.1 08/13/2021   force battery report / cleanup   
     2.3   08/10/2021   New mains and battery detection added. Old battery detection is now EST
@@ -69,22 +69,24 @@ metadata {
 		capability "Polling"
                 capability "Power Source"
         
-//		attribute "lastPoll", "number"
+
         attribute "lastPollD", "number"
         attribute "batteryEST", "number"
-		attribute "batteryVoltage", "string"
+	attribute "batteryVoltage", "string"
 
         
-        fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve v2.10" //leakSMART Valve
-        fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve" //Waxman House Water Valve
-        fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve - MDL-TBD"
-		fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02", outClusters: "0019"
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve v2.10" //leakSMART Valve
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve" //Waxman House Water Valve
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve"// Lowels version
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02", outClusters: "0019"
 	}
-// need fingerprints
+// need fingerprints  (TBD = to be determined)
 // fingerprint model:"House Water Valve - MDL-TBD", manufacturer:"WAXMAN", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0004,0005,0006,0020,0B02,FC02", outClusters:"0003,0019", application:"1D"
 
-//  Meed more firmware fingerprints
-//  Firmware: 113B-03E8-0000001D
+//manufacturer :WAXMAN Model: leakSMART Water Valve v2.10  Firmware: 113B-03E8-00000019 softwareBuild: 00000019
+//manufacturer :WAXMAN Model: House Water Valve - MDL-TBD  Firmware: 113B-03E8-0000001D softwareBuild: 0000001D
+	
+	
     
 	preferences {
 		input "debugOutput", "bool", 
@@ -146,40 +148,32 @@ def parse(String description) {
         if (evt.name == "battery") {
             def val3 = evt.value
             result << createEvent(name: "battery", value: val3,isStateChange: true)
-            log.info "${device}: battery ${val3}"
+            log.info "${device}: battery ${val3}%"
         }
         
 //  voltage status      
         if (evt.name == "batteryVoltage") {
 //            result << createEvent(name: "batteryVoltage", value: ${evt.value}, unit:"V")
-            def battest = evt.value 
-//	        def maxVolts = 6.1
-//	        def minVolts = 3.5 
-	        def volts = (battest)
-//	        def batteryPercentages = (volts - minVolts ) / (maxVolts - minVolts)	
-//            def batteryLevel = (int) batteryPercentages * 100
-//            if (batteryLevel > 100) {batteryLevel​ = 100}
-// this routine was causing a flakey result using manual            
-            
-            def batteryLevel = 100
-            if (volts < 6)   {batteryLevel = 90}
-            if (volts < 5.9) {batteryLevel = 80}
-            if (volts < 5.85) {batteryLevel = 70}
-            if (volts < 5.8) {batteryLevel = 60}
-            if (volts < 5.65) {batteryLevel = 50}           
-            if (volts < 5.6) {batteryLevel = 40}
-            if (volts < 5.55) {batteryLevel = 30}
-            if (volts < 5.5) {batteryLevel = 10}
-            if (volts <= 5.4) {batteryLevel = 0}
- 
 
-	    log.info "${device}: Battery ${volts} v EST${batteryLevel}%"
+		def batteryVoltage = evt.value
+
+                BigDecimal batteryPercentage = 0
+		BigDecimal batteryVoltageScaleMin = 3.50
+		BigDecimal batteryVoltageScaleMax = 6
+		
+		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
+		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
+		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
+		
+		
+            // We will get 2 bat % readings one calc one reported not using calc 
+		log.info "${device}: Battery ${batteryVoltage} v ${batteryPercentage}% "
             result << createEvent(name: "batteryEST", value: batteryLevel, unit:"%")
-            result << createEvent(name: "batteryVoltage", value: volts, unit:"V")
+            result << createEvent(name: "batteryVoltage", value: batteryVoltage, unit:"V")
 		
             // watch for battery discharging to detect mains off
 	    // Mains,Battery,DC,Unknown
-		def batteryVoltage = volts
+
 		def testVoltage = (state.lastBatteryVoltage - 0.2)
             if (batteryVoltage < testVoltage){
                 if (state.supplyPresent){
@@ -273,7 +267,9 @@ def configure() {
     state.remove("waitForGetInfo")
     removeDataValue("lastPoll")
     if (device.data.firmwareMT == "113B-03E8-0000001D"){ state.firm = "113B-03E8-0000001D Tested"}
-    else {state.firm = "Unknown Submit your Version ${device.data.firmwareMT}"}
+    if (device.data.firmwareMT == "113B-03E8-00000019"){ state.firm = "113B-03E8-00000019 Tested"}
+
+    else {state.firm = "${device.data.firmwareMT} Unknown Submit yours"}
     
 
 return   zigbee.onOffConfig() +configureBatteryReporting() +
