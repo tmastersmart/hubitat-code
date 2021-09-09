@@ -5,9 +5,12 @@
  
  Device supports power memory flash LED config and brightness.
  
- WARNING this is not working it is a code in process if you make changes and get it working please note the changes..
- port to hubitat is in process. Right now i cant get basic function to work
- 
+ WARNING this is not working it is a code in process  
+ if you make changes and get it working please note the changes..
+ port to hubitat is in process.
+  
+ I had to stop working on this.......Will get back on it soon 
+  
 V Beta test 
  
 
