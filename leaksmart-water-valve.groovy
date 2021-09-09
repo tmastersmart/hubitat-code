@@ -6,20 +6,25 @@
    leaksmart driver hubitat 
 
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
+
+tested on firmware 113B-03E8-0000001D Tested
+
+
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
 
 
-   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
-   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
+web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
+import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
   Changelog:
+    2.5.1 09/09/2021   Mains detection now estimated from last batt reading            
     2.5.0 08/14/2021   update 
     2.4.1 08/13/2021   force battery report / cleanup   
     2.3   08/10/2021   New mains and battery detection added. Old battery detection is now EST
     2.2.2 08/10/2021  
     2.2.1 08/08/2021 Changed logging on battery routines
-    2.1 05/03/2012   
-    2.0 04/12/2021   Ported to Hubitat
+    2.1   05/03/2021   
+    2.0   04/12/2021   Ported to Hubitat
 
 
 To reset the valve controller, rapidly press the center button 5 times. The Blue LED light will begin to flash
@@ -28,31 +33,18 @@ Note:
 The device may require a power cycled before a reset. Removing AC adapter and bat. Then power back up.
 
 
-
 Pust comments here
 http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
-
-Aditional code merged into orginal from fork at
-
- *  Copyright 2016 SmartThings
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
-
- * https://raw.githubusercontent.com/mleibman/SmartThingsPublic/a5bc475cc1b2edc77e4649609db5833421ad7f48/devicetypes/smartthings/zigbee-valve.src/zigbee-valve.groovy
 
 
 
  *  orginal forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
- 
  *  Author:Kevin LaFramboise (krlaframboise)(from 1.3 orginal)    (Mode: 8830000L)
  *
+ *  Aditional code from fork at
+ *  https://raw.githubusercontent.com/mleibman/SmartThingsPublic/a5bc475cc1b2edc77e4649609db5833421ad7f48/devicetypes/smartthings/zigbee-valve.src/zigbee-valve.groovy
+ *
+
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
  *
@@ -61,7 +53,6 @@ Aditional code merged into orginal from fork at
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
- *
  */
 
 metadata {
@@ -71,10 +62,10 @@ metadata {
 		capability "Configuration"
 		capability "Refresh"
 		capability "Switch"
-        capability "Contact Sensor"
+                capability "Contact Sensor"
 		capability "Valve"
 		capability "Polling"
-        capability "Power Source"
+                capability "Power Source"
         
 //		attribute "lastPoll", "number"
         attribute "lastPollD", "number"
@@ -87,9 +78,12 @@ metadata {
         fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve - MDL-TBD"
 		fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02", outClusters: "0019"
 	}
-// need fingerprints for other valves
+// need fingerprints
 // fingerprint model:"House Water Valve - MDL-TBD", manufacturer:"WAXMAN", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0004,0005,0006,0020,0B02,FC02", outClusters:"0003,0019", application:"1D"
 
+//  Meed more firmware fingerprints
+//  Firmware: 113B-03E8-0000001D
+    
 	preferences {
 		input "debugOutput", "bool", 
 			title: "Enable debug logging?", 
@@ -176,21 +170,42 @@ def parse(String description) {
             if (volts < 5.5) {batteryLevel = 10}
             if (volts <= 5.4) {batteryLevel = 0}
  
-            if (batteryLevel < 80 ){
-            result << createEvent(name: "powerSource", value: battery)
-            log.info "${device}: powerSource: battery"
-            }
-            log.info "${device}: Battery ${volts} v EST${batteryLevel}%"
+
+	    log.info "${device}: Battery ${volts} v EST${batteryLevel}%"
             result << createEvent(name: "batteryEST", value: batteryLevel, unit:"%")
             result << createEvent(name: "batteryVoltage", value: volts, unit:"V")
+		
+            // watch for battery discharging to detect mains off
+	    // Mains,Battery,DC,Unknown
+		batteryVoltage = volts
+		def testVoltage = (state.lastBatteryVoltage - 0.2)
+            if (batteryVoltage < testVoltage){
+                if (state.supplyPresent){
+                    log.info "${device} : discharging detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v" 
+                    state.supplyPresent = false
+		    result << createEvent(name: "PowerSource", value: "battery", isStateChange: true)
+                  }
+            }
+            // this valve does not charge if it goes up it should be dc
+            if (batteryVoltage > testVoltage){
+                if(!state.supplyPresent){
+                    log.info "${device} : Mains detected Last:${state.lastBatteryVoltage}v < Current:${batteryVoltage}v" 
+                    state.supplyPresent = true
+		    result << createEvent(name: "PowerSource", value: "mains", isStateChange: true)
+                }
+            }
+            state.lastBatteryVoltage = batteryVoltage
+	   // end new mains detect		
         }
 
-        // This is the mains (not working on my valve?)
+        // This is the mains detection - this doesnt work so using above estimate
         if (evt.name == "powerSource"){
             // results should be (Mains,Battery,DC,Unknown)
+            // name:powerSource, value:mains	
             def val4 = evt.value
+	    state.supplyPresent = true
             result << createEvent(name: "powerSource", value: val4)
-                 log.info "${device}: powerSource: ${val4}"
+                 log.info "${device}: Received proper flag powerSource: ${val4}"
        }
         
         
@@ -231,8 +246,7 @@ def poll() {
     return refresh()
 }
 
-//  Meed more firmware fingerprints
-//  Firmware: 113B-03E8-0000001D
+
 
 def refresh() {
     //    logDebug "${device}: Refreshing"
@@ -252,6 +266,7 @@ def configure() {
     log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
     logDebug "${device}: Configuring"
 	state.configured = true
+	state.lastBatteryVoltage = 50
     state.remove("lastPoll")
     state.remove("waitForGetInfo")
     removeDataValue("lastPoll")
@@ -299,4 +314,6 @@ Hubitat Iris Water Valve driver
 mains detection
 leaksmart driver hubitat
 iris water valve driver
+
+
 */
