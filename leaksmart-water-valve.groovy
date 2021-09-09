@@ -168,7 +168,7 @@ def parse(String description) {
 		
             // We will get 2 bat % readings one calc one reported not using calc 
 		log.info "${device}: Battery ${batteryVoltage} v ${batteryPercentage}% "
-            result << createEvent(name: "batteryEST", value: batteryLevel, unit:"%")
+            result << createEvent(name: "batteryEST", value: batteryPercentage, unit:"%")
             result << createEvent(name: "batteryVoltage", value: batteryVoltage, unit:"V")
 		
             // watch for battery discharging to detect mains off
