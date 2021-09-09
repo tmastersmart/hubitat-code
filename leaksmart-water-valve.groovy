@@ -7,7 +7,9 @@
 
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
 
-tested on firmware 113B-03E8-0000001D Tested
+tested on firmware 
+113B-03E8-0000001D Tested
+113B-03E8-00000019  
 
 
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
@@ -177,7 +179,7 @@ def parse(String description) {
 		
             // watch for battery discharging to detect mains off
 	    // Mains,Battery,DC,Unknown
-		batteryVoltage = volts
+		def batteryVoltage = volts
 		def testVoltage = (state.lastBatteryVoltage - 0.2)
             if (batteryVoltage < testVoltage){
                 if (state.supplyPresent){
@@ -266,7 +268,7 @@ def configure() {
     log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
     logDebug "${device}: Configuring"
 	state.configured = true
-	state.lastBatteryVoltage = 50
+	state.lastBatteryVoltage = 6
     state.remove("lastPoll")
     state.remove("waitForGetInfo")
     removeDataValue("lastPoll")
