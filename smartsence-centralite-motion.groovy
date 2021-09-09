@@ -1,9 +1,15 @@
 /**
 
-SmartSense CentraLite Motion Sensor with temp 
+SmartSense CentraLite Motion Sensor with temp driver for hubitat
 
 ported to hubitat 05/02/21 by tmastersat v1.0
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartsence-centralite-motion.groovy
+
+
+
+My sensor eats batteries so Ive stoped working on this. I beleive it works.
+
+
 
 
 forked from https://raw.githubusercontent.com/michaelahess/SmartThingsPublic/master/devicetypes/smartthings/smartsense-motion-temp-sensor.src/smartsense-motion-temp-sensor.groovy
