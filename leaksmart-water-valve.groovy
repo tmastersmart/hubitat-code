@@ -8,8 +8,8 @@
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
 
 tested on firmware 
-113B-03E8-0000001D Tested
-113B-03E8-00000019  
+113B-03E8-0000001D false mains flag sent
+113B-03E8-00000019 valid mains flag 
 
 
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
@@ -19,6 +19,7 @@ web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water
 import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
   Changelog:
+    2.5.1 09/10/2021   Mains is working on v2.1 but not v1 valve
     2.5.2 09/09/2021   Mains detection now estimated from last batt reading            
     2.5.0 08/14/2021   update 
     2.4.1 08/13/2021   force battery report / cleanup   
@@ -76,11 +77,11 @@ metadata {
 
         
 fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve v2.10" //leakSMART Valve
-fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve" //Waxman House Water Valve
-fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve"// Lowels version
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0008, 000F, 0020, 0B02", outClusters: "0003, 0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Waxman Valve v1" //Waxman House Water Valve
+fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0004, 0005, 0006, 0020, 0B02, FC02", outClusters: "0003,0019", manufacturer: "WAXMAN", model: "House Water Valve - MDL-TBD", deviceJoinName: "Leaksmart Water Valve v1"// Lowels version
 fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02", outClusters: "0019"
 	}
-// need fingerprints  (TBD = to be determined)
+// need fingerprints  (TBD = to be determined) it looks like TBD has a mains reporting bug
 // fingerprint model:"House Water Valve - MDL-TBD", manufacturer:"WAXMAN", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0004,0005,0006,0020,0B02,FC02", outClusters:"0003,0019", application:"1D"
 
 //manufacturer :WAXMAN Model: leakSMART Water Valve v2.10  Firmware: 113B-03E8-00000019 softwareBuild: 00000019
@@ -182,10 +183,11 @@ def parse(String description) {
 		    result << createEvent(name: "PowerSource", value: "battery", isStateChange: true)
                   }
             }
-            // this valve does not charge if it goes up it should be dc
+            // this valve does not go up unless bat is changed
+	    // we assume Mains and if it discharges its not. 
             if (batteryVoltage > testVoltage){
                 if(!state.supplyPresent){
-                    log.info "${device} : Mains detected Last:${state.lastBatteryVoltage}v < Current:${batteryVoltage}v" 
+                    log.info "${device} : Battery change detected Last:${state.lastBatteryVoltage}v < Current:${batteryVoltage}v" 
                     state.supplyPresent = true
 		    result << createEvent(name: "PowerSource", value: "mains", isStateChange: true)
                 }
@@ -199,9 +201,15 @@ def parse(String description) {
             // results should be (Mains,Battery,DC,Unknown)
             // name:powerSource, value:mains	
             def val4 = evt.value
-	    state.supplyPresent = true
-            result << createEvent(name: "powerSource", value: val4)
+		if (device.data.firmwareMT == "113B-03E8-0000001D"){// false readings on this firmware  		
+		log.info "${device}: Received powerSource: ${val4} Unsure if its valid"	
+		}	
+		else{	
+		state.supplyPresent = true
+                 result << createEvent(name: "powerSource", value: val4)
                  log.info "${device}: Received proper flag powerSource: ${val4}"
+		}
+
        }
         
         
@@ -266,10 +274,10 @@ def configure() {
     state.remove("lastPoll")
     state.remove("waitForGetInfo")
     removeDataValue("lastPoll")
-    if (device.data.firmwareMT == "113B-03E8-0000001D"){ state.firm = "113B-03E8-0000001D Tested"}
-    if (device.data.firmwareMT == "113B-03E8-00000019"){ state.firm = "113B-03E8-00000019 Tested"}
+//    if (device.data.firmwareMT == "113B-03E8-0000001D"){ state.firm = "113B-03E8-0000001D Tested mains not working"}
+//    if (device.data.firmwareMT == "113B-03E8-00000019"){ state.firm = "113B-03E8-00000019 Tested mains works"}
 
-    else {state.firm = "${device.data.firmwareMT} Unknown Submit yours"}
+//    else {state.firm = "${device.data.firmwareMT} Unknown Submit yours"}
     
 
 return   zigbee.onOffConfig() +configureBatteryReporting() +
