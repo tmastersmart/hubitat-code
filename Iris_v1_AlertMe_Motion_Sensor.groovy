@@ -1,4 +1,5 @@
-/* Iris USA version
+/* Iris v1 motion sensor driver for hubitat
+   USA version
 
 
 
@@ -21,7 +22,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-	definition (name: "Iris v1 AlertMe Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat/master/alertme/drivers/alertme_motion.groovy") {
+	definition (name: "Iris v1 AlertMe Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_AlertMe_Motion_Sensor.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
