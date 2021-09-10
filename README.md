@@ -8,5 +8,7 @@
  
 observer ip driver for hubitat
 
+Leaksmart valve driver for Hubitat with better battery detection
+
 Expermental todki td-ZW101 motion sensor driver for hubitat
 
