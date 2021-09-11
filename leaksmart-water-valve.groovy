@@ -34,24 +34,29 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 To reset the valve controller, rapidly press the center button 5 times. The Blue LED light will begin to flash
 indicating it is reset and ready to join the system.
-Note:
 The device may require a power cycled before a reset. Removing AC adapter and bat. Then power back up.
 
 
-Pust comments here
+Notes:
+False mains flags seen on v1 valves but v2.1 works. If the bat starts discharging then the mains report
+will be considered false and ignored until it reports battery or you change the batteries. 
+Pressing reset will reset the detection. 
+
+Orgional smartthings code included capability "Switch" and capability "Contact Sensor"
+due to a defect in the rules engine that did not have valve support, this is unneeded on hubitat
+but you may comment them back in if needed. 
+
+
+Post comments here
 http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
 
 
-False mains flags seen on v1 valves but v2.1 works. If the bat starts discharging then the mains report
-will be considered false and ignored until it reports battery or you change the batteries. Pressing
-reset will reset the detection. 
 
 
-
- *  orginal forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
+ *  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
  *  Author:Kevin LaFramboise (krlaframboise)(from 1.3 orginal)    (Mode: 8830000L)
  *
- *  Aditional code from fork at
+ *  Above looks to be forked from Orignal SmartThings code at
  *  https://raw.githubusercontent.com/mleibman/SmartThingsPublic/a5bc475cc1b2edc77e4649609db5833421ad7f48/devicetypes/smartthings/zigbee-valve.src/zigbee-valve.groovy
  *
 
@@ -71,8 +76,8 @@ metadata {
 		capability "Battery"
 		capability "Configuration"
 		capability "Refresh"
-		capability "Switch"
-                capability "Contact Sensor"
+//		capability "Switch"
+//              capability "Contact Sensor"
 		capability "Valve"
 		capability "Polling"
                 capability "Power Source"
@@ -143,7 +148,7 @@ def parse(String description) {
 	def evt = zigbee.getEvent(description) // test for known events by the hub drivers
     if (evt) {
         logDebug "${device} :Received Event: ${evt.name} ${evt}"
-//        result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
+        result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
      	result << createEvent(name: "lastPollD", value: new Date().format("MMM dd yyyy hh:mm", location.timeZone))
 // valve status        
         if (evt.name == "switch") {
@@ -152,7 +157,7 @@ def parse(String description) {
 			result << createEvent(name: "valve", value: val2)
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
             log.info "${device}: Valve ${val2}"
-		//	result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
+			result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
 		}
         if (evt.name == "battery") {
             def val3 = evt.value
@@ -234,9 +239,11 @@ def parse(String description) {
 }
 
 
-
+// from old smartthings contact/switch code 
 def on()   {	open()  } 
 def off()  {	close() }
+
+
 def open() {
 	log.info "${device} Opening the valve"
 	zigbee.on()
@@ -252,15 +259,19 @@ def poll() {
 //	def minimumPollMinutes = (3 * 60) // 3 Hours
 //	def lastPoll = device.currentValue("lastPoll")
 //	if ((new Date().time - lastPoll) > (minimumPollMinutes * 60 * 1000)) {
-//		logDebug "${device}: Polling: Sending refresh cmd"
-//        
-//		return refresh()
+	log.info "${device}: Polling:"
+//                return refresh()
 //	}
 //	else {
 //        logDebug "${device}: Skipping Poll: must be > ${minimumPollMinutes} minutes"
 //        log.info "${device}: Skipping Poll: must be > ${minimumPollMinutes} minutes"
 //	}
-// last pool time format is wrong not working
+
+// the above throws this error
+//	groovy.lang.GroovyRuntimeException: Ambiguous method overloading for method java.lang.Long#minus.
+//Cannot resolve which method to invoke for [null] due to overlapping prototypes between:
+//	[class java.lang.Character]
+//	[class java.lang.Number] on line 261 (method poll)
     
     return refresh()
 }
@@ -269,10 +280,10 @@ def poll() {
 
 def refresh() {
 
-    log.info "${device}: Refreshing"
+    log.info "${device}: Refreshing ${state.model}"
     state.supplyPresent = true
     state.badSupplyFlag = false
-    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
+    log.info "${device}: ${device.data.manufacturer} Mdl: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
 	
     return zigbee.onOffRefresh() + getBatteryReport() +
     zigbee.readAttribute(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE) +
@@ -284,8 +295,7 @@ def refresh() {
 }
 
 def configure() {
-    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
-    logDebug "${device}: Configuring"
+
 	state.configured = true
 	state.supplyPresent = true
         state.badSupplyFlag = false
@@ -295,7 +305,9 @@ def configure() {
     state.firm = device.data.firmwareMT
 	if(device.data.model=="House Water Valve - MDL-TBD"){state.model = "v1a"}
         if(device.data.model=="leakSMART Water Valve v2.10"){state.model = "v2.1"}
-    
+     log.info "${device}: Configuring ${state.model}"
+     log.info "${device}: ${device.data.manufacturer} Mdl: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
+
 
 return   zigbee.onOffConfig() +configureBatteryReporting() +
     zigbee.configureReporting(CLUSTER_POWER, POWER_ATTR_BATTERY_PERCENTAGE_REMAINING, TYPE_U8, 600, 21600, 1) +
@@ -306,8 +318,6 @@ return   zigbee.onOffConfig() +configureBatteryReporting() +
     getBatteryReport() 
 }
 
-// see this driver the above from this driver doesnt work
-//https://raw.githubusercontent.com/mleibman/SmartThingsPublic/a5bc475cc1b2edc77e4649609db5833421ad7f48/devicetypes/smartthings/zigbee-valve.src/zigbee-valve.groovy
 
 
 private configureBatteryReporting() {
