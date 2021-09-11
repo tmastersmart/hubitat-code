@@ -18,7 +18,9 @@ https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
 web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
 import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
 
+
   Changelog:
+    2.6   09/11/2021   Detection for false mains flag (firm bug fixed)
     2.5.1 09/10/2021   Mains is working on v2.1 but not v1 valve
     2.5.2 09/09/2021   Mains detection now estimated from last batt reading            
     2.5.0 08/14/2021   update 
@@ -38,6 +40,11 @@ The device may require a power cycled before a reset. Removing AC adapter and ba
 
 Pust comments here
 http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
+
+
+False mains flags seen on v1 valves but v2.1 works. If the bat starts discharging then the mains report
+will be considered false and ignored until it reports battery or you change the batteries. Pressing
+reset will reset the detection. 
 
 
 
@@ -108,7 +115,8 @@ private getTYPE_ENUM8() { 0x30 }
 
 
 def updated() {
-    
+    state.supplyPresent = true
+    state.badSupplyFlag = false
     if (!state.configured) {	return response(configure())}
 }
 
@@ -172,7 +180,7 @@ def parse(String description) {
             result << createEvent(name: "batteryEST", value: batteryPercentage, unit:"%")
             result << createEvent(name: "batteryVoltage", value: batteryVoltage, unit:"V")
 		
-            // watch for battery discharging to detect mains off
+            // watch for battery discharging to detect mains error
 	    // Mains,Battery,DC,Unknown
 
 		def testVoltage = (state.lastBatteryVoltage - 0.2)
@@ -180,6 +188,7 @@ def parse(String description) {
                 if (state.supplyPresent){
                     log.info "${device} : discharging detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v" 
                     state.supplyPresent = false
+	            state.badSupplyFlag = true
 		    result << createEvent(name: "PowerSource", value: "battery", isStateChange: true)
                   }
             }
@@ -189,6 +198,7 @@ def parse(String description) {
                 if(!state.supplyPresent){
                     log.info "${device} : Battery change detected Last:${state.lastBatteryVoltage}v < Current:${batteryVoltage}v" 
                     state.supplyPresent = true
+                    state.badSupplyFlag = false
 		    result << createEvent(name: "PowerSource", value: "mains", isStateChange: true)
                 }
             }
@@ -196,21 +206,26 @@ def parse(String description) {
 	   // end new mains detect		
         }
 
-        // This is the mains detection - this doesnt work so using above estimate
+        // This is the mains detection mains,batterty,dc,unknown
+	// Some valves give false reports so we have to detect them    
         if (evt.name == "powerSource"){
-            // results should be (Mains,Battery,DC,Unknown)
-            // name:powerSource, value:mains	
             def val4 = evt.value
-		if (device.data.firmwareMT == "113B-03E8-0000001D"){// false readings on this firmware  		
-		log.info "${device}: Received powerSource: ${val4} Unsure if its valid"	
+		if (val4=="mains"){
+		  if (device.data.firmwareMT == "113B-03E8-0000001D"){log.info "${device}: Received powerSource mains ????"}
+		  if (state.badSupplyFlag){log.info "${device}: Bat discharging but reports mains! ignored."}
+		  if (!state.badSupplyFlag){
+                  state.supplyPresent = true
+                  result << createEvent(name: "powerSource", value: "mains")
+                  log.info "${device}: Received powerSource: mains"
+		  }
 		}	
-		else{	
-		state.supplyPresent = true
-                 result << createEvent(name: "powerSource", value: val4)
-                 log.info "${device}: Received proper flag powerSource: ${val4}"
-		}
-
-       }
+		else {
+		  state.supplyPresent = false
+		  state.badSupplyFlag= false	  
+                  result << createEvent(name: "powerSource", value: "battery")
+			  log.info "${device}: Received powerSource: ${val4}/battery"
+		  }
+                }
         
         
 	//	result << createEvent(evt)    left over this I think was to create events for unknown items
@@ -253,31 +268,33 @@ def poll() {
 
 
 def refresh() {
-    //    logDebug "${device}: Refreshing"
-    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
+
     log.info "${device}: Refreshing"
-    return zigbee.onOffRefresh() +
-    getBatteryReport() +
+    state.supplyPresent = true
+    state.badSupplyFlag = false
+    log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
+	
+    return zigbee.onOffRefresh() + getBatteryReport() +
     zigbee.readAttribute(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE) +
     zigbee.readAttribute(CLUSTER_POWER, POWER_ATTR_BATTERY_PERCENTAGE_REMAINING) +
     zigbee.onOffConfig() +
     zigbee.configureReporting(CLUSTER_POWER, POWER_ATTR_BATTERY_PERCENTAGE_REMAINING, TYPE_U8, 600, 21600, 1) +
     zigbee.configureReporting(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE, TYPE_ENUM8, 5, 21600, 1)+
-    configureBatteryReporting()    
+    configureBatteryReporting()
 }
 
 def configure() {
     log.info "${device}: manufacturer :${device.data.manufacturer} Model: ${device.data.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}"
     logDebug "${device}: Configuring"
 	state.configured = true
+	state.supplyPresent = true
+        state.badSupplyFlag = false
 	state.lastBatteryVoltage = 6
     state.remove("lastPoll")
-    state.remove("waitForGetInfo")
     removeDataValue("lastPoll")
-//    if (device.data.firmwareMT == "113B-03E8-0000001D"){ state.firm = "113B-03E8-0000001D Tested mains not working"}
-//    if (device.data.firmwareMT == "113B-03E8-00000019"){ state.firm = "113B-03E8-00000019 Tested mains works"}
-
-//    else {state.firm = "${device.data.firmwareMT} Unknown Submit yours"}
+    state.firm = device.data.firmwareMT
+	if(device.data.model=="House Water Valve - MDL-TBD"){state.model = "v1a"}
+        if(device.data.model=="leakSMART Water Valve v2.10"){state.model = "v2.1"}
     
 
 return   zigbee.onOffConfig() +configureBatteryReporting() +
