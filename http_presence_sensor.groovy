@@ -1,9 +1,14 @@
 /**
  *  HTTP Presence Sensor adjustable
+    Hubitat HTTP presence sensor
 
 
     v2.0 09/12/2021
 
+
+
+https://github.com/tmastersmart/hubitat-code/blob/main/http_presence_sensor.groovy
+https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy
 
 
 
@@ -32,7 +37,7 @@ https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPrese
 
 	
 metadata {
-	definition (name: "HTTP Presence Sensor", namespace: "joelwetzel", author: "Joel Wetzel") {
+    definition (name: "HTTP Presence Sensor with settings", namespace: "tmastersmart", author: "WinnFreeNet.com", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy") {
 		capability "Refresh"
 		capability "Sensor"
         capability "Presence Sensor"
