@@ -4,7 +4,7 @@
  
  iris v1 alertme repeator zigbe driver for hubitat
  
- iris v1 alertme smartplug driver for hubitat
+ iris v1 alertme smartplug driver for hubitat with alarm and strobe suport
  
 observer ip driver for hubitat
 
