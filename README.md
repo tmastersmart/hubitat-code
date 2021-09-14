@@ -12,3 +12,5 @@ Leaksmart valve driver for Hubitat with better battery detection
 
 Expermental todki td-ZW101  driver for hubitat
 
+http presence sensor adjustable for hubitat. Set chron
+
