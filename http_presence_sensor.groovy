@@ -1,9 +1,14 @@
 /**
- *  HTTP Presence Sensor adjustable
+ *  HTTP Presence Sensor adjustable schedule
     Hubitat HTTP presence sensor
 
+Allows you to set minis for refreash to stop overloading servers
 
-    v2.0 09/12/2021
+
+
+  v2.1 09/14/2021
+  v2.0 09/12/2021
+
 
 
 
@@ -37,10 +42,11 @@ https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPrese
 
 	
 metadata {
-    definition (name: "HTTP Presence Sensor with settings", namespace: "tmastersmart", author: "WinnFreeNet.com", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy") {
+    definition (name: "HTTP Presence Sensor with schedule", namespace: "tmastersmart", author: "WinnFreeNet.com", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy") {
 		capability "Refresh"
 		capability "Sensor"
         capability "Presence Sensor"
+        capability "Configuration"
 	}
 
 	preferences {
@@ -59,22 +65,36 @@ def log(msg) {
 	}
 }
 
-
+def configure() {
+	log.info "${device.displayName}: Config"
+    updated()
+}
+    
+    
 def installed () {
-	log.info "${device.displayName}.installed()"
+	log.info "${device.displayName}: Installed"
     updated()
 }
 
 
 def updated () {
-	log.info "${device.displayName}.updated()"
+	log.info "${device.displayName}: updated"
     
     state.tryCount = 0
  
-    runEvery1Minute(refresh)
+//    runEvery1Minute(refresh)
+
+    schedule("0 */${pollMinutes} * ? * *", refresh)
+
+
+// schedule('0 */10 * ? * *', mymethod)
+//void runEvery1Minute(String handlerMethod, Map options = null)
+//void runEvery5Minutes(String handlerMethod, Map options = null)
+//void runEvery10Minutes(String handlerMethod, Map options = null)
+//void runEvery15Minutes(String handlerMethod, Map options = null)
+//void runEvery30Minutes(String handlerMethod, Map options = null)
+//void runEvery1Hour(String handlerMethod, Map options = null)   
     
-    	//schedule("*/15 * * * * ? *", refresh)    // Option 2: run every 15 seconds, but now we have a 10 second timeout on the requests.
-        //state.triesPerMinute = 4
     
     
     
@@ -83,7 +103,7 @@ def updated () {
 
 
 def refresh() {
-	log "${device.displayName}.refresh()"
+	log.debug "${device.displayName}: Checking Presence"
 
 	state.tryCount = state.tryCount + 1
     
@@ -101,19 +121,23 @@ def refresh() {
 
 
 def httpGetCallback(response, data) {
-	//log.debug "${device.displayName}: httpGetCallback(response, data)"
 	
 	if (response == null || response.class != hubitat.scheduling.AsyncResponse) {
 		return
 	}
-		
-	if (response.getStatus() == 200) {
+    
+    def st = response.getStatus()
+    
+    log.debug "${device.displayName}: Presence check status =${st}"
+	
+	if (st == 200) {
 		state.tryCount = 0
 		
 		if (device.currentValue('presence') != "present") {
 			def descriptionText = "${device.displayName} is ONLINE";
 			log descriptionText
 			sendEvent(name: "presence", value: "present", linkText: deviceName, descriptionText: descriptionText)
+            
 		}
 	}
 }
