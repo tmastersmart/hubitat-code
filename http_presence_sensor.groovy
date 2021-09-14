@@ -2,11 +2,11 @@
  *  HTTP Presence Sensor adjustable schedule
     Hubitat HTTP presence sensor
 
-Allows you to set minis for refreash to stop overloading servers
+Allows you to set min for chron to stop overloading servers
 
 
 
-  v2.1 09/14/2021
+  v2.1.1 09/14/2021
   v2.0 09/12/2021
 
 
