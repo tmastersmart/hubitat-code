@@ -1,11 +1,16 @@
 /* Iris AlertMe Smart Plug 
-USA version  model# SPG800 FCC ID WJHSP11
-Hubitat iris smart plug driver  AlertMe USA version smart plug
 
+Hubitat iris smart plug driver with siren and strobe comands
+AlertMe USA version smart plug
+
+
+
+USA version  model# SPG800 FCC ID WJHSP11
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
 https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
  
 
+ * 09-14-2021 v2.3  Added alarm support
  * 09/03/2011 v2.1  unknown commands logging, Battery reporting removed.
  * 08/05/2021 v2.0  Cleanup on logging power states  removal of unneeded info
  * 08/04/2021 v1.8.2 Better logging on energy total cleanup
@@ -29,10 +34,6 @@ Energy is total since start
 Power  is current watts
 Battery USA model has no battery but still reports 12 volts. 
 
-
-Post comments here
-http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/
-
  * orginal by 
  * name: "AlertMe Smart Plug" 
  * namespace: "BirdsLikeWires", 
@@ -48,30 +49,29 @@ http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat
 metadata {
 	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
 
-//        capability "Battery"
 		capability "Actuator"
 		capability "Configuration"
 		capability "EnergyMeter"
 		capability "Initialize"
 		capability "Outlet"
 		capability "PowerMeter"
-		capability "PowerSource"
+//		capability "PowerSource"
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "SignalStrength"
-		capability "Switch"
-//		capability "TamperAlert"
-//		capability "TemperatureMeasurement"
+		capability "Switch" 
+        capability "Alarm"
+
 
 		//command "lockedMode"
 		command "normalMode"
 		command "rangingMode"
 		command "quietMode"
 
-		//attribute "batteryState", "string"
-		//attribute "batteryVoltage", "string"
+		attribute "alarmcmd", "string"
+		attribute "strobe", "string"
 		attribute "VoltageWithUnit", "string"
-		//attribute "batteryWithUnit", "string"
+		attribute "siren", "string"
 //		attribute "energyWithUnit", "string"
 		attribute "mode", "string"
 		attribute "power", "string"
@@ -117,11 +117,11 @@ def initialize() {
 
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-//	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
+    sendEvent(name: "alarmcmd", value: "0")
 	sendEvent(name: "lqi", value: 0)
 	sendEvent(name: "operation", value: "unknown", isStateChange: false)
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
-	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
+//	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
 //	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "presence", value: "not present")
 //	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
@@ -138,7 +138,7 @@ def initialize() {
 	state.remove("temperatureWithUnit")	
 	state.remove("battery")
     state.remove("batteryVoltage")
-	state.remove("batteryVoltageWithUnit")
+	state.remove("powerSource")
 	state.remove("batteryWithUnit")
 	state.remove("supplyPresent")
 	state.remove("stateMismatch")
@@ -161,7 +161,7 @@ def configure() {
 
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
-
+    state.alarmcmd = 0
 	initialize()
 	unschedule()
 
@@ -194,7 +194,7 @@ def configure() {
 def updated() {
 
 	// Runs whenever preferences are saved.
-
+    state.alarmcmd = 0
 	loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(1800,traceLogOff)
@@ -319,8 +319,34 @@ def quietMode() {
 }
 
 
-def off() {
+def siren(cmd){
+    state.alarmcmd = 1
+    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+  on()
 
+}
+def strobe(cmd){
+    state.alarmcmd = 2
+    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+  on()
+   
+    
+}
+def both(cmd){
+    state.alarmcmd = 3
+    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+  on()
+
+}
+
+
+
+
+
+
+def off() {
+	state.alarmcmd = 0
+    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
 	// The off command is custom to AlertMe equipment, so has to be constructed.
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 00 01} {0xC216}"])
 
@@ -331,7 +357,7 @@ def on() {
 
 	// The on command is custom to AlertMe equipment, so has to be constructed.
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 01 01} {0xC216}"])
-
+ 
 }
 
 
@@ -449,7 +475,7 @@ def parse(String description) {
 
 def processMap(Map map) {
 
-//	 logging("${device} : debug  Cluster:${map.clusterId}   State:${powerStateHex}  MAP:${map.data}", "warn")
+	 logging("${device} : Cluster:${map.clusterId} State:${powerStateHex} MAP:${map.data}", "debug")
 //  0006,  <unknown 
 //  0013,  <unknown while pairing 6 and 13 will be sent 
     
@@ -468,8 +494,8 @@ def processMap(Map map) {
        def powerStateHex = "undefined"
        def powerStateDisplay = "undefined"    
 	   powerStateHex = receivedData[0]
-       // we dont have a battery we are always on mains
-       sendEvent(name: "powerSource", value: "mains") 
+
+//       sendEvent(name: "powerSource", value: "mains") 
 //       state.supplyPresent = true
 //      sendEvent(name: "stateMismatch", value: false) // whats this for remove it  
             // cleanup logging power states.   More info needed on codes
@@ -504,7 +530,7 @@ def processMap(Map map) {
 
 	
 
-			// Relay States
+			// Relay States state.alarmcmdUpdated
 
 			def switchStateHex = "undefined"
 			switchStateHex = receivedData[1]
@@ -512,14 +538,32 @@ def processMap(Map map) {
 			if (switchStateHex == "01") {
 
 				state.relayClosed = true
+                if(state.alarmcmd == 1){
+                    sendEvent(name: "siren", value: "on")
+                    logging("${device} : Sirene Alarm : ON", "info")
+                }
+                if(state.alarmcmd == 2){
+                    sendEvent(name: "strobe", value: "on")
+                    logging("${device} : Strobe Alarm : ON", "info")
+                }
+                if(state.alarmcmd == 3 ){
+                    sendEvent(name: "strobe", value: "on")
+                    sendEvent(name: "siren", value: "on")
+                    logging("${device} : Siren-Strobe Alarm : ON", "info")
+                }
+                
+                
 				sendEvent(name: "switch", value: "on")
                 logging("${device} : Switch : ON ${state.power} Watts", "info")
 
 			} else {
 
 				state.relayClosed = false
-				sendEvent(name: "switch", value: "off")
-				logging("${device} : Switch : Off", "info")
+				sendEvent(name: "switch", value: "off") 
+                sendEvent(name: "siren", value: "off")
+                sendEvent(name: "strobe", value: "off")
+
+				logging("${device} : Switch-siren-strobe : Off", "info")
 			}
 }
 
@@ -681,7 +725,7 @@ else if (map.clusterId == "00EF") {
 			int versionInfoBlockCount = versionInfoBlocks.size()
 			String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
 
-			logging("${device} : device version received in ${versionInfoBlockCount}", "debug")
+			logging("${device} : VersionInfoBlock ${versionInfoBlockCount}", "debug")
 
 			String deviceManufacturer = "Iris/AlertMe" // Is this not stored in the device?
 			String deviceModel = "" 
@@ -694,17 +738,17 @@ else if (map.clusterId == "00EF") {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
 
-//firmware: 2012-09-20 Has Problems
+
 // Please report other firmware versions and any problems it has.            
             
-            if (deviceModel  == "SmartPlug2.5") {deviceModel = "SPG800"}// SmartPlug2.5 is the USA model SPG800
+            if (deviceModel  == "SmartPlug2.5") {deviceModel = "SmartPlug2.5 SPG800"}// SmartPlug2.5 is the USA model SPG800
             if (deviceFirmware == "2012-09-20") {deviceFirmware = "09-20-2012 Old"}// Older version
             if (deviceFirmware == "2013-09-26") {deviceFirmware = "09-26-2013 Current"}// last version
            
-            logging("${device}: Firmware:${deviceFirmware} Model:${deviceModel} Manufacturer:${deviceManufacturer}", "info")
+            logging("${device}: Firmware:${deviceFirmware}", "info")
 			
             updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", "${deviceModel}")
+            updateDataValue("model", deviceModel)
 			updateDataValue("firmware", deviceFirmware)
             
             
