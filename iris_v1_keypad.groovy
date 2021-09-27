@@ -1,6 +1,6 @@
 /* Iris v1 KeyPad Driver
 
-Hubitat Iris v1 KeoPad driver 
+Hubitat Iris v1 KeyPad driver 
 
 FCC ID:FU5TSA04 https://fccid.io/FU5TSA04
 Everspring Industry Co Ltd Smart Keypad TSA04
