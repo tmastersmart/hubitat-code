@@ -32,6 +32,9 @@ You should see the keypad light up, and the On button will begin to blink twice 
 
 
 
+https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
+https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy
+
 
 
 
@@ -57,7 +60,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-	definition (name: "Iris v1 Keyboard", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+	definition (name: "Iris v1 Keyboard", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
@@ -667,7 +670,8 @@ def processMap(Map map) {
 			updateDataValue("model", "KPD800")
 			updateDataValue("firmware", deviceFirmware)
             updateDataValue("fcc", "FU5TSA04")
-
+            updateDataValue("partno", "TSA04-0")
+            
 		} else {
 
 			// Not a clue what we've received.
