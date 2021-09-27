@@ -1,24 +1,22 @@
-/* Iris v1 Keyboard Driver
+/* Iris v1 KeyPad Driver
 
-Hubitat driver 
+Hubitat Iris v1 KeoPad driver 
 
 FCC ID:FU5TSA04 https://fccid.io/FU5TSA04
 Everspring Industry Co Ltd Smart Keypad TSA04
 
 
 
-So far this can only be used as a button device. The keyboard will
-not send several keys in a lot like a password. You must wait between keypresses.
+So far this can only be used as a button device. 
+The keyboard will not send several keys in a lot like a password.
+You must wait between keypresses.
 
-Its my understanding now that the password would have to be sent to the device and
-stored in it. Thats not something I can do I need help on that.
 
-I am working on finding the chime commands.
 
 
 
 To Reset for paring:
-Remove batteries (I think this is if it was already powered up.)
+Remove batteries (if already powered up.)
 Press the On key 8 times(Or Hold down ON for 8 seconds)
 
 Insert two batteries side-by-side at one end or the other
@@ -26,9 +24,9 @@ Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
 
-
-*	09/27/2021  Beta test version Buttons now reporting
-                Voltage working/ On OFF turns off switch
+*   v1.1 09/27/2021 Cleanup Button controler is working
+*	v1.0 09/27/2021 Beta test version Buttons now reporting
+                    Voltage working/ On OFF turns off switch
 
 
 
@@ -60,7 +58,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-	definition (name: "Iris v1 Keyboard", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy") {
+	definition (name: "Iris v1 Keypad", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
@@ -69,8 +67,8 @@ metadata {
 		capability "Refresh"
 		capability "Sensor"
 		capability "SignalStrength"
-	    capability "Chime"
-        capability "Alarm"
+//	    capability "Chime"
+//        capability "Alarm"
 		capability "PushableButton"
 		capability "Switch" 
 
