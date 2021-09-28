@@ -74,16 +74,17 @@ firmware: 2013-06-28
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy
 
+Post your comments here. 
+http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 
 
  * See opensource IRIS code at  https://github.com/arcus-smart-home I have been unable to find any iris v1 code in it
 
   
- * https://github.com/hubitat/HubitatPublic/blob/master/examples/drivers/irisKeypadV3.groovy
+==========================================================================================================================
 
-
- * based on code from  
+ * based on iris code from  
    https://github.com/birdslikewires/hubitat
 
 GNU General Public License v3.0
