@@ -436,7 +436,7 @@ def getStatus(status) {
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armedNight")
             logging ("${device} : Received HSM ${status}","info")
-            state.Command = "hight"
+            state.Command = "night"
         }
        }
 
