@@ -1,14 +1,25 @@
 /* Iris v1 KeyPad Driver
-
 Hubitat Iris v1 KeyPad driver 
-
-
 v2 now supports keypad functions
+
+Please press initialize after updating
+
+
+  _____ _____  _____  _____        __    _  __                          _ 
+ |_   _|  __ \|_   _|/ ____|      /_ |  | |/ /                         | |
+   | | | |__) | | | | (___   __   _| |  | ' / ___ _   _ _ __   __ _  __| |
+   | | |  _  /  | |  \___ \  \ \ / / |  |  < / _ \ | | | '_ \ / _` |/ _` |
+  _| |_| | \ \ _| |_ ____) |  \ V /| |  | . \  __/ |_| | |_) | (_| | (_| |
+ |_____|_|  \_\_____|_____/    \_/ |_|  |_|\_\___|\__, | .__/ \__,_|\__,_|
+                                                   __/ | |                
+                                                  |___/|_|   
+
 
 Arming
 ON   = Arm Away
 Part = Arm Night
 #    = Arm Home
+*    = NA
 
 Disarming
 enter PIN  (dont use OFF or ON buttons)
@@ -18,30 +29,18 @@ Pacic = Sirene ON Alarm = on
 OFF = Sirene OFF Alarm = off
 
 Buttion Support
-All buttons mapped to 16 buttons. 
-I did the button support first before I got the keyboard working 
-keeping it in because you can map buttions to control other acrions. 
+All keypad number buttons mapped to 10 push buttons. 
 
 Tamper
-2 or 3 digit passcodes will triger tamper
-Passcosed > 6 will Triger tamper
-
+Invalid PIN will press
 
 Passcodes
-Set at 4 but possible for any digit size. Future project..
+MASTER 7 digit pin
 
 Chimes Lights not yet working.
 
 Total worktime to build 2 days. Have fun.
-
-  _____ _____  _____  _____        __    _  __                          _ 
- |_   _|  __ \|_   _|/ ____|      /_ |  | |/ /                         | |
-   | | | |__) | | | | (___   __   _| |  | ' / ___ _   _ _ __   __ _  __| |
-   | | |  _  /  | |  \___ \  \ \ / / |  |  < / _ \ | | | '_ \ / _` |/ _` |
-  _| |_| | \ \ _| |_ ____) |  \ V /| |  | . \  __/ |_| | |_) | (_| | (_| |
- |_____|_|  \_\_____|_____/    \_/ |_|  |_|\_\___|\__, | .__/ \__,_|\__,_|
-                                                   __/ | |                
-                                                  |___/|_|    
+ 
 FCC ID:FU5TSA04 https://fccid.io/FU5TSA04
 Built by Everspring Industry Co Ltd Smart Keypad TSA04            
 
@@ -62,14 +61,17 @@ Insert two batteries side-by-side at one end or the other
 Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
+
+
+*   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command trapped Master pin added 
 *   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, Invalid wrong size pins trapped
                     Star key sends a 6 digit PIN *#  * Now trapped. Perhaps a debug master PIN.
 *   v1.1 09/27/2021 Cleanup Button controler is working
 *   v1.0 09/27/2021 Beta test version Buttons now reporting Bat working
 
 Tested on 
-firmware: 2013-06-28
-
+2013-06-28
+2012-12-11
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy
@@ -111,7 +113,7 @@ metadata {
 		capability "Sensor"
 		capability "SignalStrength"
 		capability "Security Keypad"
-//	    capability "Chime"
+//              capability "Chime"
         capability "Alarm"
 		capability "PushableButton"
         capability "TamperAlert"
@@ -154,55 +156,51 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
 	
+    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure password",defaultValue: 0,required: false)
+
 }
 
+// So far this doesnt work because hub detects it has a care fob and you have to manualy install
+def installed(){logging("${device} : Paired!", "info")}
 
-def installed() {
-	// Runs after first pairing.
-	logging("${device} : Paired!", "info")
-}
-
-
+// You have to manualy do this 
 def initialize() {
-	state.batteryOkay = true
-	state.operatingMode = "normal"
-	state.presenceUpdated = 0
-	state.rangingPulses = 0
-    state.Command = "off"
-    state.Panic = "off"
+state.batteryOkay = true
+state.operatingMode = "normal"
+state.presenceUpdated = 0
+state.rangingPulses = 0
+state.Command = "off"
+state.Panic = "off"
     
-	sendEvent(name: "battery",value:0, unit: "%", isStateChange: false)
-	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-	sendEvent(name: "lqi", value: 0, isStateChange: false)
-	sendEvent(name: "operation", value: "unknown", isStateChange: false)
-	sendEvent(name: "presence", value: "not present", isStateChange: false)
-	sendEvent(name: "numberOfButtons", value: "16", isStateChange: false)
-    sendEvent(name: "alarm", value: "off", isStateChange: false)    
-    sendEvent(name: "maxCodes", value:4)
-    sendEvent(name: "codeLength", value:4)
-    sendEvent(name: "alarm", value: "off")
-    sendEvent(name: "securityKeypad", value: "disarmed")
+sendEvent(name: "battery",value:0, unit: "%", isStateChange: false)
+sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
+sendEvent(name: "lqi", value: 0, isStateChange: false)
+sendEvent(name: "operation", value: "unknown", isStateChange: false)
+sendEvent(name: "presence", value: "not present", isStateChange: false)
+sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
+sendEvent(name: "alarm", value: "off", isStateChange: false)    
+sendEvent(name: "maxCodes", value:5)
+sendEvent(name: "codeLength", value:4)
+sendEvent(name: "alarm", value: "off")
+sendEvent(name: "securityKeypad", value: "disarmed")
+sendEvent(name: "tamper", value: "clear")
 
+state.remove("firmwareVersion")	
+state.remove("uptime")
+state.remove("uptimeReceived")
+state.remove("relayClosed")
+state.remove("rssi")
+state.remove("pushed")
 
-	state.remove("firmwareVersion")	
-	state.remove("uptime")
-	state.remove("uptimeReceived")
-	state.remove("relayClosed")
-	state.remove("rssi")
-	state.remove("pushed")
+removeDataValue("pushed")
 
+operation
 
-	removeDataValue("pushed")
-
-    operation
-
-	// Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
-	randomSixty = Math.abs(new Random().nextInt() % 60)
-	runIn(randomSixty,refresh)
-
-	// Initialisation complete.
-	logging("${device} : Initialised", "info")
-
+// Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
+randomSixty = Math.abs(new Random().nextInt() % 60)
+runIn(randomSixty,refresh)
+// Initialisation complete.
+logging("${device} : Initialised", "info")
 }
 
 
@@ -245,13 +243,15 @@ def updated() {
 
 }
 
+
 def setCode(code,pinCode,userCode){
 	logging( "${device} : setCode#${code} PIN:${pinCode} User:${userCode} ","info")
 	if (code == 1){ save= "code1";}
 	if (code == 2){ save= "code2";}
 	if (code == 3){ save= "code3";}
 	if (code == 4){ save= "code4";}	
-	if (code < 5){
+    if (code == 5){ save= "code5";}	
+	if (code < 6){
 	sendEvent(name: "${save}", value: pinCode)
 	sendEvent(name: "${save}n",value: userCode)
 	}	
@@ -263,7 +263,8 @@ def deleteCode(code) {
 	if (code == 2){ save= "code2";}
 	if (code == 3){ save= "code3";}
 	if (code == 4){ save= "code4";}	
-	if (code < 5){
+	if (code == 5){ save= "code5";}	   
+	if (code < 6){
 	sendEvent(name: "${save}", value: " ")
 	sendEvent(name: "${save}n",value: " ")
         
@@ -280,25 +281,25 @@ def setCodeLength(code){logging("${device} : setCodeLength 4", "info")          
 	
 
 def armAway() {
-	logging ("${device} : armAWAY","info")
+	logging ("${device} : Sending armAWAY","info")
 	sendEvent(name: "securityKeypad",value: "armedAway")
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
     state.Command = "away"
 }
 def armHome() {
-	logging ("${device} : armHome","info")
+	logging ("${device} : Sending armHome","info")
 	sendEvent(name: "securityKeypad",value: "armedHome")
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
     state.Command = "home"
 }
 def armNight() {
-	logging ("${device} : armNight","info")
+	logging ("${device} : Sending armNight","info")
 	sendEvent(name: "securityKeypad",value: "armedNight")
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
     state.Command = "night"
 }
 def disarm() {
-	logging ("${device} : disarm", "info")
+	logging ("${device} : Sending disarm", "info")
 	sendEvent(name: "securityKeypad", value: "disarmed")
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
@@ -318,7 +319,7 @@ def siren(cmd){
   state.Panic = "alarm"    
 }
 def strobe(cmd){
-  logging ("${device} : strobe ON","info")  
+  logging ("${device} : Strobe ON","info")  
   sendEvent(name: "siren", value: "on", descriptionText: "not supported yet", displayed: true)
   sendEvent(name: "alarm", value: "on")
   state.Panic = "alarm"    
@@ -342,6 +343,10 @@ logging ("${device} : Tamper Pressed and Released","info")
 sendEvent(name: "tamper", value: "clear")
 }
 
+def press(buttonNumber){
+   logging("${device} : Button ${buttonNumber}","info")
+   sendEvent(name: "pushed", value: buttonNumber, isStateChange: true) 
+}
 
 void reportToDev(map) {
 
@@ -351,9 +356,10 @@ void reportToDev(map) {
 	if (receivedData != null) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
-	logging("${device} : Unknown cluster:${map.cluster}, clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+	logging("${device} : Report to DEV cluster:${map.cluster}, clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 }
-
+// clusters so far
+//0013, command:00 12 bits of data: [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]
 
 def normalMode() {
 
@@ -393,20 +399,20 @@ def quietMode() {
 
 def getStatus(status) {
     status = location.hsmStatus
-    logging ("${device} : hsmStatus  ${status}","trace")
-// armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
-// away home night panic off    
+    logging ("${device} : Received HSM ${status} Our state:${state.Command}","debug")
+// HUB armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
+// Mine away home night panic off    
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armedAway")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "away" 
         }
     }
     if (status == "armingAway"){ 
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armedAway")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "away"
         }
     }
@@ -414,14 +420,14 @@ def getStatus(status) {
     if (status == "armedHome"){
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armedHome")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
        }
     if (status == "armingHome"){ 
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armedHome")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
        }  
@@ -429,7 +435,7 @@ def getStatus(status) {
     if (status == "armedNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armedNight")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "hight"
         }
        }
@@ -437,7 +443,7 @@ def getStatus(status) {
     if (status == "armingNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armedNight")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM  ${status}","info")
             state.Command = "night"
         }
        } 
@@ -446,13 +452,13 @@ def getStatus(status) {
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
             state.Command = "off"
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
         }
     }
     if (status == "allDisarmed"){
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
-            logging ("${device} : hsmStatus  ${status}","info")
+            logging ("${device} : Received HSM ${status}","info")
             state.Command = "off"
         }
     } 
@@ -543,169 +549,186 @@ def processMap(Map map) {
 	logging ("${device} : processMap() : ${map}","trace")
 	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
     logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}","trace")
-    
+
+//0013, command:00 12 bits of data: [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]
+    if (map.clusterID == "0013"){
+	logging("${device} : Device moved remapping","warn")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Remapping","debug")
+	
 //  never seen this including just in case
-    if (map.clusterId == "0006") {
+    } else if (map.clusterId == "0006") {
 		logging("${device} : Sending Match Descriptor Response","debug")
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 
     } else if (map.clusterId == "00C0") {
      // Iris Button report cluster 
-     if (map.command != "00"){log.debug "${device} : key Cluster CMD:${map.command} MAP:${map.data}" }
+     if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
 
      if (map.command == "0A") {  
       keyRec   = receivedData[4]    
 	  buttonNumber = 0 
 	  size = receivedData.size()     
-      logging ("${device} : KeypadMatrix:#${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
+      logging ("${device} : Keypad #${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
 
-     if (keyRec == "41"){
-         buttonNumber= 14// on
-         logging("${device} : Button ${buttonNumber}","debug")
-         if (state.Command =="away"){ return }
+      if (size == 10){ 
+	 asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
+     irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          //old iris commands (just logging)
+          if (irsCMD == "H") {irsCMD= "HOME"}
+          if (irsCMD == "A") {irsCMD= "AWAY"}
+          if (irsCMD == "N") {irsCMD= "NIGHT"}
+          if (irsCMD == "H") {irsCMD= "HOME"}
+          if (irsCMD == "P") {irsCMD= "PANIC"}
+          logging("${device} : Received: Iris command ${irsCMD} [${asciiPin}]", "info")
+	 return
+	 }    
+     
+       
+      if (keyRec == "41"){
+           if (state.Command =="away"){ 
+             logging("${device} : Button ON","debug")
+             return }
+             logging("${device} : Button ON","info")
          armAway()
 	 } 	     
-         else if (keyRec == "48"){
-         buttonNumber= 13// off 
-         if (state.Panic =="off"){ return }
-         logging("${device} : Button ${buttonNumber}","info")
-	     sendEvent(name: "pushed", value: buttonNumber, isStateChange: true)    
+      if (keyRec == "48"){
+         if (state.Panic =="off"){
+             logging("${device} : Button OFF","debug")
+             return
+         }
+         logging("${device} : Button OFF","info")
 		 off()
          return
 	 } 
- 
-         else if (keyRec == "23"){
-         buttonNumber= 12// #    
-         logging("${device} : Button ${buttonNumber}","debug")
-		 if (state.Command =="home"){ return }
+      if (keyRec == "2A"){
+          logging("${device} : Button *","info")
+     
+	 }
+  
+         
+     if (keyRec == "23"){
+		 if (state.Command =="home"){
+         logging("${device} : Button #","debug")
+         return }
+         logging("${device} : Button #","info")
  		 armHome()
 	 } 
-         else if (keyRec == "4E"){
-         buttonNumber= 15// Partial     
-         logging("${device} : Button ${buttonNumber}","debug")  
-		 if (state.Command =="night"){ return }
+     if (keyRec == "4E"){
+		 if (state.Command =="night"){
+         logging("${device} : Button PARTIAL","debug")  
+         return }
+         logging("${device} : Button PARTIAL","info")  
 		 armNight()
 	 }       
-         else if (keyRec == "50"){
-         buttonNumber= 16 // PANIC   
-         logging("${device} : Button ${buttonNumber}","debug") 
-         if (state.Panic =="alarm"){ return }    
+     if (keyRec == "50"){
+         if (state.Panic =="alarm"){ 
+             logging("${device} : Button PANIC","debug") 
+             return }    
 		 siren()
-         logging("${device} : ON Panic", "warn")    
+         logging("${device} : Button PANIC", "warn")    
          state.Panic = "alarm"    
    	  }
-     // trap unknown report star key sends *#	* 
-     // 5 digit passwords also get traped here 
-         
-     // Also its clear the keypad can do multi digit passwords 
-     // But were are hard coding for 4     
-     else if (size == 10){ 
-	 asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
-	 logging("${device} : Received: [${asciiPin}]", "warn")
-	 return
-	 }    
-     else if (size > 10){ // Trap all long passwords
+     // star key sends *#	*  Or some other garbage
+     
+     if (size == 11){  
 	 asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()
-         logging("${device} : Received ${asciiPin}... > 10 digits ", "warn")
-	 tamper()  
+     sendEvent(name: "PIN", value: "MASTER")
+      if (secure == asciiPin){ 
+          logging("${device} : Disarmed by MASTER PIN","info")
+	      disarm()
+	      return
+	    }
+      logging("${device} : PIN ${asciiPin} Invalid HACKING Master PIN" , "warn")
+      tamper()
+      return	 
+     }
+     if (size == 10){ // Trap all long passwords
+	 asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
+     logging("${device} : Received [${asciiPin}]", "warn")
      return
 	 } 
-     else if (size == 9){ 
+     if (size == 9){ 
 	 asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()
-         logging("${device} : Received ${asciiPin}", "warn")
-	 tamper()  
-     return
-	 }         
-	 else if (size == 6){
-	 asciiPin = receivedData[4..5].collect{ (char)Integer.parseInt(it, 16) }.join()
-	 logging("${device} : PIN ${asciiPin} Invalid" , "warn")
-     tamper()    
-	 return
-	 }
-	 else if (size == 7){
-	 asciiPin = receivedData[4..6].collect{ (char)Integer.parseInt(it, 16) }.join()
-     logging("${device} : PIN ${asciiPin} Invalid" , "warn")
-     tamper()
-	 return
-	 }	 
-	 else if (size == 8) { 
-		     
-        asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()
-	  sendEvent(name: "PIN", value: asciiPin)
-	     
-      if (device.currentValue("code1") == asciiPin){ 
-      logging("${device} : Disarmed by PIN:${asciiPin}","info")
-	  disarm()
-	  return
-	}	     
-	if (device.currentValue("code2") == asciiPin){
-      logging("${device} : Disarmed by PIN:${asciiPin}","info")
-	  disarm()
-	  return
-	}
-	if (device.currentValue("code3") == asciiPin){
-      logging("${device} : Disarmed by PIN:${asciiPin}","info")
-	  disarm()
-	  return
-	}
-	if (device.currentValue("code4") == asciiPin){
-      logging("${device} : Disarmed by PIN:${asciiPin}","info")
-	  disarm()
-	  return
-	}
-	logging("${device} : PIN ${asciiPin} Invalid" , "warn")
-	 } else{	     
-         // Keypad matrix         
-         if (keyRec == "31"){buttonNumber= 1}
-         if (keyRec == "32"){buttonNumber= 2}
-         if (keyRec == "33"){buttonNumber= 3}
-         if (keyRec == "34"){buttonNumber= 4}
-         if (keyRec == "35"){buttonNumber= 5}
-         if (keyRec == "36"){buttonNumber= 6}
-         if (keyRec == "37"){buttonNumber= 7}
-         if (keyRec == "38"){buttonNumber= 8}
-         if (keyRec == "39"){buttonNumber= 9}
-         if (keyRec == "30"){buttonNumber= 10}
-	     if (keyRec == "2A"){buttonNumber= 11} // * 	    
-	     
-	     }
+         logging("${device} : Received [${asciiPin}]", "warn")
 
-	 if (buttonNumber >0){            
-     logging("${device} : Button ${buttonNumber}","info")
-	 sendEvent(name: "pushed", value: buttonNumber, isStateChange: true)   
+	 }         
+	 if (size == 6){
+	 asciiPin = receivedData[4..5].collect{ (char)Integer.parseInt(it, 16) }.join()
+	 logging("${device} : Received [${asciiPin}]" , "warn")
+
 	 }
-    }  
-       
+	 if (size == 7){
+	 asciiPin = receivedData[4..6].collect{ (char)Integer.parseInt(it, 16) }.join()
+         logging("${device} :Received [${asciiPin}]" , "warn")
+
+	 }	 
+     if (size == 8) { 
+      asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()
+      sendEvent(name: "PIN", value: asciiPin)
+
+      if (device.currentValue("code1") == asciiPin){
+          name = device.currentValue("code1n")
+          logging("${device} : Disarmed by ${name}","info")
+	  disarm()
+	  return
+	 }	     
+         if (device.currentValue("code2") == asciiPin){
+          name = device.currentValue("code2n")
+          logging("${device} : Disarmed by ${name}","info")
+	  disarm()
+	  return
+	}
+      if (device.currentValue("code3") == asciiPin){
+          name = device.currentValue("code3n")
+          logging("${device} : Disarmed by ${name}","info")
+ 	  disarm()
+	  return
+	}
+	  if (device.currentValue("code4") == asciiPin){
+          name = device.currentValue("code4n")
+          logging("${device} : Disarmed by ${name}","info")
+	  disarm()
+	  return
+	}
+      if (device.currentValue("code5") == asciiPin){
+         name = device.currentValue("code5n")
+         logging("${device} : Disarmed by ${name}","info")
+	  disarm()
+	  return
+	}   
+         
+      logging("${device} : PIN ${asciiPin} Invalid  HACKING" , "warn")
+      tamper()   
+      return	 
+	 }// end pin code 
+         
+         // Keypad button matrix         
+         if (keyRec == "31"){press(1)}
+         if (keyRec == "32"){press(2)}
+         if (keyRec == "33"){press(3)}
+         if (keyRec == "34"){press(4)}
+         if (keyRec == "35"){press(5)}
+         if (keyRec == "36"){press(6)}
+         if (keyRec == "37"){press(7)}
+         if (keyRec == "38"){press(8)}
+         if (keyRec == "39"){press(9)}
+         if (keyRec == "30"){press(10)}
+        }// end of 0A
+ 
+    
         
     } else if (map.clusterId == "00F0") {
-		// Device status cluster. <-- we get spammed with battery readings
-		// Report the battery voltage and calculated percentage.
-		def batteryVoltageHex = "undefined"
-		BigDecimal batteryVoltage = 0
+      // Device status cluster. 
+      def batteryVoltageHex = "undefined"
+      BigDecimal batteryVoltage = 0
+      batteryVoltageHex = receivedData[5..6].reverse().join()
+        if (batteryVoltageHex == "FFFF") {return}
+      batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+      logging("${device} : battery #${batteryVoltageHex}  ${batteryVoltage}volts","trace")
+      batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
 
-		batteryVoltageHex = receivedData[5..6].reverse().join()
-		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}","trace")
-
-//      never seen this on US versions
-        if (batteryVoltageHex == "FFFF") {
-			logging("${device} : battery reading error","debug")
-			return
-		}
-
-		batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-		logging( "${device} : batteryVoltage sensor value : ${batteryVoltage}","trace")
-
-		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-
-        // debounce batt spamming 
-        if (state.lastBattery != battertVoltage){
- 		 logging("${device} : batteryVoltage : ${batteryVoltage}","debug")
-		 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-        }
-        
-        state.lastBattery = batteryVoltage
-       // battery doesnt report all batteries  I get 2.9 volts on 2 good batteries
-       // more work in needed 6 AA batteries 
+      // battery doesnt report all batteries  I get 2.9 volts on 2 good batteries
+      // more work in needed 6 AA batteries 
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 1.99
 		BigDecimal batteryVoltageScaleMax = 2.90
@@ -716,8 +739,8 @@ def processMap(Map map) {
 
        // debounce batt spamming (ignore if same as last event)
         if (state.lastBattery != battertVoltage){
- 		 logging( "${device} : Battery : $batteryPercentage% ($batteryVoltage V)","info")
-	     sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+ 	 logging( "${device} : Battery : $batteryPercentage% ($batteryVoltage V)","info")
+	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
      	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
          
          
@@ -732,110 +755,85 @@ def processMap(Map map) {
              state.batteryOkay = true
          }
   
-		 if (batteryPercentage < 19) {
+	 if (batteryPercentage < 19) {
             logging("${device} : Battery BAD: $batteryPercentage%", "warn") 
-			state.batteryOkay = false
-			sendEvent(name: "batteryState", value: "exhausted")
-		}
+	    state.batteryOkay = false
+	    sendEvent(name: "batteryState", value: "exhausted")
+	}
         state.lastBattery = batteryVoltage     
     }
 
-	} else if (map.clusterId == "00F6") {
-		// Discovery cluster. 
-		if (map.command == "FD") {
-			// Ranging is our jam, Hubitat deals with joining on our behalf.
-			def lqiRangingHex = "undefined"
-			int lqiRanging = 0
-			lqiRangingHex = receivedData[0]
-			lqiRanging = zigbee.convertHexToInt(lqiRangingHex)
-			sendEvent(name: "lqi", value: lqiRanging)
-			logging ("${device} : lqiRanging : ${lqiRanging}","debug")
+} else if (map.clusterId == "00F6") {
+ // Discovery cluster. 
+  if (map.command == "FD") {
+   // Ranging is our jam, Hubitat deals with joining on our behalf.
+   def lqiRangingHex = "undefined"
+   int lqiRanging = 0
+   lqiRangingHex = receivedData[0]
+   lqiRanging = zigbee.convertHexToInt(lqiRangingHex)
+   sendEvent(name: "lqi", value: lqiRanging)
+   logging ("${device} : lqiRanging : ${lqiRanging}","debug")
 
-			if (receivedData[1] == "77") {
+        if (receivedData[1] == "77") {
+           // This is ranging mode, which must be temporary. Make sure we come out of it.
+           state.rangingPulses++
+	   if (state.rangingPulses > 30) {"${state.operatingMode}Mode"()}
 
-				// This is ranging mode, which must be temporary. Make sure we come out of it.
-				state.rangingPulses++
-				if (state.rangingPulses > 30) {
-					"${state.operatingMode}Mode"()
-				}
+	} else if (receivedData[1] == "FF") {
+          // This is the ranging report received every 30 seconds while in quiet mode.
+	  logging ("${device} : quiet ranging report received","debug")
 
-			} else if (receivedData[1] == "FF") {
+	} else if (receivedData[1] == "00") {
+          // This is the ranging report received when the device reboots.
+	  // After rebooting a refresh is required to bring back remote control.
+          loging("${device} : reboot ranging report received","debug")
+          refresh()
 
-				// This is the ranging report received every 30 seconds while in quiet mode.
-				logging ("${device} : quiet ranging report received","debug")
-
-			} else if (receivedData[1] == "00") {
-
-				// This is the ranging report received when the device reboots.
-				// After rebooting a refresh is required to bring back remote control.
-				loging("${device} : reboot ranging report received","debug")
-				refresh()
-
-			} else {
-
-				// Something to do with ranging we don't know about!
-				reportToDev(map)
-
-			} 
-
-		} else if (map.command == "FE") {
-
-			// Device version response.
-
-			def versionInfoHex = receivedData[31..receivedData.size() - 1].join()
-
-			StringBuilder str = new StringBuilder()
-			for (int i = 0; i < versionInfoHex.length(); i+=2) {
-				str.append((char) Integer.parseInt(versionInfoHex.substring(i, i + 2), 16))
-			} 
-
-			String versionInfo = str.toString()
-			String[] versionInfoBlocks = versionInfo.split("\\s")
-			int versionInfoBlockCount = versionInfoBlocks.size()
-			String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
-
-			logging("${device} : Device version Size:${versionInfoBlockCount} blocks:${versionInfoDump}","debug")
-
-			String deviceManufacturer = "AlertMe"
-			String deviceModel = ""
-			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
-
-			// Sometimes the model name contains spaces.
-			if (versionInfoBlockCount == 2) {
-				deviceModel = versionInfoBlocks[0]
-			} else {
-				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
-			}
-
-            
-            
-			logging("${device} : Device : ${deviceModel}", "info")// KeyPad Device
-			logging("${device} : Firmware : ${deviceFirmware}", "info")//2013-06-28
-
-			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("device", deviceModel)
-			updateDataValue("model", "KPD800")
-			updateDataValue("firmware", deviceFirmware)
-            updateDataValue("fcc", "FU5TSA04")
-            updateDataValue("partno", "TSA04-0")
-            
-		} else {
-
-			// Not a clue what we've received.
-			reportToDev(map)
-
-		}
-
-
-	} else if (map.clusterId == "8032" ) {
-
-		// These clusters are sometimes received when joining new devices to the mesh.
-		//   8032 arrives with 80 bytes of data, probably routing and neighbour information.
-		// We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
-		logging( "${device} : New join has triggered a routing table reshuffle.","debug")
 	} else {
+          // Something to do with ranging we don't know about!
+          reportToDev(map)
+	} 
 
-		// Not a clue what we've received.
+} else if (map.command == "FE") {
+	// Device version response.
+	def versionInfoHex = receivedData[31..receivedData.size() - 1].join()
+	StringBuilder str = new StringBuilder()
+	 for (int i = 0; i < versionInfoHex.length(); i+=2) {
+	 str.append((char) Integer.parseInt(versionInfoHex.substring(i, i + 2), 16))
+	 } 
+	String versionInfo = str.toString()
+	String[] versionInfoBlocks = versionInfo.split("\\s")
+	int versionInfoBlockCount = versionInfoBlocks.size()
+	String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
+	logging("${device} : Device version Size:${versionInfoBlockCount} blocks:${versionInfoDump}","debug")
+	String deviceManufacturer = "AlertMe"
+	String deviceModel = ""
+	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
+	// Sometimes the model name contains spaces.
+	if (versionInfoBlockCount == 2) {
+	deviceModel = versionInfoBlocks[0]
+	} else {
+	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
+	}
+	logging("${device} : Device : ${deviceModel}", "info")// KeyPad Device
+	logging("${device} : Firmware : ${deviceFirmware}", "info")//2013-06-28
+	updateDataValue("manufacturer", deviceManufacturer)
+        updateDataValue("device", deviceModel)
+        updateDataValue("model", "KPD800")
+	updateDataValue("firmware", deviceFirmware)
+        updateDataValue("fcc", "FU5TSA04")
+        updateDataValue("partno", "TSA04-0")
+     } else {
+	// Not a clue what we've received.
+        reportToDev(map)
+       }
+} else if (map.clusterId == "8032" ) {
+	// These clusters are sometimes received when joining new devices to the mesh.
+        //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
+        // We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
+	logging( "${device} : New join has triggered a routing table reshuffle.","debug")
+     } else {
+	// Not a clue what we've received.
 	reportToDev(map)
 	}
 	return null
@@ -843,12 +841,9 @@ def processMap(Map map) {
 
 
 void sendZigbeeCommands(List<String> cmds) {
-
-	// All hub commands go through here for immediate transmission and to avoid some method() weirdness.
-
-    log.trace "${device} : sendZigbeeCommands received : ${cmds}"
+    // All hub commands go through here for immediate transmission and to avoid some method() weirdness.
+    logging( "${device} : Send Zigbee Cmd :${cmds}","trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
-
 }
 
 
