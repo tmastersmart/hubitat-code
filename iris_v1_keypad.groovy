@@ -62,7 +62,7 @@ Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
 
-
+*   v2.2 09/29/2021 Version detection and auto upgrade/install. 
 *   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command trapped Master pin added 
 *   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, Invalid wrong size pins trapped
                     Star key sends a 6 digit PIN *#  * Now trapped. Perhaps a debug master PIN.
@@ -163,8 +163,9 @@ preferences {
 // So far this doesnt work because hub detects it has a care fob and you have to manualy install
 def installed(){logging("${device} : Paired!", "info")}
 
-// You have to manualy do this 
+ 
 def initialize() {
+state.version = "2.2"
 state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
@@ -215,15 +216,16 @@ def configure() {
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
 	// Schedule our ranging report.
-	int checkEveryHours = 6																						// Request a ranging report and refresh every 6 hours or every 1 hour for outlets.						
+	int checkEveryHours = 10 // Request a ranging report and refresh every x hours.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)
+    // At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
 
 	// Schedule the presence check.
-	int checkEveryMinutes = 6																					// Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
+	int checkEveryMinutes = 50 // Check presence timestamp every 6 minutes.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
+	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)// At X seconds past the minute, every checkEveryMinutes minutes.
 
 	// Configuration complete.
 	logging("${device} : Configured", "info")
@@ -279,6 +281,13 @@ def setEntryDelay(code){logging("${device} : setEntryDelay ${code}  unsupported"
 def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported", "info")}
 def setCodeLength(code){logging("${device} : setCodeLength 4", "info")                   }
 	
+
+def armingHome() {
+	logging ("${device} : Sending armingHome","info")
+	sendEvent(name: "securityKeypad",value: "armingHome")
+	sendLocationEvent (name: "hsmSetArm", value: "armingHome")
+    state.Command = "home"
+}
 
 def armAway() {
 	logging ("${device} : Sending armAWAY","info")
@@ -519,19 +528,21 @@ def checkPresence() {
 		logging("${device} : checkPresence() : ${millisNow} - ${state.presenceUpdated} = ${millisElapsed} (Threshold: ${presenceTimeoutMillis} ms)","trace")
 	} else if (state.presenceUpdated > 0 && state.batteryOkay == false) {
 		sendEvent(name: "presence", value: "not present")
-		logging("${device} : Presence : Battery too low! Reporting not present as this device will no longer be reliable.", "warn")
+		logging("${device} : Presence : Battery too low!", "warn")
 	} else {
-		logging("${device} : Presence : Not yet received. Your device may at max range if so you may have to use built in driver with no presence. ", "warn")
+		logging("${device} : Presence : Not yet received.", "warn")
 	}
 }
 
 
 def parse(String description) {
 	// Primary parse routine.
-	// catchall: C216 00C0 02 02 0040 00 1E00 00 00 0000 00 01 2000 <--- spamms this 
+	// catchall: C216 00C0 02 02 0040 00 1E00 00 00 0000 00 01 2000 <--- spams this 
 	logging ("${device} : $description","trace")
     // We check stat first and debounce ARM buttons if it took.
     // Keyboard spams cmd about 6 times. So we autodebounce and resend.
+    if (state.version != "2.2"){ configure() }// auto install/upgrade
+
     getStatus(status)
     updatePresence()
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
@@ -601,9 +612,12 @@ def processMap(Map map) {
          return
 	 } 
       if (keyRec == "2A"){
-          logging("${device} : Button *","info")
-     
-	 }
+		 if (state.Command =="home"){
+         logging("${device} : Button *","debug")
+         return }
+         logging("${device} : Button *","info")
+ 		 armHome()
+	 } 
   
          
      if (keyRec == "23"){
