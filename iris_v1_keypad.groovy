@@ -1,9 +1,7 @@
 /* Iris v1 KeyPad Driver
 Hubitat Iris v1 KeyPad driver 
-v2 now supports keypad functions
-
-Please press initialize after updating
-
+Supports keypad disarm arm functions (no chimes)
+Works with Lock Code Manager 
 
   _____ _____  _____  _____        __    _  __                          _ 
  |_   _|  __ \|_   _|/ ____|      /_ |  | |/ /                         | |
@@ -18,15 +16,13 @@ Please press initialize after updating
 Arming
 ON   = Arm Away
 Part = Arm Night
-#    = Arm Home
-*    = NA
 
 Disarming
 enter PIN  (dont use OFF or ON buttons)
 
 Panic
-Pacic = Sirene ON Alarm = on
-OFF = Sirene OFF Alarm = off
+Panic = Sirene ON/Alarm on/Panic ON
+PIN = Panic off
 
 Buttion Support
 All keypad number buttons mapped to 10 push buttons. 
@@ -36,6 +32,11 @@ Invalid PIN will press
 
 Passcodes
 MASTER 7 digit pin
+
+Optional
+* switch on
+OFF switch OFF
+# armHome
 
 Chimes Lights not yet working.
 
@@ -61,6 +62,7 @@ Insert two batteries side-by-side at one end or the other
 Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
+*   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
 *   v2.3 09/30/2021 battery value changes
 *   v2.2 09/29/2021 Version detection and auto upgrade/install. 
 *   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command trapped Master pin added 
@@ -97,7 +99,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.3"
+    TheVersion="2.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -123,7 +125,7 @@ metadata {
         capability "Alarm"
 		capability "PushableButton"
         capability "TamperAlert"
-//		capability "Switch"
+		capability "Switch"
 
 
 
@@ -158,12 +160,16 @@ metadata {
 
 preferences {
 	
-	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
+	input name: "infoLogging",  type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
-	
-    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure password",defaultValue: 0,required: false)
 
+	input name: "switchByOFF", type: "bool", title: "OFF/* control a Switch", description: "If disabled STAR OFF buttons are ignored ",defaultValue: false
+	input name: "poundActive", type: "bool", title: "# sets ArmHome", description: "If disabled POUND button is ignored ",defaultValue: false
+ 
+    
+    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager",defaultValue: 0,required: false)
+	
 }
 
 // So far this doesnt work because hub detects it has a care fob and you have to manualy install
@@ -287,12 +293,6 @@ def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported"
 def setCodeLength(code){logging("${device} : setCodeLength 4", "info")                   }
 	
 
-def armingHome() {
-	logging ("${device} : Sending armingHome","info")
-	sendEvent(name: "securityKeypad",value: "armingHome")
-	sendLocationEvent (name: "hsmSetArm", value: "armingHome")
-    state.Command = "home"
-}
 
 def armAway() {
 	logging ("${device} : Sending armAWAY","info")
@@ -312,44 +312,54 @@ def armNight() {
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
     state.Command = "night"
 }
+
+def panic() {
+	logging ("${device} : Panic Sent","warn")
+    sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
+    siren()
+    state.Panic = "alarm" 
+}
+
+//  You only get here by authorized PIN
 def disarm() {
-	logging ("${device} : Sending disarm", "info")
-	sendEvent(name: "securityKeypad", value: "disarmed")
+	logging ("${device} : Sending disarm (OFF: Panic/alarm/siren)", "info")
+	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "cancled by PIN", displayed: true)
+    sendEvent(name: "panic",  value: "off", descriptionText: "cancled by PIN", displayed: true)
+    sendEvent(name: "strobe", value: "off", displayed: true)
+    sendEvent(name: "alarm",  value: "off", displayed: true) 
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
-}
-def off(cmd){
-    sendEvent(name: "siren",  value: "off", descriptionText: "Its OFF", displayed: true)
-    sendEvent(name: "strobe", value: "off", descriptionText: "not supported", displayed: true)
-    sendEvent(name: "alarm",  value: "off", descriptionText: "Its OFF", displayed: true) 
-    logging ("${device} : OFF Strobe/Siren/Panic/Alarm","info")
-    state.Panic = "off"    
+    state.Panic = "off"
 }
 
 def siren(cmd){
   logging ("${device} : Siren ON", "info")
-  sendEvent(name: "siren", value: "on")
-  sendEvent(name: "alarm", value: "on")
-  state.Panic = "alarm"    
+  sendEvent(name: "siren", value: "on", displayed: true) 
+  sendEvent(name: "alarm", value: "on", displayed: true) 
+  
 }
 def strobe(cmd){
   logging ("${device} : Strobe ON","info")  
-  sendEvent(name: "siren", value: "on", descriptionText: "not supported yet", displayed: true)
-  sendEvent(name: "alarm", value: "on")
-  state.Panic = "alarm"    
+  sendEvent(name: "strobe", value: "on", displayed: true)  
+// This does nothing but set flag    
 }
 def both(cmd){
   logging ("${device} : both ON siren/strobe","info")
   sendEvent(name: "siren", value: "on")  
   sendEvent(name: "strobe", value: "on", descriptionText: "not supported yet", displayed: true) 
   sendEvent(name: "alarm", value: "on") 
-  state.Panic = "alarm"   
 }
 
-def on() {
-   siren(1)
+def on(cmd) {
+ logging ("${device} :Switch ON","info")   
+ sendEvent(name: "switch", value: "on") 
+state.switch = on
 }
-
+def off(cmd){
+ logging ("${device} : Switch OFF","info")
+ sendEvent(name: "switch", value: "off")   
+state.switch = off
+}
 
 def tamper(){
 sendEvent(name: "tamper", value: "detected")
@@ -615,20 +625,20 @@ def processMap(Map map) {
          armAway()
 	 } 	     
       if (keyRec == "48"){
-         if (state.Panic =="off"){
+         if (state.switch =="off"){
              logging("${device} : Button OFF","debug")
              return
          }
-         logging("${device} : Button OFF","info")
-		 off()
+         logging("${device} : Button OFF","debug")
+         if (switchByOFF){off()}
          return
 	 } 
-      if (keyRec == "2A"){
-		 if (state.Command =="home"){
+      if (keyRec == "2A"){ 
+		 if (state.switch =="on"){
          logging("${device} : Button *","debug")
          return }
-         logging("${device} : Button *","info")
- 		 armHome()
+         logging("${device} : Button *","debug")
+         if (switchByOFF){ on()}
 	 } 
   
          
@@ -637,7 +647,7 @@ def processMap(Map map) {
          logging("${device} : Button #","debug")
          return }
          logging("${device} : Button #","info")
- 		 armHome()
+         if (poundActive){armHome()}
 	 } 
      if (keyRec == "4E"){
 		 if (state.Command =="night"){
@@ -650,9 +660,8 @@ def processMap(Map map) {
          if (state.Panic =="alarm"){ 
              logging("${device} : Button PANIC","debug") 
              return }    
-		 siren()
-         logging("${device} : Button PANIC", "warn")    
-         state.Panic = "alarm"    
+		 panic()
+         
    	  }
      // star key sends *#	*  Or some other garbage
      
