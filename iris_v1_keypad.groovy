@@ -55,13 +55,13 @@ me know....
 
 To Reset for paring:
 Remove batteries (if already powered up.)
-Press the On key 8 times(Or Hold down ON for 8 seconds)
+Press the On key 8 times(Or is it Hold down ON for 8 seconds)
 
 Insert two batteries side-by-side at one end or the other
 Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
-
+*   v2.3 09/30/2021 battery value changes
 *   v2.2 09/29/2021 Version detection and auto upgrade/install. 
 *   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command trapped Master pin added 
 *   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, Invalid wrong size pins trapped
@@ -86,7 +86,7 @@ http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
   
 ==========================================================================================================================
 
- * based on iris code from  
+ * based on alertme UK code from  
    https://github.com/birdslikewires/hubitat
 
 GNU General Public License v3.0
@@ -96,7 +96,13 @@ works using a licensed work, under the same license. Copyright and license
 notices must be preserved. Contributors provide an express grant of patent rights.
 
  */
-
+def clientVersion() {
+    TheVersion="2.3"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
 
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
@@ -165,7 +171,6 @@ def installed(){logging("${device} : Paired!", "info")}
 
  
 def initialize() {
-state.version = "2.2"
 state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
@@ -541,8 +546,7 @@ def parse(String description) {
 	logging ("${device} : $description","trace")
     // We check stat first and debounce ARM buttons if it took.
     // Keyboard spams cmd about 6 times. So we autodebounce and resend.
-    if (state.version != "2.2"){ configure() }// auto install/upgrade
-
+    clientVersion()
     getStatus(status)
     updatePresence()
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
@@ -582,15 +586,23 @@ def processMap(Map map) {
       logging ("${device} : Keypad #${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
 
       if (size == 10){ 
-	 asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
+	 rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
      irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
-          //old iris commands (just logging)
+     irsCMD = receivedData[6..6].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          //old iris Mode commands. Iris had only 2 armed modes night and away HOME was disarmed
+          //this is for logging only we are not folowing these
           if (irsCMD == "H") {irsCMD= "HOME"}
           if (irsCMD == "A") {irsCMD= "AWAY"}
           if (irsCMD == "N") {irsCMD= "NIGHT"}
-          if (irsCMD == "H") {irsCMD= "HOME"}
           if (irsCMD == "P") {irsCMD= "PANIC"}
-          logging("${device} : Received: Iris command ${irsCMD} [${asciiPin}]", "info")
+      irsNCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          if (irsNCMD == "H") {irsNCMD= "HOME"}
+          if (irsNCMD == "A") {irsNCMD= "AWAY"}
+          if (irsNCMD == "N") {irsNCMD= "NIGHT"}
+          if (irsNCMD == "P") {irsNCMD= "PANIC"}
+          if (irsCMD != irsNCMD){ irsCMD= "${irsCMD} ${irsNCMD}"}// sometimes 2 commands are sent H A
+          logging("${device} : Received: Iris command:${irsCMD}", "info")
+          state.iriscmd = irsCMD // Store this its likely to be out of sync with actual command
 	 return
 	 }    
      
@@ -744,8 +756,8 @@ def processMap(Map map) {
       // battery doesnt report all batteries  I get 2.9 volts on 2 good batteries
       // more work in needed 6 AA batteries 
 		BigDecimal batteryPercentage = 0
-		BigDecimal batteryVoltageScaleMin = 1.99
-		BigDecimal batteryVoltageScaleMax = 2.90
+		BigDecimal batteryVoltageScaleMin = 2.25
+		BigDecimal batteryVoltageScaleMax = 3.00
 
             batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
@@ -758,19 +770,19 @@ def processMap(Map map) {
      	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
          
          
-         if (batteryPercentage > 24) {  
+         if (batteryPercentage > 20) {  
              sendEvent(name: "batteryState", value: "ok")
              state.batteryOkay = true
              }
             
-         if (batteryPercentage < 25) {
-             logging("${device} : Battery LOW : $batteryPercentage%", "warn")
+         if (batteryPercentage < 21) {
+             logging("${device} : Battery LOW : $batteryPercentage%", "debug")
              sendEvent(name: "batteryState", value: "low")
              state.batteryOkay = true
          }
   
 	 if (batteryPercentage < 19) {
-            logging("${device} : Battery BAD: $batteryPercentage%", "warn") 
+            logging("${device} : Battery BAD: $batteryPercentage%", "debug") 
 	    state.batteryOkay = false
 	    sendEvent(name: "batteryState", value: "exhausted")
 	}
@@ -820,17 +832,20 @@ def processMap(Map map) {
 	int versionInfoBlockCount = versionInfoBlocks.size()
 	String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
 	logging("${device} : Device version Size:${versionInfoBlockCount} blocks:${versionInfoDump}","debug")
-	String deviceManufacturer = "AlertMe"
+	String deviceManufacturer = "IRIS/Everspring"
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
+    reportFirm = "Report to DEV"
+      if(deviceFirmware == "2012-12-11" ){reportFirm = "Known v2012"}
+      if(deviceFirmware == "2013-06-28" ){reportFirm = "Known v2013"}
+      
 	// Sometimes the model name contains spaces.
 	if (versionInfoBlockCount == 2) {
 	deviceModel = versionInfoBlocks[0]
 	} else {
 	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 	}
-	logging("${device} : Device : ${deviceModel}", "info")// KeyPad Device
-	logging("${device} : Firmware : ${deviceFirmware}", "info")//2013-06-28
+      logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "info")
 	updateDataValue("manufacturer", deviceManufacturer)
         updateDataValue("device", deviceModel)
         updateDataValue("model", "KPD800")
