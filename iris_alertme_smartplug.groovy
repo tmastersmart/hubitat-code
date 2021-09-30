@@ -1,15 +1,21 @@
-/* Iris AlertMe Smart Plug 
+/* Iris v1 Smart Plug 
 
 Hubitat iris smart plug driver with siren and strobe comands
 AlertMe USA version smart plug
+Centrica Connected home Limited Wireless Smartplug SP11
 
-
+  ___      _             _   ____                       _     ____  _             
+ |_ _|_ __(_)___  __   _/ | / ___| _ __ ___   __ _ _ __| |_  |  _ \| |_   _  __ _ 
+  | || '__| / __| \ \ / / | \___ \| '_ ` _ \ / _` | '__| __| | |_) | | | | |/ _` |
+  | || |  | \__ \  \ V /| |  ___) | | | | | | (_| | |  | |_  |  __/| | |_| | (_| |
+ |___|_|  |_|___/   \_/ |_| |____/|_| |_| |_|\__,_|_|   \__| |_|   |_|\__,_|\__, |
+                                                                            |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
-https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
-https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
- 
 
+
+ * 09/20/2021 v2.5  Merging in code from my KepPad driver. Better error handeling and logging
+ * 09-14-2021 v2.4  Some log fixes and cleanup
  * 09-14-2021 v2.3  Added alarm support
  * 09/03/2011 v2.1  unknown commands logging, Battery reporting removed.
  * 08/05/2021 v2.0  Cleanup on logging power states  removal of unneeded info
@@ -17,37 +23,45 @@ https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.gro
  * 05/16/2021 v1.7 
  * 04/11/2021 v1   Release
 
+https://github.com/tmastersmart/hubitat-code/blob/main/iris_alertme_smartplug.groovy
+https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy
 
-  tested on:
- firmware: 2012-09-20 Problems device dropping off,flashing Then sending 0006 and 0013 clusters
+tested on:
+ firmware: 2012-09-20 OK
  firmware: 2013-09-26 OK 
-
- Please report other firmware versions           
- 
-
- fingerprint model:"SmartPlug2.5", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00EF,00EE", outClusters:""
 
 
 Hold down button while plugging in to factory reset. Should start double flashing
 
 Energy is total since start
 Power  is current watts
-Battery USA model has no battery but still reports 12 volts. 
 
- * orginal by 
- * name: "AlertMe Smart Plug" 
- * namespace: "BirdsLikeWires", 
- * author: "Andrew Davison", 
- * importUrl: "https://raw.githubusercontent.com/birdslikewires/hubitat/master/alertme/drivers/alertme_smartplug.groovy"
- *
- * 
- *  AlertMe Smart Plug Driver v1.39 (24th January 2021)
+Battery USA model has no battery but still reports internal power at 12 volts. 
+
+
+
+
+
+ * based on alertme UK code from  
+   https://github.com/birdslikewires/hubitat
+
+GNU General Public License v3.0
+Permissions of this strong copyleft license are conditioned on making available
+complete source code of licensed works and modifications, which include larger
+works using a licensed work, under the same license. Copyright and license
+notices must be preserved. Contributors provide an express grant of patent rights.
  *	
  */
-
+def clientVersion() {
+    TheVersion="2.5"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
 
 metadata {
-	definition (name: "Iris AlertMe Smart Plug", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
+	definition (name: "Iris v1 Smart Plug w siren", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
 
 		capability "Actuator"
 		capability "Configuration"
@@ -55,7 +69,6 @@ metadata {
 		capability "Initialize"
 		capability "Outlet"
 		capability "PowerMeter"
-//		capability "PowerSource"
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "SignalStrength"
@@ -267,7 +280,7 @@ def rangingMode() {
 
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
 	sendEvent(name: "operation", value: "ranging")
-	logging("${device} : Mode : Ranging", "info")
+    logging("${device} : Mode : Ranging ${state.rangingPulses}", "info")
 
 	// Ranging will be disabled after a maximum of 30 pulses.
 	state.rangingPulses = 0
@@ -303,14 +316,12 @@ def quietMode() {
 	// We don't receive any of these in quiet mode, so reset them.
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-//	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "operation", value: "quiet")
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
 //	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
 	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
-//	sendEvent(name: "temperature", value: 0, unit: "F", isStateChange: false)
-//	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
+
 
 	logging("${device} : Mode : Quiet", "info")
 
@@ -449,88 +460,83 @@ def checkPresence() {
 
 
 def parse(String description) {
-
 	// Primary parse routine.
+//	logging("${device} :Parse Data: ${description}", "trace")
 
-	logging("${device} : Parse : $description", "trace")
-
-	sendEvent(name: "presence", value: "present")
+    clientVersion()
 	updatePresence()
-
+    
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-
 	if (descriptionMap) {
-
 		processMap(descriptionMap)
-
 	} else {
-		
-		logging("${device} : Parse : Failed to parse received data.", "warn")
-		logging("${device} : Splurge! : ${description}", "warn")
-
+		logging("${device} : Parse Failed ..${description}", "warn")
 	}
-
 }
 
 
 def processMap(Map map) {
+    logging ("${device} : ${map}","trace")
+	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
+    logging ("${device} : Cluster:${map.clusterId} State:${map.command} MAP:${map.data}","trace")
 
-	 logging("${device} : Cluster:${map.clusterId} State:${powerStateHex} MAP:${map.data}", "debug")
-//  0006,  <unknown 
-//  0013,  <unknown while pairing 6 and 13 will be sent 
-    
-// 8001, command: 00 [A2, 00, 62, C0, 52, 04, 00, 6F, 0D, 00, 24, 8C]  other smart plug plugged in.
-// dont know what 8038 is
-// 8038, attrId: null, command: 00 with value: null and 27 bits of data: [00, 00, 00, F8, FF, 07, 2A, 00, 10, 00, 10, BC, CE, B6, B2, AC, A2, A3, A5, A4, AA, A5, A7, A3, 9D, 9D, 9D]
-// AlertMe values are always sent in a data element.
-	String[] receivedData = map.data
-    
+/*
+Internal notes: Building Cluster map 
+* = likely done by HUB in Join.
+0000 Network (16-bit) Address Request *
+0004 Simple Descriptor Request *
+0005 Active Endpoint Request *
+0006 Match Descriptor Request (Light Flashes)
+0013 Device announce message (Light Flashes)
+00C0 Button report
+     00 = Unknown (lots of reports)
+     0A = Button
+00EE Relay actuation (smartPlugs)
+     80 = PowerState
+00EF Power Energy messages
+     81 = Power Reading
+     82 = Energy
+00F0 Battery & Temp
+     FB 
+00F3 Key Fob
+00F2 Tamper
+00F6 Discovery Cluster
+     FD = Ranging
+     FE = Device version response.
+0500 Security Cluster (Tamper & Reed)
+8001 Routing Neighobor information
+8004 simple descriptor response
+8005 Active Endpoint Response (tells you what the device can do)
+8032 Received when new devices join
+8038 Management Network Update Request
 
-  
-    
+*/    
+   
+   
     // Relay actuation and power state messages.
 	if (map.clusterId == "00EE") {
        if (map.command == "80") {
        def powerStateHex = "undefined"
-       def powerStateDisplay = "undefined"    
-	   powerStateHex = receivedData[0]
-
-//       sendEvent(name: "powerSource", value: "mains") 
-//       state.supplyPresent = true
-//      sendEvent(name: "stateMismatch", value: false) // whats this for remove it  
-            // cleanup logging power states.   More info needed on codes
-            // State:09  MAP:[09, 01] 
-            // State:0F  MAP:[0F, 01] button press
-            // State:08  MAP:[08, 00] plugged in
-            // State:0C  MAP:[0C, 00] Plugged in
-            // State:0D  MAP:[0D, 01] Button Pressed
-            // State:0B  MAP:[0B, 01] showed up after joining might be error
-            // State:0A  MAP:[0A, 00] button pressed
-            // codes that show up USA
-            // code: 0E     
-            // code: 07 MAINS switched on
-            // code: 06 MAINS switched off
-//       if (powerStateHex == "0E" ) {powerStateDisplay="Power state"}
+       def powerStateDisplay = "PowerState Needs mapping ?-->"    
+	   powerStateHex  = receivedData[0]
+       powerStateHex2 = receivedData[1] // This field is always 0 on US version.   
        if (powerStateHex == "0B" ) {powerStateDisplay="Joining"}
-//       if (powerStateHex == "09" ) {powerStateDisplay="Power state"}
        if (powerStateHex == "0C" ) {powerStateDisplay="Power Restored"}
        if (powerStateHex == "08" ) {powerStateDisplay="Power Restored"}
        if (powerStateHex == "0A" ) {powerStateDisplay="Button Pressed"}
        if (powerStateHex == "0F" ) {powerStateDisplay="Button Pressed"}
        if (powerStateHex == "0D" ) {powerStateDisplay="Button Pressed"}
-       if (powerStateHex == "06" ) {powerStateDisplay="Last Power restore memory was :OFF"}
+       if (powerStateHex == "0E" ) {powerStateDisplay="Last Power Restore memory was :OFF"}
+       if (powerStateHex == "06" ) {powerStateDisplay="Power Restored"}// Reports this if on or off after restore?
        if (powerStateHex == "07" ) {powerStateDisplay="Last Power restore memory was :ON"}
-           
-        logging("${device} : ${powerStateDisplay} :${map.data}", "debug")
+       // need more info on these states They are diffrent than the UK models 
+           size = receivedData.size() 
+           if (size == 2 ){cmdREC = receivedData[0..1].collect{ (char)Integer.parseInt(it, 16) }.join()}
+          
+           logging("${device} :${powerStateDisplay} :${map.data} size ${size} :${cmdREC}", "info")
 }     
-                      
-//				sendEvent(name: "stateMismatch", value: false)
-//				sendEvent(name: "powerSource", value: "battery")
-//				state.supplyPresent = false
 
-	
-
-			// Relay States state.alarmcmdUpdated
+			// Switch State
 
 			def switchStateHex = "undefined"
 			switchStateHex = receivedData[1]
@@ -584,9 +590,9 @@ else if (map.clusterId == "00EF") {
 
 			// These power readings are so frequent that we only log them in debug or trace.
 			powerValueHex = receivedData[0..1].reverse().join()
-			logging("${device} : power byte flipped : ${powerValueHex}", "trace")
+			logging("${device} : Current Power: ${powerValue} Watts :HEX ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
-			logging("${device} : Current Power: ${powerValue} Watts", "debug")
+			logging("${device} : Current Power: ${powerValue} Watts", "debug") // This has to be debug way to many reports
             state.power = powerValue
 			sendEvent(name: "power", value: powerValue, unit: "W")
 //			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
@@ -599,10 +605,10 @@ else if (map.clusterId == "00EF") {
 
 			String energyValueHex = "undefined"
 			energyValueHex = receivedData[0..3].reverse().join()
-			logging("${device} : energy byte flipped : ${energyValueHex}", "trace")
+//			logging("${device} : energy byte flipped : ${energyValueHex}", "trace")
 
 			BigInteger energyValue = new BigInteger(energyValueHex, 16)
-			logging("${device} : energy counter reports : ${energyValue}", "debug")
+			logging("${device} : energy counter reports : ${energyValue} hex:${energyValueHex}", "trace")
 
 			BigDecimal energyValueDecimal = BigDecimal.valueOf(energyValue / 3600 / 1000)
 			energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
@@ -616,10 +622,10 @@ else if (map.clusterId == "00EF") {
 
 			String uptimeValueHex = "undefined"
 			uptimeValueHex = receivedData[4..8].reverse().join()
-			logging("${device} : uptime byte flipped : ${uptimeValueHex}", "trace")
+//			logging("${device} : uptime byte flipped : ${uptimeValueHex}", "trace")
 
 			BigInteger uptimeValue = new BigInteger(uptimeValueHex, 16)
-			logging("${device} : uptime counter reports : ${uptimeValue}", "debug")
+			logging("${device} : uptime counter reports : ${uptimeValue} Hex:${uptimeValueHex} ", "trace")
 
 			def newDhmsUptime = []
 			newDhmsUptime = millisToDhms(uptimeValue * 1000)
@@ -635,11 +641,8 @@ else if (map.clusterId == "00EF") {
 			reportToDev(map)
 
 		}
-//8001  It does this when another smart plug is reconnected. Some type of reaction to power up
-   	} else if (map.clusterId == "8001") {
-          logging("${device} : Another Smartplug plugged in. ${map.clusterId}", "info")	     
-          logging("${device} : Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
-    
+
+
         
 } else if (map.clusterId == "00F0") {
         // These units have no battery but report internal voltage 12v but some report 30v ?
@@ -727,9 +730,12 @@ else if (map.clusterId == "00EF") {
 
 			logging("${device} : VersionInfoBlock ${versionInfoBlockCount}", "debug")
 
-			String deviceManufacturer = "Iris/AlertMe" // Is this not stored in the device?
+			String deviceManufacturer = "Iris/AlertMe/Centrica" // Is this not stored in the device?
 			String deviceModel = "" 
 			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
+            reportFirm = "Report to DEV"
+            if(deviceFirmware == "2012-09-20" ){reportFirm = "Known v2012"}
+            if(deviceFirmware == "2013-09-26" ){reportFirm = "Known v2013"}
 
 			// Sometimes the model name contains spaces.
 			if (versionInfoBlockCount == 2) {
@@ -737,53 +743,56 @@ else if (map.clusterId == "00EF") {
 			} else {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
+            logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "info")
 
-
-// Please report other firmware versions and any problems it has.            
-            
-            if (deviceModel  == "SmartPlug2.5") {deviceModel = "SmartPlug2.5 SPG800"}// SmartPlug2.5 is the USA model SPG800
-            if (deviceFirmware == "2012-09-20") {deviceFirmware = "09-20-2012 Old"}// Older version
-            if (deviceFirmware == "2013-09-26") {deviceFirmware = "09-26-2013 Current"}// last version
-           
-            logging("${device}: Firmware:${deviceFirmware}", "info")
-			
             updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", deviceModel)
-			updateDataValue("firmware", deviceFirmware)
-            
-            
-            
+            updateDataValue("device", deviceModel)
+            updateDataValue("model", "SPG800")
+	        updateDataValue("firmware", deviceFirmware)
+            updateDataValue("fcc", "WJHSP11")
+            updateDataValue("partno", "SP11")
 
-        
+       
         } else {
-			// Not a clue what we've received.
          reportToDev(map)
         }
         
 	}  else if (map.clusterId == "8038" ) {
-       logging("${device} : cluster: ${map.cluster} seen before but unknown", "debug")
-       logging("${device} : Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
-       
-
-
-	}  else if (map.clusterId == "8032" ) {
+       logging("${device} : cluster:8038 Seen before but unknown", "debug")
+       logging("${device} : Dump: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
+       // 8038, attrId: null, command: 00 with value: null and 27 bits of data: [00, 00, 00, F8, FF, 07, 2A, 00, 10, 00, 10, BC, CE, B6, B2, AC, A2, A3, A5, A4, AA, A5, A7, A3, 9D, 9D, 9D]
+      
 
 		// These clusters are sometimes received when joining new devices to the mesh.
 		//   8032 arrives with 80 bytes of data, probably routing and neighbour information.
 		// We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
-		logging("${device} : New join has triggered a routing table reshuffle.", "debug")
+ 
+        // We have never seen 8032 on the USA model
+    
+        // on the USA we get 8001 or 0013 with a flashing light and 0006 as a join or droppoff error
+        // in latest test moving the plug gave a 0013 flashing light Ranging was triggered then a 8001 
+        // while pairing 6 and 13 will be sent 
+ 
 
-       } else  if (map.clusterId == "0006") {
-        logging("${device} : Flashing light error: ${map.clusterId} :${map.data}", "warn")
-        logging("${device} : This is a join error of some type. Divice needs to be reset and rejoined with internal v1 driver. Device is having trouble rejoining. ", "warn")
-        } else if  (map.clusterId == "0013") {
-        logging("${device} : Flashing light error: (bad unit?) ${map.clusterId} :${map.data}", "warn")
-    }
-    else {
-   	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
-  // Not a clue what we've received.
-		reportToDev(map)
+        
+	}  else if (map.clusterId == "8032" ) {
+		logging("${device} : New join has triggered a routing table reshuffle.", "info")
 
+   	} else if (map.clusterId == "8001") {
+         logging("${device} : Routing and Neighbour Information", "info")	     
+
+
+    } else if (map.clusterID == "0013"){
+	logging("${device} : New Device announce message","info")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
+
+    } else if (map.clusterId == "0006") {
+		logging("${device} : Match Descriptor Request. Sending Response","debug")
+		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
+
+    }  else {
+//    logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "trace")
+	reportToDev(map)
 	}
 
 	return null
