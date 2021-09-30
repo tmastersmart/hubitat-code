@@ -61,7 +61,7 @@ def clientVersion() {
 }
 
 metadata {
-	definition (name: "Iris v1 Smart Plug w siren", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_smartplug.groovy") {
+	definition (name: "Iris v1 Smart Plug w siren", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy") {
 
 		capability "Actuator"
 		capability "Configuration"
