@@ -21,11 +21,12 @@ Disarming
 enter PIN  (dont use OFF or ON buttons)
 
 Panic
-Panic = Sirene ON/Alarm on/Panic ON
+Panic = Panic ON
 PIN = Panic off
 
 Buttion Support
-All keypad number buttons mapped to 10 push buttons. 
+If a key is pressed once it acts like a button not a PIN
+All keypad number buttons mapped to 10 push buttons.
 
 Tamper
 Invalid PIN will press
@@ -62,6 +63,7 @@ Insert two batteries side-by-side at one end or the other
 Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
 
+*   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
 *   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
 *   v2.3 09/30/2021 battery value changes
 *   v2.2 09/29/2021 Version detection and auto upgrade/install. 
@@ -99,7 +101,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.4"
+    TheVersion="2.5.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -122,7 +124,7 @@ metadata {
 		capability "SignalStrength"
 		capability "Security Keypad"
 //              capability "Chime"
-        capability "Alarm"
+//        capability "Alarm"
 		capability "PushableButton"
         capability "TamperAlert"
 		capability "Switch"
@@ -135,16 +137,13 @@ metadata {
 		//command "quietMode"
 
 		attribute "batteryState", "string"
-		attribute "batteryVoltage", "string"
-		
-	
-		attribute "code1", "string"
+		attribute "panic", "string"
+        attribute "code1", "string"
+     	attribute "code1", "string"
 		attribute "code2", "string"
 		attribute "code3", "string"
 		attribute "code4", "string"
-		
-	
-		attribute "code1n", "string"
+        attribute "code1n", "string"
 		attribute "code2n", "string"
 		attribute "code3n", "string"
 		attribute "code4n", "string"
@@ -160,16 +159,19 @@ metadata {
 
 preferences {
 	
-	input name: "infoLogging",  type: "bool", title: "Enable logging", defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
+	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
 
 	input name: "switchByOFF", type: "bool", title: "OFF/* control a Switch", description: "If disabled STAR OFF buttons are ignored ",defaultValue: false
 	input name: "poundActive", type: "bool", title: "# sets ArmHome", description: "If disabled POUND button is ignored ",defaultValue: false
- 
-    
-    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager",defaultValue: 0,required: false)
-	
+	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN", defaultValue: true
+  
+  
+    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager 0=disable",defaultValue: 0,required: false)
+
+    input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline" 
+
 }
 
 // So far this doesnt work because hub detects it has a care fob and you have to manualy install
@@ -181,30 +183,32 @@ state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
 state.rangingPulses = 0
-state.Command = "off"
-state.Panic = "off"
+state.Command = "unknown"
+state.Panic = false
     
-sendEvent(name: "battery",value:0, unit: "%", isStateChange: false)
-sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
+sendEvent(name: "battery",value:100, unit: "%", isStateChange: false)
+sendEvent(name: "batteryVoltage", value: 3, unit: "V", isStateChange: false)
 sendEvent(name: "lqi", value: 0, isStateChange: false)
-sendEvent(name: "operation", value: "unknown", isStateChange: false)
-sendEvent(name: "presence", value: "not present", isStateChange: false)
+sendEvent(name: "operation", value: "normal", isStateChange: false)
+sendEvent(name: "presence", value: "present", isStateChange: false)
 sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
-sendEvent(name: "alarm", value: "off", isStateChange: false)    
+sendEvent(name: "panic", value: "off", isStateChange: false)    
 sendEvent(name: "maxCodes", value:5)
 sendEvent(name: "codeLength", value:4)
-sendEvent(name: "alarm", value: "off")
-sendEvent(name: "securityKeypad", value: "disarmed")
+//sendEvent(name: "alarm", value: "off")
+sendEvent(name: "securityKeypad", value: "Fetching")
 sendEvent(name: "tamper", value: "clear")
 
-state.remove("firmwareVersion")	
+state.remove("switch")	
 state.remove("uptime")
 state.remove("uptimeReceived")
-state.remove("relayClosed")
+state.remove("iriscmd")
 state.remove("rssi")
 state.remove("pushed")
-
-removeDataValue("pushed")
+    
+device.deleteCurrentState("alarm")    
+device.deleteCurrentState("pushed") 
+device.deleteCurrentState("batteryVoltageTest")     
 
 operation
 
@@ -278,16 +282,28 @@ def deleteCode(code) {
 	if (code == 4){ save= "code4";}	
 	if (code == 5){ save= "code5";}	   
 	if (code < 6){
-	sendEvent(name: "${save}", value: " ")
-	sendEvent(name: "${save}n",value: " ")
+//	sendEvent(name: "${save}", value: "")
+//	sendEvent(name: "${save}n",value: "")
         
-    device.removeSetting("${save}")   
-	device.removeSetting("${save}n")  
+//    removeDataValue("${save}")
+//    removeDataValue("${save}n")  
+// This is the worst documented language I have ever seen.
+// Had to find this in a post.        
+    device.deleteCurrentState("${save}")    
+    device.deleteCurrentState("${save}n")
+        
+//    device.removeSetting("${save}")   
+//	device.removeSetting("${save}n")  
 	}	
 	
-}	
+}
+
+    
+    
+    
+
 // unsupported error matrix
-def getCodes(code){     logging("${device} : getCodes  unsupported", "info")             }
+def getCodes(){     logging("${device} : getCodes  unsupported", "info")             }
 def setEntryDelay(code){logging("${device} : setEntryDelay ${code}  unsupported", "info")}
 def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported", "info")}
 def setCodeLength(code){logging("${device} : setCodeLength 4", "info")                   }
@@ -316,8 +332,8 @@ def armNight() {
 def panic() {
 	logging ("${device} : Panic Sent","warn")
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
-    siren()
-    state.Panic = "alarm" 
+//  siren()
+    state.Panic = true 
 }
 
 //  You only get here by authorized PIN
@@ -325,11 +341,11 @@ def disarm() {
 	logging ("${device} : Sending disarm (OFF: Panic/alarm/siren)", "info")
 	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "cancled by PIN", displayed: true)
     sendEvent(name: "panic",  value: "off", descriptionText: "cancled by PIN", displayed: true)
-    sendEvent(name: "strobe", value: "off", displayed: true)
-    sendEvent(name: "alarm",  value: "off", displayed: true) 
+//    sendEvent(name: "strobe", value: "off", displayed: true)
+//    sendEvent(name: "alarm",  value: "off", displayed: true) 
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
-    state.Panic = "off"
+    state.Panic = false
 }
 
 def siren(cmd){
@@ -359,6 +375,11 @@ def off(cmd){
  logging ("${device} : Switch OFF","info")
  sendEvent(name: "switch", value: "off")   
 state.switch = off
+    
+//sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0 ${device.endpointId} 0xFC04 {15 4E 10 00 00 00}"])
+
+sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0 ${device.endpointId} 0x0501 {09 01 04 05 09 01 01}"])
+ 
 }
 
 def tamper(){
@@ -371,6 +392,8 @@ def press(buttonNumber){
    logging("${device} : Button ${buttonNumber}","info")
    sendEvent(name: "pushed", value: buttonNumber, isStateChange: true) 
 }
+
+
 
 void reportToDev(map) {
 
@@ -403,7 +426,8 @@ def rangingMode() {
 	// Ranging mode double-flashes (good signal) or triple-flashes (poor signal) the ON button
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
 	sendEvent(name: "operation", value: "ranging")
-    logging ("${device} : Mode: Ranging ${state.rangingPulses}","info")
+    lqi = device.currentValue(lqi)
+    logging ("${device} : Mode: Ranging LQI:${lqi}","info")
 	// Ranging will be disabled after a maximum of 30 pulses.
 	state.rangingPulses = 0
 
@@ -476,6 +500,7 @@ def getStatus(status) {
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
             state.Command = "off"
+            state.Panic = false
             logging ("${device} : Received HSM ${status}","info")
         }
     }
@@ -553,7 +578,7 @@ def checkPresence() {
 def parse(String description) {
 	// Primary parse routine.
 	// catchall: C216 00C0 02 02 0040 00 1E00 00 00 0000 00 01 2000 <--- spams this 
-	logging ("${device} : $description","trace")
+//logging ("${device} : Parsing - - -","debug")
     // We check stat first and debounce ARM buttons if it took.
     // Keyboard spams cmd about 6 times. So we autodebounce and resend.
     clientVersion()
@@ -571,22 +596,54 @@ def parse(String description) {
 
 
 def processMap(Map map) {
-	logging ("${device} : processMap() : ${map}","trace")
+	logging ("${device} : ${map}","trace")
 	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
-    logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}","trace")
+    logging("${device} : Cluster:${map.clusterId} State:${map.command} MAP:${map.data}","trace")
+    logging("${device} : Cluster:${map.clusterId} - -${map.command} -","debug")
+/*
+Internal notes: Building Cluster map 
+* = likely done by HUB in Join.
+0000 Network (16-bit) Address Request *
+0004 Simple Descriptor Request *
+0005 Active Endpoint Request *
+0006 Match Descriptor Request (Light Flashes)
+0013 Device announce message (Light Flashes)
+00C0 Button report (button on repeator)
+     00 = Unknown (lots of reports)
+     0A = Button
+00EE Relay actuation (smartPlugs)
+     80 = PowerState
+00EF Power Energy messages
+     81 = Power Reading
+     82 = Energy
+00F0 Battery & Temp
+     FB 
+00F3 Key Fob (button on Repeator pressed)
+00F2 Tamper
+00F6 Discovery Cluster
+     FD = Ranging
+     FE = Device version response.
+0500 Security Cluster (Tamper & Reed)
+8001 Routing Neighobor information
+8004 simple descriptor response
+8005 Active Endpoint Response (tells you what the device can do)
+8032 Received when new devices join
+8038 Management Network Update Request
 
-//0013, command:00 12 bits of data: [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]
+*/        
+   
     if (map.clusterID == "0013"){
-	logging("${device} : Device moved remapping","warn")   
-	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Remapping","debug")
+	logging("${device} : Device announce message","warn")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
 	
-//  never seen this including just in case
+
     } else if (map.clusterId == "0006") {
 		logging("${device} : Sending Match Descriptor Response","debug")
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 
     } else if (map.clusterId == "00C0") {
      // Iris Button report cluster 
+     //  mapcommand 00 spams us so we ignore it even in trace . Unknown
      if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
 
      if (map.command == "0A") {  
@@ -595,17 +652,18 @@ def processMap(Map map) {
 	  size = receivedData.size()     
       logging ("${device} : Keypad #${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
 
-      if (size == 10){ 
-	 rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
-     irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
-     irsCMD = receivedData[6..6].collect{ (char)Integer.parseInt(it, 16) }.join() 
-          //old iris Mode commands. Iris had only 2 armed modes night and away HOME was disarmed
+      if (size == 10){ // IRIS MODE commands show up here
+	   rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
+       irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
+       irsCMD = receivedData[6..6].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          //Iris had only 2 armed modes night and away HOME was disarmed
           //this is for logging only we are not folowing these
           if (irsCMD == "H") {irsCMD= "HOME"}
           if (irsCMD == "A") {irsCMD= "AWAY"}
           if (irsCMD == "N") {irsCMD= "NIGHT"}
           if (irsCMD == "P") {irsCMD= "PANIC"}
-      irsNCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          // Sencond field. Unknown why 2 command are sent
+           irsNCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
           if (irsNCMD == "H") {irsNCMD= "HOME"}
           if (irsNCMD == "A") {irsNCMD= "AWAY"}
           if (irsNCMD == "N") {irsNCMD= "NIGHT"}
@@ -613,10 +671,10 @@ def processMap(Map map) {
           if (irsCMD != irsNCMD){ irsCMD= "${irsCMD} ${irsNCMD}"}// sometimes 2 commands are sent H A
           logging("${device} : Received: Iris command:${irsCMD}", "info")
           state.iriscmd = irsCMD // Store this its likely to be out of sync with actual command
-	 return
+	      return
 	 }    
      
-       
+     // Now check for our command buttons  
       if (keyRec == "41"){
            if (state.Command =="away"){ 
              logging("${device} : Button ON","debug")
@@ -657,14 +715,14 @@ def processMap(Map map) {
 		 armNight()
 	 }       
      if (keyRec == "50"){
-         if (state.Panic =="alarm"){ 
+         if (state.Panic){ 
              logging("${device} : Button PANIC","debug") 
              return }    
 		 panic()
          
    	  }
-     // star key sends *#	*  Or some other garbage
-     
+          
+// Look for PINS stored in long fields
      if (size == 11){  
 	 asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()
      sendEvent(name: "PIN", value: "MASTER")
@@ -677,26 +735,27 @@ def processMap(Map map) {
       tamper()
       return	 
      }
-     if (size == 10){ // Trap all long passwords
-	 asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
-     logging("${device} : Received [${asciiPin}]", "warn")
-     return
-	 } 
+
      if (size == 9){ 
 	 asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()
-         logging("${device} : Received [${asciiPin}]", "warn")
-
+     logging("${device} : Received [${asciiPin}]", "warn")
+     if(tamperPIN){tamper()}   
+     return    
 	 }         
 	 if (size == 6){
 	 asciiPin = receivedData[4..5].collect{ (char)Integer.parseInt(it, 16) }.join()
 	 logging("${device} : Received [${asciiPin}]" , "warn")
-
+     if(tamperPIN){tamper()}   
+     return    
 	 }
 	 if (size == 7){
 	 asciiPin = receivedData[4..6].collect{ (char)Integer.parseInt(it, 16) }.join()
-         logging("${device} :Received [${asciiPin}]" , "warn")
-
-	 }	 
+     logging("${device} :Received [${asciiPin}]" , "warn")
+     if(tamperPIN){tamper()}   
+     return    
+	 }	
+         
+// 4 digit PIN decoding         
      if (size == 8) { 
       asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()
       sendEvent(name: "PIN", value: asciiPin)
@@ -732,12 +791,15 @@ def processMap(Map map) {
 	  return
 	}   
          
-      logging("${device} : PIN ${asciiPin} Invalid  HACKING" , "warn")
-      tamper()   
+      logging("${device} : PIN ${asciiPin} Invalid PIN HACKING" , "warn")
+      if(tamperPIN){tamper()}   
       return	 
 	 }// end pin code 
          
-         // Keypad button matrix         
+
+// Keypad button matrix 
+// If a key is pressed once it acts like a button not a PIN
+// Each key is mapped to a bitton you can use in a routine         
          if (keyRec == "31"){press(1)}
          if (keyRec == "32"){press(2)}
          if (keyRec == "33"){press(3)}
@@ -748,7 +810,7 @@ def processMap(Map map) {
          if (keyRec == "38"){press(8)}
          if (keyRec == "39"){press(9)}
          if (keyRec == "30"){press(10)}
-        }// end of 0A
+ }// end of 0A
  
     
         
@@ -756,25 +818,54 @@ def processMap(Map map) {
       // Device status cluster. 
       def batteryVoltageHex = "undefined"
       BigDecimal batteryVoltage = 0
+      inspect = receivedData[1..3].reverse().join()
+      inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter Counts up or down
       batteryVoltageHex = receivedData[5..6].reverse().join()
-        if (batteryVoltageHex == "FFFF") {return}
+//                  temp  = receivedData[7..8].reverse().join() 
+//                  temp = zigbee.convertHexToInt(temp)
+      if (batteryVoltageHex == "FFFF") {return}
       batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-      logging("${device} : battery #${batteryVoltageHex}  ${batteryVoltage}volts","trace")
       batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
+//          count           volt    temp
+//     00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12
+//MAP:[19, D9, F1, 3F, 02, 6C, 09, 00, 00, B2, FF, 00, 00]
+//MAP:[19, B8, B1, 43, 02, 56, 09, 00, 00, BA, FF, 00, 00]        
+        logging("${device} :count ${inspect2} Volts:${batteryVoltage}", "debug") 
+// Being A Electronics technician I base this on Battery discharge curves.
+// I also verified the sensor the voltage reported is close to my meter.	    
+// Normal batteries slowely drop. Newer ones are steady and then drop dead.
+// To detect them before they drop dead the lower voltage needs to be higher
+// Problem is not all curve maps agree so this is a adverage	    
+//	    if (BatType == "Alkaline"){// < slow discharge 
+		BigDecimal batteryVoltageScaleMin = 2.10
+		BigDecimal batteryVoltageScaleMax = 3.00	    
+//	    } 	    
+	    if (BatType == "NiCad"){ // <1.2 drops out fast
+		batteryVoltageScaleMin = 2.25
+		batteryVoltageScaleMax = 3.00	    
+	    } 
+            if (BatType == "NiMH"){ // <1.2 drops out fast
+		batteryVoltageScaleMin = 2.25
+		batteryVoltageScaleMax = 3.00	    
+	    }    
 
-      // battery doesnt report all batteries  I get 2.9 volts on 2 good batteries
-      // more work in needed 6 AA batteries 
-		BigDecimal batteryPercentage = 0
-		BigDecimal batteryVoltageScaleMin = 2.25
-		BigDecimal batteryVoltageScaleMax = 3.00
-
+	    if (BatType == "Lithium"){// <1.25 drops out fast 
+		batteryVoltageScaleMin = 2.35
+		batteryVoltageScaleMax = 3.00	    
+	    } 	    
+	    
+//	 logging( "${device} : Battery : ${BatType} ${batteryVoltageScaleMin}% (${batteryVoltageScaleMax} )","info")	    
+	    
+//          batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
+	    
+     	BigDecimal batteryPercentage = 0
             batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
-       // debounce batt spamming (ignore if same as last event)
+        
         if (state.lastBattery != battertVoltage){
- 	 logging( "${device} : Battery : $batteryPercentage% ($batteryVoltage V)","info")
+	 logging( "${device} : Battery : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)","info")
 	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
      	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
          
@@ -845,8 +936,8 @@ def processMap(Map map) {
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
     reportFirm = "Report to DEV"
-      if(deviceFirmware == "2012-12-11" ){reportFirm = "Known v2012"}
-      if(deviceFirmware == "2013-06-28" ){reportFirm = "Known v2013"}
+      if(deviceFirmware == "2012-12-11" ){reportFirm = "Ok"}
+      if(deviceFirmware == "2013-06-28" ){reportFirm = "Ok"}
       
 	// Sometimes the model name contains spaces.
 	if (versionInfoBlockCount == 2) {
@@ -865,6 +956,11 @@ def processMap(Map map) {
 	// Not a clue what we've received.
         reportToDev(map)
        }
+} else if (map.clusterId == "8001") {
+  // Never seen keyboard do this
+  logging("${device} : Routing and Neighbour Information", "info")	     
+     
+        
 } else if (map.clusterId == "8032" ) {
 	// These clusters are sometimes received when joining new devices to the mesh.
         //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
