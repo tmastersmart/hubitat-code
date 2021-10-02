@@ -1,6 +1,6 @@
 /* Iris v1 KeyPad Driver
 Hubitat Iris v1 KeyPad driver 
-Supports keypad disarm arm functions (no chimes)
+Supports keypad disarm arm functions 
 Works with Lock Code Manager 
 
   _____ _____  _____  _____        __    _  __                          _ 
@@ -12,34 +12,50 @@ Works with Lock Code Manager
                                                    __/ | |                
                                                   |___/|_|   
 
+=================================================================================================
 
-Arming
-ON   = Arm Away
-Part = Arm Night
+*   v2.6 10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
+*   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
+*   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
+*   v2.3 09/30/2021 battery value changes
+*   v2.2 09/29/2021 Version detection and auto upgrade/install. 
+*   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command found and Logged, Master pin added 
+*   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, 
+                    Invalid pins trapped Star key sends a 6 digit PIN *#  * Now trapped.
+*   v1.1 09/27/2021 Cleanup Button controler is working
+*   v1.0 09/27/2021 Beta test version Buttons now reporting Bat working
+
+* Minor versions are for internal testing and are not listed here.
+=================================================================================================
+Arming Buttons setup on driver page
 
 Disarming
-enter PIN  (dont use OFF or ON buttons)
+PIN only OFF can be remapped or Disabled
 
-Panic
-Panic = Panic ON
-PIN = Panic off
-
-Buttion Support
+Button Support
 If a key is pressed once it acts like a button not a PIN
 All keypad number buttons mapped to 10 push buttons.
+OFF mapped to Button 11 if Disabled but be warned it repeates.
 
 Tamper
-Invalid PIN will press
+Invalid PIN will press tamper
 
 Passcodes
-MASTER 7 digit pin
+Lock Manager can store monitor and delete passcode but not recall
+MASTER 7 digit pin 
 
-Optional
-* switch on
-OFF switch OFF
-# armHome
+Switch
+OFF STAR can control a switch.
+Disable if users keep pressing OFF after the PIN.
 
-Chimes Lights not yet working.
+
+Chimes Lights not working. Without ZigBee commands they will never
+be working. Help is needed on this. 
+Perhaps decompiling Iris v1 Hub code would result in finding these codes.
+
+
+
+
 
 Total worktime to build 2 days. Have fun.
  
@@ -48,13 +64,8 @@ Built by Everspring Industry Co Ltd Smart Keypad TSA04
 
 I would use the sample keypad code hubitat posted 
 but its not open source so I wrote my own.
-Thats caused a delay in finishing the driver.
 I wrote this for my keyboards you are welcome to use it.
-If anyone knows the commands to activate the chimes let 
-me know....
-
-
-
+================================================================================================
 To Reset for paring:
 Remove batteries (if already powered up.)
 Press the On key 8 times(Or is it Hold down ON for 8 seconds)
@@ -62,16 +73,6 @@ Press the On key 8 times(Or is it Hold down ON for 8 seconds)
 Insert two batteries side-by-side at one end or the other
 Press the On key 8 times
 You should see the keypad light up, and the On button will begin to blink twice periodically.
-
-*   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
-*   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
-*   v2.3 09/30/2021 battery value changes
-*   v2.2 09/29/2021 Version detection and auto upgrade/install. 
-*   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command trapped Master pin added 
-*   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, Invalid wrong size pins trapped
-                    Star key sends a 6 digit PIN *#  * Now trapped. Perhaps a debug master PIN.
-*   v1.1 09/27/2021 Cleanup Button controler is working
-*   v1.0 09/27/2021 Beta test version Buttons now reporting Bat working
 
 Tested on 
 2013-06-28
@@ -84,10 +85,8 @@ Post your comments here.
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 
-
- * See opensource IRIS code at  https://github.com/arcus-smart-home I have been unable to find any iris v1 code in it
-
-  
+* See opensource IRIS code at  https://github.com/arcus-smart-home 
+I have been unable to find any iris v1 code in it but it does have some drivers. 
 ==========================================================================================================================
 
  * based on alertme UK code from  
@@ -101,7 +100,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.5.3"
+    TheVersion="2.6.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -115,42 +114,43 @@ metadata {
 
 	definition (name: "Iris v1 Keypad", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy") {
 
-		capability "Battery"
-		capability "Configuration"
-		capability "Initialize"
-		capability "PresenceSensor"
-		capability "Refresh"
-		capability "Sensor"
-		capability "SignalStrength"
-		capability "Security Keypad"
-//              capability "Chime"
-//        capability "Alarm"
-		capability "PushableButton"
-        capability "TamperAlert"
-		capability "Switch"
+capability "Battery"
+capability "Configuration"
+capability "Initialize"
+capability "PresenceSensor"
+capability "Refresh"
+capability "Sensor"
+capability "SignalStrength"
+capability "Security Keypad"
+capability "PushableButton"
+capability "TamperAlert"
+capability "Switch"
+
+//capability "Chime"
+//capability "Alarm"
 
 
+command "checkPresence"
+command "normalMode"
+command "rangingMode"
+//command "quietMode"
 
-		command "checkPresence"
-		command "normalMode"
-		command "rangingMode"
-		//command "quietMode"
-
-		attribute "batteryState", "string"
-		attribute "panic", "string"
-        attribute "code1", "string"
-     	attribute "code1", "string"
-		attribute "code2", "string"
-		attribute "code3", "string"
-		attribute "code4", "string"
-        attribute "code1n", "string"
-		attribute "code2n", "string"
-		attribute "code3n", "string"
-		attribute "code4n", "string"
+attribute "batteryState", "string"
+attribute "lastCodeName", "string"
+attribute "batteryVoltage", "string"	
+attribute "panic", "string"
+attribute "code1", "string"
+attribute "code1", "string"
+attribute "code2", "string"
+attribute "code3", "string"
+attribute "code4", "string"
+attribute "code1n", "string"
+attribute "code2n", "string"
+attribute "code3n", "string"
+attribute "code4n", "string"
 		
 
-		fingerprint profileId: "C216", inClusters: "00F0,00C0", outClusters: "", manufacturer: "AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
-
+fingerprint profileId: "C216", inClusters: "00F0,00C0", outClusters: "", manufacturer: "AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 	}
 
 }
@@ -163,14 +163,17 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
 
-	input name: "switchByOFF", type: "bool", title: "OFF/* control a Switch", description: "If disabled STAR OFF buttons are ignored ",defaultValue: false
-	input name: "poundActive", type: "bool", title: "# sets ArmHome", description: "If disabled POUND button is ignored ",defaultValue: false
+	input name: "switchByOFF", type: "bool", title: "OFF/STAR* control a Switch", description: "If disabled STAR is ignored and OFF is Button 11. Turn off if users keep pressing OFF after PIN. ",defaultValue: false
 	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN", defaultValue: true
   
-  
-    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager 0=disable",defaultValue: 0,required: false)
 
     input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline" 
+
+    input name: "OnSet",   type: "enum", title: "ON Button", description: "Customize ON Button", options: ["Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
+    input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
+    input name: "PoundSet",type: "enum", title: "# Button", description: "Customize Pound Button",  options: ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home",required: true 
+
+    input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager 0=disable",defaultValue: 0,required: false)
 
 }
 
@@ -185,17 +188,16 @@ state.presenceUpdated = 0
 state.rangingPulses = 0
 state.Command = "unknown"
 state.Panic = false
-    
+   
 sendEvent(name: "battery",value:100, unit: "%", isStateChange: false)
 sendEvent(name: "batteryVoltage", value: 3, unit: "V", isStateChange: false)
 sendEvent(name: "lqi", value: 0, isStateChange: false)
 sendEvent(name: "operation", value: "normal", isStateChange: false)
 sendEvent(name: "presence", value: "present", isStateChange: false)
-sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
+sendEvent(name: "numberOfButtons", value: "11", isStateChange: false)
 sendEvent(name: "panic", value: "off", isStateChange: false)    
 sendEvent(name: "maxCodes", value:5)
 sendEvent(name: "codeLength", value:4)
-//sendEvent(name: "alarm", value: "off")
 sendEvent(name: "securityKeypad", value: "Fetching")
 sendEvent(name: "tamper", value: "clear")
 
@@ -205,11 +207,13 @@ state.remove("uptimeReceived")
 state.remove("iriscmd")
 state.remove("rssi")
 state.remove("pushed")
-    
+state.remove("state.reportToDev")
+	
+	
 device.deleteCurrentState("alarm")    
 device.deleteCurrentState("pushed") 
-device.deleteCurrentState("batteryVoltageTest")     
-
+device.deleteCurrentState("pin")     
+device.deleteCurrentState("lockCodes") 
 operation
 
 // Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
@@ -299,34 +303,39 @@ def deleteCode(code) {
 }
 
     
-    
-    
+  
 
 // unsupported error matrix
-def getCodes(){     logging("${device} : getCodes  unsupported", "info")             }
+def getCodes(){  
+   logging("${device} : getCodes  ", "info")
+    
+}
 def setEntryDelay(code){logging("${device} : setEntryDelay ${code}  unsupported", "info")}
 def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported", "info")}
 def setCodeLength(code){logging("${device} : setCodeLength 4", "info")                   }
-	
+
 
 
 def armAway() {
 	logging ("${device} : Sending armAWAY","info")
-	sendEvent(name: "securityKeypad",value: "armedAway")
+    sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
     state.Command = "away"
+   
 }
 def armHome() {
 	logging ("${device} : Sending armHome","info")
-	sendEvent(name: "securityKeypad",value: "armedHome")
+	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
     state.Command = "home"
+   
 }
 def armNight() {
 	logging ("${device} : Sending armNight","info")
-	sendEvent(name: "securityKeypad",value: "armedNight")
+	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
     state.Command = "night"
+ 
 }
 
 def panic() {
@@ -338,8 +347,9 @@ def panic() {
 
 //  You only get here by authorized PIN
 def disarm() {
-	logging ("${device} : Sending disarm (OFF: Panic/alarm/siren)", "info")
-	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "cancled by PIN", displayed: true)
+	logging ("${device} : Sending Disarmed by ${name}", "info")
+	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${name}", displayed: true,data: /{"-1":{"name":"${name}","code":"${asciiPin}","isInitiator":true}}/)
+	sendEvent(name: "lastCodeName", value: "${name}", descriptionText: "Disarmed by ${name}")
     sendEvent(name: "panic",  value: "off", descriptionText: "cancled by PIN", displayed: true)
 //    sendEvent(name: "strobe", value: "off", displayed: true)
 //    sendEvent(name: "alarm",  value: "off", displayed: true) 
@@ -369,17 +379,24 @@ def both(cmd){
 def on(cmd) {
  logging ("${device} :Switch ON","info")   
  sendEvent(name: "switch", value: "on") 
-state.switch = on
+state.switch = true
 }
+
+private toggleSwitch(cmd) {
+  if(state.switch){    
+    off()
+    return  
+    }
+  if(!state.switch){    
+    on()    
+    return  
+    }    
+}
+
 def off(cmd){
  logging ("${device} : Switch OFF","info")
  sendEvent(name: "switch", value: "off")   
-state.switch = off
-    
-//sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0 ${device.endpointId} 0xFC04 {15 4E 10 00 00 00}"])
-
-sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0 ${device.endpointId} 0x0501 {09 01 04 05 09 01 01}"])
- 
+state.switch = false
 }
 
 def tamper(){
@@ -450,31 +467,32 @@ def getStatus(status) {
     logging ("${device} : Received HSM ${status} Our state:${state.Command}","debug")
 // HUB armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
 // Mine away home night panic off    
+//  We dont care about arming if its arming it will be armed soon this is to stop looping rearm.
     if (status == "armedAway"){  
         if (state.Command != "away"){
-            sendEvent(name: "securityKeypad", value: "armedAway")
+            sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "away" 
         }
     }
     if (status == "armingAway"){ 
         if (state.Command != "away"){
-            sendEvent(name: "securityKeypad", value: "armedAway")
+          sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Received HSM ${status}","info")
-            state.Command = "away"
+          state.Command = "away"
         }
     }
     
     if (status == "armedHome"){
         if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armedHome")
+            sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
        }
     if (status == "armingHome"){ 
         if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armedHome")
+            sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
@@ -482,7 +500,7 @@ def getStatus(status) {
     
     if (status == "armedNight"){
         if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armedNight")
+            sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "night"
         }
@@ -490,7 +508,7 @@ def getStatus(status) {
 
     if (status == "armingNight"){
         if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armedNight")
+            sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Received HSM  ${status}","info")
             state.Command = "night"
         }
@@ -506,8 +524,9 @@ def getStatus(status) {
     }
     if (status == "allDisarmed"){
         if (state.Command != "off"){
-            sendEvent(name: "securityKeypad", value: "disarmed")
+            sendEvent(name: "securityKeypad", value: "all disarmed")
             logging ("${device} : Received HSM ${status}","info")
+            state.Panic = false
             state.Command = "off"
         }
     } 
@@ -517,6 +536,9 @@ def getStatus(status) {
 void refresh() {
     getStatus(status)
     logging ("${device} : Refresh","info")
+    if (switchByOFF) {state.message="OFF/STAR* control a Switch. Do not Press OFF after PIN. Arm with ON dont enter PIN"}
+    else {state.message="OFF and STAR are Disabled. This should allow pressing OFF after PIN. Arm with ON dont enter PIN"}
+    
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])	   // version information request
 }
 
@@ -653,81 +675,153 @@ Internal notes: Building Cluster map
       logging ("${device} : Keypad #${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
 
       if (size == 10){ // IRIS MODE commands show up here
-	   rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
+       rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
        irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
        irsCMD = receivedData[6..6].collect{ (char)Integer.parseInt(it, 16) }.join() 
-          //Iris had only 2 armed modes night and away HOME was disarmed
-          //this is for logging only we are not folowing these
+          //Iris had only 2 armed modes night and away
           if (irsCMD == "H") {irsCMD= "HOME"}
           if (irsCMD == "A") {irsCMD= "AWAY"}
           if (irsCMD == "N") {irsCMD= "NIGHT"}
-          if (irsCMD == "P") {irsCMD= "PANIC"}
-          // Sencond field. Unknown why 2 command are sent
+          if (irsCMD == "P") {
+              irsCMD= "PANIC"
+              panic()
+          }
+          // 2nd field. Unknown why 2 commands are sent
+          // On one of my keypads its sending H  A or N  H - Perhaps last command?    
            irsNCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
           if (irsNCMD == "H") {irsNCMD= "HOME"}
           if (irsNCMD == "A") {irsNCMD= "AWAY"}
           if (irsNCMD == "N") {irsNCMD= "NIGHT"}
           if (irsNCMD == "P") {irsNCMD= "PANIC"}
-          if (irsCMD != irsNCMD){ irsCMD= "${irsCMD} ${irsNCMD}"}// sometimes 2 commands are sent H A
+          if (irsCMD != irsNCMD){ irsCMD= "${irsCMD} ${irsNCMD}"}
           logging("${device} : Received: Iris command:${irsCMD}", "info")
-          state.iriscmd = irsCMD // Store this its likely to be out of sync with actual command
-	      return
+	  logging("${device} : Iris cmd:${rawCMD} Firmware:${deviceFirmware}", "trace")
+           state.iriscmd = irsCMD // Store this its likely to be out of sync with actual command
+	      
 	 }    
-     
-     // Now check for our command buttons  
+
+// Now check for our command buttons          
+//    "OnSet"   ["Arm Home",  "Arm Away"], defaultValue: "Arm Away"
       if (keyRec == "41"){
+          if (OnSet == "Arm Away"){
            if (state.Command =="away"){ 
-             logging("${device} : Button ON","debug")
+             logging("${device} : Button ON ${OnSet}","debug")
              return }
-             logging("${device} : Button ON","info")
-         armAway()
-	 } 	     
-      if (keyRec == "48"){
-         if (state.switch =="off"){
+             logging("${device} : Button ON ${OnSet}","info")
+           armAway()
+           return 
+          }
+          
+           if (OnSet == "Arm Home"){
+           if (state.Command =="home"){ 
+             logging("${device} : Button ON ${OnSet}","debug")
+             return }
+             logging("${device} : Button ON ${OnSet}","info")
+           armHome()
+           return 
+          }
+	 }
+//    "PartSet" ["Arm Night", "Arm Home"], defaultValue: "Arm Night"         
+
+     if (keyRec == "4E"){
+         if (PartSet =="Arm Night"){          
+		  if (state.Command =="night"){
+          logging("${device} : Button PARTIAL ${PartSet}","debug")  
+          return }
+          logging("${device} : Button PARTIAL ${PartSet}","info")  
+	      armNight()
+          return
+         }
+          if (PartSet =="Arm Home"){          
+		  if (state.Command =="home"){
+          logging("${device} : Button PARTIAL ${PartSet}","debug")  
+          return }
+          logging("${device} : Button PARTIAL ${PartSet}","info")  
+	      armHome()
+          return
+         }   
+         
+         
+	 }          
+         
+        
+       if (keyRec == "48"){
+         if (switchByOFF){
+           if (!state.switch){
              logging("${device} : Button OFF","debug")
              return
-         }
-         logging("${device} : Button OFF","debug")
-         if (switchByOFF){off()}
+             }
+         logging("${device} : Button OFF","info")
+         off()
          return
-	 } 
+         }      
+	 }         
+         
+         
+
       if (keyRec == "2A"){ 
-		 if (state.switch =="on"){
+		 if (state.switch){
          logging("${device} : Button *","debug")
          return }
-         logging("${device} : Button *","debug")
+         logging("${device} : Button *","info")
          if (switchByOFF){ on()}
-	 } 
-  
+         return 
+	 }   
+//     "PoundSet" ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home"
          
      if (keyRec == "23"){
+      if (PoundSet == "Arm Home"){
 		 if (state.Command =="home"){
-         logging("${device} : Button #","debug")
+             logging("${device} : Button # ${PoundSet}","debug")
          return }
-         logging("${device} : Button #","info")
-         if (poundActive){armHome()}
-	 } 
-     if (keyRec == "4E"){
+         logging("${device} : Button # ${PoundSet}","info")
+         armHome()
+         return    
+         }
+       if (PoundSet == "Arm Night"){
 		 if (state.Command =="night"){
-         logging("${device} : Button PARTIAL","debug")  
+         logging("${device} : Button # ${PoundSet}","debug")
          return }
-         logging("${device} : Button PARTIAL","info")  
-		 armNight()
-	 }       
+         logging("${device} : Button # ${PoundSet}","info")
+         armNight()
+         return    
+         } 
+        if (PoundSet == "Arm Away"){
+		 if (state.Command =="away"){
+         logging("${device} : Button # ${PoundSet}","debug")
+         return }
+         logging("${device} : Button # ${PoundSet}","info")
+         armAway()
+         return    
+         }     
+     
+     logging("${device} : Button # ${PoundSet}","debug")
+     return
+     } 
+ 
+         
+         
+         
+         
+         
+         
+         
+         
      if (keyRec == "50"){
          if (state.Panic){ 
              logging("${device} : Button PANIC","debug") 
              return }    
 		 panic()
-         
+         return
    	  }
           
 // Look for PINS stored in long fields
      if (size == 11){  
 	 asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()
-     sendEvent(name: "PIN", value: "MASTER")
+//     sendEvent(name: "PIN", value: "MASTER")
       if (secure == asciiPin){ 
           logging("${device} : Disarmed by MASTER PIN","info")
+          name ="master"
 	      disarm()
 	      return
 	    }
@@ -758,7 +852,7 @@ Internal notes: Building Cluster map
 // 4 digit PIN decoding         
      if (size == 8) { 
       asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()
-      sendEvent(name: "PIN", value: asciiPin)
+//      sendEvent(name: "PIN", value: asciiPin)
 
       if (device.currentValue("code1") == asciiPin){
           name = device.currentValue("code1n")
@@ -810,6 +904,7 @@ Internal notes: Building Cluster map
          if (keyRec == "38"){press(8)}
          if (keyRec == "39"){press(9)}
          if (keyRec == "30"){press(10)}
+         if (keyRec == "48"){press(11)}// OFF button mapped to 11
  }// end of 0A
  
     
@@ -935,10 +1030,10 @@ Internal notes: Building Cluster map
 	String deviceManufacturer = "IRIS/Everspring"
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
-    reportFirm = "Report to DEV"
+        reportFirm = "unknown"
       if(deviceFirmware == "2012-12-11" ){reportFirm = "Ok"}
       if(deviceFirmware == "2013-06-28" ){reportFirm = "Ok"}
-      
+	if(reportFirm == "unknown"){state.reportToDev="Report Unknown version [${deviceModel}] [${deviceFirmware}] " }
 	// Sometimes the model name contains spaces.
 	if (versionInfoBlockCount == 2) {
 	deviceModel = versionInfoBlocks[0]
