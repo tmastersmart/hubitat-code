@@ -1,6 +1,6 @@
 debuging the iris v1 keypad.
 
-I have compleated the driver and all receive functions are working.
+I have finished the driver and all receive functions are working.
 
 Whats needed is to get the sending part working. from the Iris source code
 it says that the keyboard needs to be told its state and it give some data 
