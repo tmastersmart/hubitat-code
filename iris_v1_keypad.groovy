@@ -13,7 +13,8 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
-
+*   v2.7 10/05/2021 Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
+                    Panic sets custom panic flag. 
 *   v2.6 10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
 *   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
 *   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
@@ -30,12 +31,17 @@ Works with Lock Code Manager
 Arming Buttons setup on driver page
 
 Disarming
-PIN only OFF can be remapped or Disabled
+Enter PIN and press OFF
+
+Arming
+Can be set to require PIN or not
+ActionButtons can be remaped.
+
 
 Button Support
 If a key is pressed once it acts like a button not a PIN
 All keypad number buttons mapped to 10 push buttons.
-OFF mapped to Button 11 if Disabled but be warned it repeates.
+
 
 Tamper
 Invalid PIN will press tamper
@@ -44,20 +50,13 @@ Passcodes
 Lock Manager can store monitor and delete passcode but not recall
 MASTER 7 digit pin 
 
-Switch
-OFF STAR can control a switch.
-Disable if users keep pressing OFF after the PIN.
-
-
-Chimes Lights not working. Without ZigBee commands they will never
-be working. Help is needed on this. 
-Perhaps decompiling Iris v1 Hub code would result in finding these codes.
+Chimes Lights not working. Help is needed on this. 
 
 
 
 
 
-Total worktime to build 2 days. Have fun.
+Total worktime to build up to v2 2 days. Have fun.
  
 FCC ID:FU5TSA04 https://fccid.io/FU5TSA04
 Built by Everspring Industry Co Ltd Smart Keypad TSA04            
@@ -68,11 +67,12 @@ I wrote this for my keyboards you are welcome to use it.
 ================================================================================================
 To Reset for paring:
 Remove batteries (if already powered up.)
-Press the On key 8 times(Or is it Hold down ON for 8 seconds)
 
 Insert two batteries side-by-side at one end or the other
-Press the On key 8 times
-You should see the keypad light up, and the On button will begin to blink twice periodically.
+
+then press "ON" button device 5 times within the first 10 seconds.
+
+the On button will begin to blink twice periodically.
 
 Tested on 
 2013-06-28
@@ -85,9 +85,46 @@ Post your comments here.
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 
-* See opensource IRIS code at  https://github.com/arcus-smart-home 
+* See opensource IRIS code at. The orginal v1 code is in a zigbee driver but they
+have no source code for it and are going to replace it with a new zigbee driver.
+If anyone can decompile the bin let me know.
+
+"keypad:enabledSounds": ["ARMED", "ARMING", "SOAKING", "ALERTING", "DISARMED", "BUTTONS"],
+
+* To Reset Device:
+ *    Insert battery and then press "ON" button device 5 times within the first 10 seconds.
+ * 
+ * Keypad is device type 28 (0x1C)
+ * Most messages are sent and received on the Attribute Cluster (0x00C0).
+ * The standard device messages (Hello and Lifesign) are sent on the Join and General Clusters, as usual.
+ * The lifesign will be sent every 2 minutes, in common with other AlertMe sleepy end devices.
+ * 
+ * The keypad is responsible for;
+ *   1. Driving its LEDs according to its state (see ATTRID_KEYPADSTATE attribute below),
+ *   2. Accumulating a PIN
+ *   3. Sending an action key and/or PIN when appropriate
+ *   4. Making sound sequences on demand
+ * 
+ * The keypad expects to be told its state, and may also send a triplet of attributes whenever an "action" key is used.
+ * The triplet is ATTRID_PIN (if there is one), ATTRID_ACTIONKEY_ID and ATTRID_ACTIONKEY_TIME.
+ * 
+ * While an actionKey is held down, the keypad will send ATTRID_ACTIONKEY_ID and ATTRID_ACTIONKEY_TIME once per second.
+ * It’ll also send an ATTRID_PIN (if available) with the first ATTRID_ACTIONKEY_ID.
+ * 
+ * If a PIN has been typed in, but no action key pressed within 2 seconds of the last digit, then a single ATTRID_PIN
+ * will be sent to the hub.
+ * 
+
+https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_KeyPad_2_4.driver
+https://github.com/arcus-smart-home/arcusweb/blob/c8f30cef8d59c94a3be83fe3d3c7bfa5c151a091/src/models/capability/KeyPad.js
+https://github.com/arcus-smart-home
+https://github.com/arcus-smart-home/arcushubos/tree/master/meta-iris
+https://github.com/arcus-smart-home/arcushubos/tree/master/meta-iris/recipes-core/iris-utils/files
+
 I have been unable to find any iris v1 code in it but it does have some drivers. 
 ==========================================================================================================================
+
+
 
  * based on alertme UK code from  
    https://github.com/birdslikewires/hubitat
@@ -100,7 +137,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.6.2"
+    TheVersion="2.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -133,6 +170,7 @@ capability "Switch"
 command "checkPresence"
 command "normalMode"
 command "rangingMode"
+command "sendHex"
 //command "quietMode"
 
 attribute "batteryState", "string"
@@ -163,15 +201,18 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
 
-	input name: "switchByOFF", type: "bool", title: "OFF/STAR* control a Switch", description: "If disabled STAR is ignored and OFF is Button 11. Turn off if users keep pressing OFF after PIN. ",defaultValue: false
 	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN", defaultValue: true
   
+    input name: "requirePIN",   type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
 
-    input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline" 
 
     input name: "OnSet",   type: "enum", title: "ON Button", description: "Customize ON Button", options: ["Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
     input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
     input name: "PoundSet",type: "enum", title: "# Button", description: "Customize Pound Button",  options: ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home",required: true 
+    input name: "StarSet" ,type: "enum", title: "* Button", description: "Customize Star Button",  options:  ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Disabled",required: true 
+
+    input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline" 
+
 
     input("secure",  "text", title: "7 digit password", description: "A Master 7 digit secure PIN. Seperate from Lock Code Manager 0=disable",defaultValue: 0,required: false)
 
@@ -188,13 +229,17 @@ state.presenceUpdated = 0
 state.rangingPulses = 0
 state.Command = "unknown"
 state.Panic = false
-   
-sendEvent(name: "battery",value:100, unit: "%", isStateChange: false)
-sendEvent(name: "batteryVoltage", value: 3, unit: "V", isStateChange: false)
-sendEvent(name: "lqi", value: 0, isStateChange: false)
+state.validPIN = false
+state.PinName = "none"
+state.PIN = "none"
+state.logo ="<img src='https://github.com/tmastersmart/hubitat-code/blob/main/images/iris-keypad.jpg?raw=true' >"
+    
+//sendEvent(name: "battery",value:100, unit: "%", isStateChange: false)
+//sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
+//sendEvent(name: "lqi", value: 0, isStateChange: false)
 sendEvent(name: "operation", value: "normal", isStateChange: false)
 sendEvent(name: "presence", value: "present", isStateChange: false)
-sendEvent(name: "numberOfButtons", value: "11", isStateChange: false)
+sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
 sendEvent(name: "panic", value: "off", isStateChange: false)    
 sendEvent(name: "maxCodes", value:5)
 sendEvent(name: "codeLength", value:4)
@@ -208,8 +253,9 @@ state.remove("iriscmd")
 state.remove("rssi")
 state.remove("pushed")
 state.remove("state.reportToDev")
-	
-	
+state.remove("message")
+    
+  	
 device.deleteCurrentState("alarm")    
 device.deleteCurrentState("pushed") 
 device.deleteCurrentState("pin")     
@@ -317,25 +363,28 @@ def setCodeLength(code){logging("${device} : setCodeLength 4", "info")          
 
 
 def armAway() {
-	logging ("${device} : Sending armAWAY","info")
+	logging ("${device} : Sending armAWAY by ${state.PinName}","info")
     sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
     state.Command = "away"
-   
+//    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])
+
 }
 def armHome() {
-	logging ("${device} : Sending armHome","info")
+	logging ("${device} : Sending armHome by ${state.PinName}","info")
 	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
     state.Command = "home"
-   
+///sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])   
+
 }
 def armNight() {
-	logging ("${device} : Sending armNight","info")
+	logging ("${device} : Sending armNight by ${state.PinName}","info")
 	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
     state.Command = "night"
- 
+//sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"]) 
+
 }
 
 def panic() {
@@ -343,19 +392,33 @@ def panic() {
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
 //  siren()
     state.Panic = true 
+//  sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])  
 }
 
 //  You only get here by authorized PIN
 def disarm() {
-	logging ("${device} : Sending Disarmed by ${name}", "info")
-	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${name}", displayed: true,data: /{"-1":{"name":"${name}","code":"${asciiPin}","isInitiator":true}}/)
-	sendEvent(name: "lastCodeName", value: "${name}", descriptionText: "Disarmed by ${name}")
-    sendEvent(name: "panic",  value: "off", descriptionText: "cancled by PIN", displayed: true)
+    if (state.validPIN == false){logging ("${device} : PIN ERROR Bug detected. Report to DEV", "warn")}    
+	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${state.PinName}", displayed: true,data: /{"-1":{"name":"${state.PinName}","code":"${state.PIN}","isInitiator":true}}/)
+	sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "Disarmed by ${state.PinName}")
+ 
+    logging ("${device} : Sent Disarmed by ${state.PinName}", "info")
+
+    if (state.Panic){
+        sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", displayed: true)
+        state.Panic = false
+    }
 //    sendEvent(name: "strobe", value: "off", displayed: true)
 //    sendEvent(name: "alarm",  value: "off", displayed: true) 
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
-    state.Panic = false
+  
+}
+
+def purgePIN(){
+if (state.validPIN){logging ("${device} : PIN Removed from state memory", "info")}
+state.validPIN = false
+state.PinName = "none"
+state.PIN = "NA"    
 }
 
 def siren(cmd){
@@ -376,22 +439,15 @@ def both(cmd){
   sendEvent(name: "alarm", value: "on") 
 }
 
+
 def on(cmd) {
  logging ("${device} :Switch ON","info")   
  sendEvent(name: "switch", value: "on") 
 state.switch = true
+
 }
 
-private toggleSwitch(cmd) {
-  if(state.switch){    
-    off()
-    return  
-    }
-  if(!state.switch){    
-    on()    
-    return  
-    }    
-}
+
 
 def off(cmd){
  logging ("${device} : Switch OFF","info")
@@ -401,7 +457,9 @@ state.switch = false
 
 def tamper(){
 sendEvent(name: "tamper", value: "detected")
-logging ("${device} : Tamper Pressed and Released","info")
+logging ("${device} : Tamper Detected","info")
+ pauseExecution(6000)
+logging ("${device} : Tamper Clear","info")    
 sendEvent(name: "tamper", value: "clear")
 }
 
@@ -462,18 +520,18 @@ def quietMode() {
     refresh()
 }
 
+// Get HSM status And update our state if its changed
 def getStatus(status) {
     status = location.hsmStatus
-    logging ("${device} : Received HSM ${status} Our state:${state.Command}","debug")
+    logging ("${device} : Received HSM ${status} Our state:${state.Command}","trace")
 // HUB armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
-// Mine away home night panic off    
-//  We dont care about arming if its arming it will be armed soon this is to stop looping rearm.
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Received HSM ${status}","info")
-            state.Command = "away" 
+            state.Command = "away"
         }
+     return
     }
     if (status == "armingAway"){ 
         if (state.Command != "away"){
@@ -481,6 +539,7 @@ def getStatus(status) {
             logging ("${device} : Received HSM ${status}","info")
           state.Command = "away"
         }
+      return 
     }
     
     if (status == "armedHome"){
@@ -489,6 +548,7 @@ def getStatus(status) {
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
+        return
        }
     if (status == "armingHome"){ 
         if (state.Command != "home"){
@@ -496,6 +556,7 @@ def getStatus(status) {
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
         }
+        return
        }  
     
     if (status == "armedNight"){
@@ -504,6 +565,7 @@ def getStatus(status) {
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "night"
         }
+        return
        }
 
     if (status == "armingNight"){
@@ -512,6 +574,7 @@ def getStatus(status) {
             logging ("${device} : Received HSM  ${status}","info")
             state.Command = "night"
         }
+        return
        } 
     
     if (status == "disarmed"){
@@ -521,6 +584,7 @@ def getStatus(status) {
             state.Panic = false
             logging ("${device} : Received HSM ${status}","info")
         }
+        return
     }
     if (status == "allDisarmed"){
         if (state.Command != "off"){
@@ -529,17 +593,15 @@ def getStatus(status) {
             state.Panic = false
             state.Command = "off"
         }
+        return
     } 
-    
+    logging ("${device} : Received HSM ${status} INVALID Unable to decode. Our state:${state.Command}","warn")
 }
 
 void refresh() {
-    getStatus(status)
-    logging ("${device} : Refresh","info")
-    if (switchByOFF) {state.message="OFF/STAR* control a Switch. Do not Press OFF after PIN. Arm with ON dont enter PIN"}
-    else {state.message="OFF and STAR are Disabled. This should allow pressing OFF after PIN. Arm with ON dont enter PIN"}
-    
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])	   // version information request
+    logging ("${device} : Refresh. Sending Hello to Device","info")
+// send a "Hello" message, to get version, etc.   
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])	
 }
 
 
@@ -557,7 +619,7 @@ def updatePresence() {
 	
 	if (device.currentValue("presence") != "present"){
 	 sendEvent(name: "presence", value: "present")
-	 logging ( "${device} :Present Last ${secondsElapsed} seconds ago.","info")
+	 logging ( "${device} :Present: ${secondsElapsed} seconds ago.","info")
 	}	
 }
 
@@ -619,9 +681,9 @@ def parse(String description) {
 
 def processMap(Map map) {
 	logging ("${device} : ${map}","trace")
-	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
+	String[] receivedData = map.data	
     logging("${device} : Cluster:${map.clusterId} State:${map.command} MAP:${map.data}","trace")
-    logging("${device} : Cluster:${map.clusterId} - -${map.command} -","debug")
+    logging("${device} : Cluster:${map.clusterId} ${map.command} ","debug")
 /*
 Internal notes: Building Cluster map 
 * = likely done by HUB in Join.
@@ -631,7 +693,7 @@ Internal notes: Building Cluster map
 0006 Match Descriptor Request (Light Flashes)
 0013 Device announce message (Light Flashes)
 00C0 Button report (button on repeator)
-     00 = Unknown (lots of reports)
+     00 = Unknown (Lifeline report)
      0A = Button
 00EE Relay actuation (smartPlugs)
      80 = PowerState
@@ -665,38 +727,90 @@ Internal notes: Building Cluster map
 
     } else if (map.clusterId == "00C0") {
      // Iris Button report cluster 
-     //  mapcommand 00 spams us so we ignore it even in trace . Unknown
-     if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
-
+ 
+//   if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
+     
+     if (map.command == "01") {
+         // Reply to our sending (undocumented in iris code)
+         you  = receivedData[1]
+         me   = receivedData[3]
+         st = "-${reply}-"  
+         if (me == "30") {st="ok"}
+         if (me == "86") {st="error"}
+    
+         logging ("${device} : Received: ${you} My Reply ${st} data:${map.data}","trace")
+     }
+     
+                               
+     if (map.command == "00" ) {
+         // Lifeline status report
+         logging ("${device} : Lifeline:  raw data:${map.data}","trace") 
+     }  
+        
      if (map.command == "0A") {  
-      keyRec   = receivedData[4]    
+      PinEnclosed = receivedData[0]// The command being passed to us
+      pinSize     = receivedData[3]// The PIN size     
+      keyRec      = receivedData[4]// The Key pressed    
 	  buttonNumber = 0 
-	  size = receivedData.size()     
-      logging ("${device} : Keypad #${keyRec} size:${size} State:${state.Command} Panic:${state.Panic}","debug")
-
+      status = "Unknown"   
+	  size = receivedData.size()// size of data field
+         // Action matrix based in iris source code.
+         // Create text for logging
+         if (PinEnclosed  =="20" ){   status = "STATE" }
+         if (PinEnclosed  =="21" ){   status = "PIN" }
+         if (PinEnclosed  =="22" ){   status = "Pressed" }
+         if (PinEnclosed  =="23" ){   status = "Released" }
+         if (PinEnclosed  =="24" ){   status = "Poll Rate" }
+         if (PinEnclosed  =="25" ){   status = "sound mask" }
+         if (PinEnclosed  =="26" ){   status = "Sound ID" }
+         if (PinEnclosed  =="28" ){   status = "Error" } 
+         if (keyRec == "48" ){keyRecA ="OFF"}
+         if (keyRec == "41" ){keyRecA ="ON"}
+         if (keyRec == "4E" ){keyRecA ="PARTIAL"}          
+         if (keyRec == "50" ){keyRecA ="PANIC"}            
+         if (keyRec == "2A" ){keyRecA ="STAR"}
+         if (keyRec == "23" ){keyRecA ="POUND"}
+    
+         
+         
+         if(debugLogging){logging ("${device} : Keypad #${keyRec} Action:${status} State:${state.Command} Panic:${state.Panic} PIN Valid:${state.validPIN} State:${state.Command}","debug")}
+         else {           logging ("${device} : Action :[${status}  ${keyRecA}]  Panic:${state.Panic} PIN Valid:${state.validPIN} State:${state.Command}","info")}
       if (size == 10){ // IRIS MODE commands show up here
+       hexcmd = receivedData[4..9]  
        rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
        irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
-       irsCMD = receivedData[6..6].collect{ (char)Integer.parseInt(it, 16) }.join() 
-          //Iris had only 2 armed modes night and away
-          if (irsCMD == "H") {irsCMD= "HOME"}
-          if (irsCMD == "A") {irsCMD= "AWAY"}
-          if (irsCMD == "N") {irsCMD= "NIGHT"}
-          if (irsCMD == "P") {
-              irsCMD= "PANIC"
-              panic()
+   nextirsCMD = receivedData[9..9].collect{ (char)Integer.parseInt(it, 16) }.join() 
+          // Iris had only 2 armed modes night and away. * and # had no function
+          if (irsCMD == "H") {
+              irsCMD1= "HOME"
+              keyRec = "48"// Press OFF
           }
-          // 2nd field. Unknown why 2 commands are sent
-          // On one of my keypads its sending H  A or N  H - Perhaps last command?    
-           irsNCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
-          if (irsNCMD == "H") {irsNCMD= "HOME"}
-          if (irsNCMD == "A") {irsNCMD= "AWAY"}
-          if (irsNCMD == "N") {irsNCMD= "NIGHT"}
-          if (irsNCMD == "P") {irsNCMD= "PANIC"}
-          if (irsCMD != irsNCMD){ irsCMD= "${irsCMD} ${irsNCMD}"}
-          logging("${device} : Received: Iris command:${irsCMD}", "info")
-	  logging("${device} : Iris cmd:${rawCMD} Firmware:${deviceFirmware}", "trace")
-           state.iriscmd = irsCMD // Store this its likely to be out of sync with actual command
+          if (irsCMD == "A") {
+              irsCMD1= "AWAY"
+              keyRec = "41"// Press ON
+          }
+          if (irsCMD == "N") {
+              irsCMD1= "NIGHT"
+              keyRec = "4E"// Press Part
+          }
+          if (irsCMD == "P") {
+              irsCMD1= "PANIC"
+              keyRec = "50"// Press Panic
+          }
+          if (irsCMD == "*") {
+              irsCMD1= "_*_"
+              keyRec = "2A"// Press *
+          }
+          if (irsCMD == "#") {
+              irsCMD1= "_#_"
+              keyRec = "23"// Press #
+          }
+
+          
+          if ( irsCMD == nextirsCMD){logging("${device} : Received: Iris command:${irsCMD1} Valid PIN ${state.validPIN}", "info")}
+          else{ logging("${device} : Received: Iris command:${irsCMD1}. Next command in qwery ${nextirsCMD}.   Valid PIN ${state.validPIN}", "info")}
+          logging("${device} : #${keyRec} Action:${status} Iris cmd:${rawCMD} :${hexcmd}", "trace")
+          state.iriscmd = irsCMD1 // store for later use
 	      
 	 }    
 
@@ -705,68 +819,169 @@ Internal notes: Building Cluster map
       if (keyRec == "41"){
           if (OnSet == "Arm Away"){
            if (state.Command =="away"){ 
-             logging("${device} : Button ON ${OnSet}","debug")
+             logging("${device} : Button ON ${OnSet} (But state already sent)","debug")
              return }
-             logging("${device} : Button ON ${OnSet}","info")
-           armAway()
-           return 
+             logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armAway()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"  
+              armAway()
+              return
+              }
+              
           }
           
            if (OnSet == "Arm Home"){
            if (state.Command =="home"){ 
-             logging("${device} : Button ON ${OnSet}","debug")
+             logging("${device} : Button ON ${OnSet} (But state already sent)","debug")
              return }
-             logging("${device} : Button ON ${OnSet}","info")
-           armHome()
-           return 
+             logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armHome()
+               return
+               }
+              }
+              else
+              state.PinName = "Not Required"    
+              armHome()
+              return
+              } 
           }
-	 }
+	 
 //    "PartSet" ["Arm Night", "Arm Home"], defaultValue: "Arm Night"         
 
      if (keyRec == "4E"){
          if (PartSet =="Arm Night"){          
 		  if (state.Command =="night"){
-          logging("${device} : Button PARTIAL ${PartSet}","debug")  
+          logging("${device} : Button PARTIAL ${PartSet} (But state already sent)","debug")  
           return }
-          logging("${device} : Button PARTIAL ${PartSet}","info")  
-	      armNight()
-          return
+          logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armNight()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"
+              armNight()
+              return
+              } 
          }
           if (PartSet =="Arm Home"){          
 		  if (state.Command =="home"){
-          logging("${device} : Button PARTIAL ${PartSet}","debug")  
+          logging("${device} : Button PARTIAL ${PartSet} (But state already sent)","debug")  
           return }
-          logging("${device} : Button PARTIAL ${PartSet}","info")  
-	      armHome()
-          return
+          logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armAway()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armAway()
+              return
+              } 
          }   
          
          
 	 }          
          
-        
+// OFF Disarm Command Valid PIN required        
        if (keyRec == "48"){
-         if (switchByOFF){
-           if (!state.switch){
-             logging("${device} : Button OFF","debug")
+           if (state.Command == "off"){
+             logging("${device} : Button OFF (But state already sent) state${state.Command}","debug")
              return
              }
-         logging("${device} : Button OFF","info")
-         off()
+         if (state.validPIN == true){  
+            logging("${device} : Button OFF Valid PIN: ${state.validPIN} State: ${state.Command}","info")
+            disarm()
          return
-         }      
+         }
+         logging("${device} : Button OFF Valid PIN: ${state.validPIN} State: ${state.Command}","info")
+         return  
 	 }         
          
          
 
-      if (keyRec == "2A"){ 
-		 if (state.switch){
-         logging("${device} : Button *","debug")
+
+ //     "StarSet" ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home"
+         
+     if (keyRec == "2A"){
+      if (StarSet == "Arm Home"){
+		 if (state.Command =="home"){
+         logging("${device} : Button # ${StarSet} (But state already sent) state${state.Command}","debug")
          return }
-         logging("${device} : Button *","info")
-         if (switchByOFF){ on()}
-         return 
-	 }   
+         logging("${device} : Button # ${StarSet}  ${state.validPIN}","info")
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armHome()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armHome()
+              return
+              }    
+         }
+       if (StarSet == "Arm Night"){
+		 if (state.Command =="night"){
+         logging("${device} : Button # ${StarSet} (But state already sent) state${state.Command}","debug")
+         return }
+         logging("${device} : Button # ${StarSet}  ${state.validPIN}","info")
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armNight()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armNight()
+              return
+              }    
+         } 
+        if (StarSet == "Arm Away"){
+		 if (state.Command =="away"){
+         logging("${device} : Button # ${StarSet} (But state already sent) state${state.Command}","debug")
+         return }
+         logging("${device} : Button # ${StarSet} ${state.validPIN}","info")
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armAway()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armAway()
+              return
+              }    
+         }     
+     
+     logging("${device} : Button # Star ${StarSet} ERROR NOT SETUP","debug")
+     return
+     }        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 //     "PoundSet" ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home"
          
      if (keyRec == "23"){
@@ -775,121 +990,123 @@ Internal notes: Building Cluster map
              logging("${device} : Button # ${PoundSet}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
-         armHome()
-         return    
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armHome()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armHome()
+              return
+              }    
          }
        if (PoundSet == "Arm Night"){
 		 if (state.Command =="night"){
          logging("${device} : Button # ${PoundSet}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
-         armNight()
-         return    
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armNight()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armNight()
+              return
+              }   
          } 
         if (PoundSet == "Arm Away"){
 		 if (state.Command =="away"){
          logging("${device} : Button # ${PoundSet}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
-         armAway()
-         return    
+              if (requirePIN){
+               if (state.validPIN == true){           
+               armAway()
+               return
+               }
+              }
+              else{
+              state.PinName = "Not Required"    
+              armAway()
+              return
+              }   
          }     
      
      logging("${device} : Button # ${PoundSet}","debug")
      return
      } 
- 
-         
-         
-         
-         
-         
-         
-         
-         
+   
      if (keyRec == "50"){
          if (state.Panic){ 
-             logging("${device} : Button PANIC","debug") 
+             logging("${device} : Button PANIC but already sent","debug") 
              return }    
 		 panic()
+         logging("${device} : Button *** PANIC ***","info") 
          return
    	  }
           
-// Look for PINS stored in long fields
-     if (size == 11){  
-	 asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()
-//     sendEvent(name: "PIN", value: "MASTER")
-      if (secure == asciiPin){ 
-          logging("${device} : Disarmed by MASTER PIN","info")
-          name ="master"
-	      disarm()
-	      return
-	    }
-      logging("${device} : PIN ${asciiPin} Invalid HACKING Master PIN" , "warn")
-      tamper()
-      return	 
-     }
 
-     if (size == 9){ 
-	 asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()
-     logging("${device} : Received [${asciiPin}]", "warn")
-     if(tamperPIN){tamper()}   
-     return    
-	 }         
-	 if (size == 6){
-	 asciiPin = receivedData[4..5].collect{ (char)Integer.parseInt(it, 16) }.join()
-	 logging("${device} : Received [${asciiPin}]" , "warn")
-     if(tamperPIN){tamper()}   
-     return    
-	 }
-	 if (size == 7){
-	 asciiPin = receivedData[4..6].collect{ (char)Integer.parseInt(it, 16) }.join()
-     logging("${device} :Received [${asciiPin}]" , "warn")
-     if(tamperPIN){tamper()}   
-     return    
-	 }	
-         
-// 4 digit PIN decoding         
-     if (size == 8) { 
-      asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()
+//      PinEnclosed = receivedData[0]// 21 = pin
+//      pinSize     = receivedData[3]// The PIN size + 4 = size   
+    if (PinEnclosed == "21" ){ 
+        state.validPIN = false
+        state.PinName = "NA"
+        state.PIN     = "NA"
+        asciiPin = "NA"
+        logging("${device} : Data Size:${size} pinSize${pinSize}" , "debug")
+        if (size == 8) {asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        if (size == 9) {asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        if (size == 10){asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        if (size == 11){asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()}
 //      sendEvent(name: "PIN", value: asciiPin)
-
+ 
       if (device.currentValue("code1") == asciiPin){
           name = device.currentValue("code1n")
-          logging("${device} : Disarmed by ${name}","info")
-	  disarm()
-	  return
-	 }	     
-         if (device.currentValue("code2") == asciiPin){
+          state.validPIN = true    
+	   }	     
+      if (device.currentValue("code2") == asciiPin){
           name = device.currentValue("code2n")
-          logging("${device} : Disarmed by ${name}","info")
-	  disarm()
-	  return
-	}
+      	  state.validPIN = true
+      }
       if (device.currentValue("code3") == asciiPin){
           name = device.currentValue("code3n")
-          logging("${device} : Disarmed by ${name}","info")
- 	  disarm()
-	  return
-	}
+          state.validPIN = true
+      }
 	  if (device.currentValue("code4") == asciiPin){
           name = device.currentValue("code4n")
-          logging("${device} : Disarmed by ${name}","info")
-	  disarm()
-	  return
-	}
+          state.validPIN = true
+      }
       if (device.currentValue("code5") == asciiPin){
-         name = device.currentValue("code5n")
-         logging("${device} : Disarmed by ${name}","info")
-	  disarm()
-	  return
-	}   
+          name = device.currentValue("code5n")
+          state.validPIN = true
+      }  
+      if (secure == asciiPin){
+          name ="master"
+          state.validPIN = true
+      }  
+
+        if (state.validPIN == true){
+          state.PinName = name
+          state.PIN     = asciiPin  
+          logging("${device} : Valid Pin Detected ${name} ${asciiPin}","info")
+          runIn(60, "purgePIN")
+
+     	  return  
+        }   
          
       logging("${device} : PIN ${asciiPin} Invalid PIN HACKING" , "warn")
-      if(tamperPIN){tamper()}   
+      if(tamperPIN){tamper()}
+      state.validPIN = false
+      state.PinName = TAMPER
+      state.PIN     = asciiPin   
       return	 
-	 }// end pin code 
-         
+	  
+    }// end pin check       
 
 // Keypad button matrix 
 // If a key is pressed once it acts like a button not a PIN
@@ -904,33 +1121,40 @@ Internal notes: Building Cluster map
          if (keyRec == "38"){press(8)}
          if (keyRec == "39"){press(9)}
          if (keyRec == "30"){press(10)}
-         if (keyRec == "48"){press(11)}// OFF button mapped to 11
+//         if (keyRec == "48"){press(11)}// OFF button mapped to 11
  }// end of 0A
- 
+
     
         
     } else if (map.clusterId == "00F0") {
-      // Device status cluster. 
+      // AlertMe General Cluster 
+      if (map.command == "FB") { 
+    // if bit 0 battery voltage // bit 5 and 6 reversed
+    // if bit 1 temp // bit 7 and 8 reversed
+    // if bit 8 lqi // LQI = 10 (lqi * 100.0) / 255.0
+    
+       batRec = receivedData[0]// [19] This sould be set with bat data but doesnt follow standard
+      tempRec = receivedData[1]// does not folow alertme standard 1 2 3 are actualy running a timmer up and down
+    switchRec = receivedData[4]
+       lqiRec = receivedData[8]// 
+      //if (lqiRec){ lqi = receivedData[10]}
       def batteryVoltageHex = "undefined"
       BigDecimal batteryVoltage = 0
       inspect = receivedData[1..3].reverse().join()
       inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter Counts up or down
       batteryVoltageHex = receivedData[5..6].reverse().join()
-//                  temp  = receivedData[7..8].reverse().join() 
-//                  temp = zigbee.convertHexToInt(temp)
+//      if (tempRec){
+//          temp  = receivedData[7..8].reverse().join()
+//          temp = zigbee.convertHexToInt(temp)
+//      }
       if (batteryVoltageHex == "FFFF") {return}
-      batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-      batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-//          count           volt    temp
-//     00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12
-//MAP:[19, D9, F1, 3F, 02, 6C, 09, 00, 00, B2, FF, 00, 00]
-//MAP:[19, B8, B1, 43, 02, 56, 09, 00, 00, BA, FF, 00, 00]        
-        logging("${device} :count ${inspect2} Volts:${batteryVoltage}", "debug") 
-// Being A Electronics technician I base this on Battery discharge curves.
-// I also verified the sensor the voltage reported is close to my meter.	    
-// Normal batteries slowely drop. Newer ones are steady and then drop dead.
-// To detect them before they drop dead the lower voltage needs to be higher
-// Problem is not all curve maps agree so this is a adverage	    
+//      if (batRec){ 
+     batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+     batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
+     logging("${device} Raw Battery  Bat:${batRec} ${batteryVoltage}", "debug")    
+ 
+// I base this on Battery discharge curves.
+// Iris source code says 2.1 is min voltage   
 //	    if (BatType == "Alkaline"){// < slow discharge 
 		BigDecimal batteryVoltageScaleMin = 2.10
 		BigDecimal batteryVoltageScaleMax = 3.00	    
@@ -959,7 +1183,7 @@ Internal notes: Building Cluster map
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
         
-        if (state.lastBattery != battertVoltage){
+        if (state.lastBattery != batteryVoltage){
 	 logging( "${device} : Battery : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)","info")
 	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
      	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
@@ -976,14 +1200,22 @@ Internal notes: Building Cluster map
              state.batteryOkay = true
          }
   
-	 if (batteryPercentage < 19) {
+	 if (batteryPercentage < 5) {
             logging("${device} : Battery BAD: $batteryPercentage%", "debug") 
 	    state.batteryOkay = false
 	    sendEvent(name: "batteryState", value: "exhausted")
 	}
         state.lastBattery = batteryVoltage     
     }
-
+   //}// end valid bat report
+  }// end FB
+        else {
+        // There are other known commands
+        // F0 FD FA 80 83 00 01 02    
+        reportToDev(map)
+        }       
+        
+        
 } else if (map.clusterId == "00F6") {
  // Discovery cluster. 
   if (map.command == "FD") {
@@ -1052,9 +1284,8 @@ Internal notes: Building Cluster map
         reportToDev(map)
        }
 } else if (map.clusterId == "8001") {
-  // Never seen keyboard do this
   logging("${device} : Routing and Neighbour Information", "info")	     
-     
+    
         
 } else if (map.clusterId == "8032" ) {
 	// These clusters are sometimes received when joining new devices to the mesh.
@@ -1077,9 +1308,7 @@ void sendZigbeeCommands(List<String> cmds) {
 
 
 private String[] millisToDhms(int millisToParse) {
-
 	long secondsToParse = millisToParse / 1000
-
 	def dhms = []
 	dhms.add(secondsToParse % 60)
 	secondsToParse = secondsToParse / 60
@@ -1089,7 +1318,6 @@ private String[] millisToDhms(int millisToParse) {
 	secondsToParse = secondsToParse / 24
 	dhms.add(secondsToParse % 365)
 	return dhms
-
 }
 
 
@@ -1119,34 +1347,26 @@ void debugLogOff(){
 
 
 private boolean logging(String message, String level) {
-
 	boolean didLog = false
-
 	if (level == "error") {
 		log.error "$message"
 		didLog = true
 	}
-
 	if (level == "warn") {
 		log.warn "$message"
 		didLog = true
 	}
-
 	if (traceLogging && level == "trace") {
 		log.trace "$message"
 		didLog = true
 	}
-
 	if (debugLogging && level == "debug") {
 		log.debug "$message"
 		didLog = true
 	}
-
 	if (infoLogging && level == "info") {
 		log.info "$message"
 		didLog = true
 	}
-
 	return didLog
-
 }
