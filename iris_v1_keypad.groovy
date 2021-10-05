@@ -13,7 +13,8 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
-*   v2.7 10/05/2021 Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
+  v2.7.1 10/05/2021 Last update slowed down driver screen fixed.
+  v2.7   10/05/2021 Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
                     Panic sets custom panic flag. 
 *   v2.6 10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
 *   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
@@ -137,7 +138,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.7"
+    TheVersion="2.7.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -170,7 +171,7 @@ capability "Switch"
 command "checkPresence"
 command "normalMode"
 command "rangingMode"
-//command "sendHex"
+
 //command "quietMode"
 
 attribute "batteryState", "string"
@@ -232,8 +233,9 @@ state.Panic = false
 state.validPIN = false
 state.PinName = "none"
 state.PIN = "none"
-state.logo ="<img src='https://github.com/tmastersmart/hubitat-code/blob/main/images/iris-keypad.jpg?raw=true' >"
-    
+
+state.logo ="<img src='data:image/jpeg;base64,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'>"
+   
 //sendEvent(name: "battery",value:100, unit: "%", isStateChange: false)
 //sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
 //sendEvent(name: "lqi", value: 0, isStateChange: false)
@@ -248,14 +250,14 @@ sendEvent(name: "tamper", value: "clear")
 
 state.remove("switch")	
 state.remove("uptime")
-state.remove("uptimeReceived")
-state.remove("iriscmd")
+state.remove("AAAlogo")
+state.remove("irisKeyPad")
 state.remove("rssi")
 state.remove("pushed")
 state.remove("state.reportToDev")
 state.remove("message")
     
-  	
+removeDataValue("image")
 device.deleteCurrentState("alarm")    
 device.deleteCurrentState("pushed") 
 device.deleteCurrentState("pin")     
@@ -443,8 +445,7 @@ def both(cmd){
 def on(cmd) {
  logging ("${device} :Switch ON","info")   
  sendEvent(name: "switch", value: "on") 
-state.switch = true
-
+ state.switch = true
 }
 
 
@@ -601,7 +602,10 @@ def getStatus(status) {
 void refresh() {
     logging ("${device} : Refresh. Sending Hello to Device","info")
 // send a "Hello" message, to get version, etc.   
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])	
+	def cmds = new ArrayList<String>()
+	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}")    // version information request
+//	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}")    // power control operating mode nudge
+	sendZigbeeCommands(cmds)
 }
 
 
@@ -1128,6 +1132,60 @@ Internal notes: Building Cluster map
         
     } else if (map.clusterId == "00F0") {
       // AlertMe General Cluster 
+      /*
+StopPolling 0xFD
+Lifesign    0xFB
+   const u8 LIFESIGN_HAS_VOLTAGE = 0x01;
+   const u8 LIFESIGN_HAS_TEMPERATURE = 0x02;
+   const u8 LIFESIGN_HAS_SWITCH_STATUS = 0x04;
+   const u8 LIFESIGN_HAS_LQI = 0x08;
+   const u8 LIFESIGN_HAS_RSSI = 0x10;
+   const u8 SWITCH_MASK_TAMPER_BUTTON = 0x02;
+   const u8 SWITCH_MASK_MAIN_SENSOR = 0x01;
+   const u8 SWITCH_STATE_TAMPER_BUTTON = 0x02;
+   const u8 SWITCH_STATE_MAIN_SENSOR = 0x01;
+   u8 statusFlags;
+   u32 msTimer;
+   u16 psuVoltage;
+   u16 temperature;
+   i8 rssi;
+   u8 lqi;
+   u8 switchMask;
+   u8 switchState;
+
+ModeChange  0xFA
+   const u8 MODE_NORMAL = 0x00;
+   const u8 MODE_RANGE_TEST = 0x01;
+   const u8 MODE_TEST = 0x02;
+   const u8 MODE_SEEKING = 0x03;
+   const u8 MODE_IDLE = 0x04;
+   const u8 MODE_QUIESCENT = 0x05;
+   const u8 FLAG_CLEAR_HNF = 0x01;
+   const u8 FLAG_SET_HNF = 0x01;
+   u8 mode;
+   u8 flags;
+
+FaultReport 0x01
+   const u16 FAULT_NOFAULT = 0;
+   const u16 FAULT_EMBER_STACK_STARTUP = 1;
+   const u16 FAULT_WRONG_HARDWARE = 2;
+   const u16 FAULT_WRONG_HARDWARE_REVISION = 3;
+   const u16 FAULT_TOKEN_AREA_INVALID = 4;
+   const u16 FAULT_NO_BOOTLOADER = 5;
+   const u16 FAULT_NO_SERIAL_OUTPUT = 6;
+   const u16 FAULT_EMBER_MFGLIB_STARTUP = 7;
+   const u16 FAULT_FLASH_FAILED = 8;
+   const u16 FAULT_MCP23008_FAILED = 9;
+   const u16 FAULT_VERY_LOW_BATTERY = 10;
+   const u16 FAULT_FAILED_TO_FORM_NETWORK = 11;
+   const u16 FAULT_CHILD_DEVICE_LOST = 12;
+
+   u16 manufId;
+   u16 modelId;
+   u16 faultId;
+}
+
+      */ 
       if (map.command == "FB") { 
     // if bit 0 battery voltage // bit 5 and 6 reversed
     // if bit 1 temp // bit 7 and 8 reversed
@@ -1279,6 +1337,7 @@ Internal notes: Building Cluster map
 	updateDataValue("firmware", deviceFirmware)
         updateDataValue("fcc", "FU5TSA04")
         updateDataValue("partno", "TSA04-0")
+  
      } else {
 	// Not a clue what we've received.
         reportToDev(map)
