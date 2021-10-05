@@ -5,6 +5,15 @@
 
    leaksmart driver hubitat 
 
+ _                _    _____                      _     _   _       _           
+| |              | |  /  ___|                    | |   | | | |     | |          
+| |     ___  __ _| | _\ `--. _ __ ___   __ _ _ __| |_  | | | | __ _| |_   _____ 
+| |    / _ \/ _` | |/ /`--. \ '_ ` _ \ / _` | '__| __| | | | |/ _` | \ \ / / _ \
+| |___|  __/ (_| |   </\__/ / | | | | | (_| | |  | |_  \ \_/ / (_| | |\ V /  __/
+\_____/\___|\__,_|_|\_\____/|_| |_| |_|\__,_|_|   \__|  \___/ \__,_|_| \_/ \___|
+
+
+
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
 
 tested on firmware 
@@ -20,6 +29,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    2.7   10/05/2021   Updates to match my others drivers version no system
     2.6   09/11/2021   Detection for false mains flag (firm bug fixed)
     2.5.1 09/10/2021   Mains is working on v2.1 but not v1 valve
     2.5.2 09/09/2021   Mains detection now estimated from last batt reading            
@@ -69,6 +79,14 @@ http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  */
+def clientVersion() {
+    TheVersion="2.7"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
+
 
 metadata {
 	definition (name: "LeakSmart Water Valve", namespace: "tmastersmart", author: "Tmaster", importUrl:"https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy" ) {
@@ -126,6 +144,7 @@ def updated() {
 }
 
 def parse(String description) {
+	clientVersion()
     // log what we received . Looking for events the hub doesnt know about
 //        
 //      logDebug("${device} : Parse : ${description}") 
@@ -279,7 +298,7 @@ def poll() {
 
 
 def refresh() {
-
+    clientVersion() 
     log.info "${device}: Refreshing ${state.model}"
     state.supplyPresent = true
     state.badSupplyFlag = false
@@ -300,6 +319,9 @@ def configure() {
 	state.supplyPresent = true
         state.badSupplyFlag = false
 	state.lastBatteryVoltage = 6
+	
+	state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/leaksmart.jpg' >"
+
     state.remove("lastPoll")
     removeDataValue("lastPoll")
     state.firm = device.data.firmwareMT
