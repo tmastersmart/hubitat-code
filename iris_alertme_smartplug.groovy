@@ -13,7 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 
-
+   10/05/2021 v2.6  Icon added
  * 09/20/2021 v2.5  Merging in code from my KepPad driver. Better error handeling and logging
  * 09-14-2021 v2.4  Some log fixes and cleanup
  * 09-14-2021 v2.3  Added alarm support
@@ -53,7 +53,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="2.5"
+    TheVersion="2.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -127,7 +127,7 @@ def initialize() {
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
-
+    state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-switch.jpg' >"
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
     sendEvent(name: "alarmcmd", value: "0")
@@ -462,11 +462,9 @@ def checkPresence() {
 def parse(String description) {
 	// Primary parse routine.
 //	logging("${device} :Parse Data: ${description}", "trace")
-
-    clientVersion()
+        clientVersion()
 	updatePresence()
-    
-	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
+        Map descriptionMap = zigbee.parseDescriptionAsMap(description)
 	if (descriptionMap) {
 		processMap(descriptionMap)
 	} else {
@@ -511,15 +509,32 @@ Internal notes: Building Cluster map
 8038 Management Network Update Request
 
 */    
+    if (map.clusterID == "0013"){
+	logging("${device} : Device announce message","warn")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
+	
+
+    } else if (map.clusterId == "0006") {
+		logging("${device} : Sending Match Descriptor Response","debug")
+		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
    
-   
-    // Relay actuation and power state messages.
-	if (map.clusterId == "00EE") {
+ // IN Clusters
+//   0x00F0     General Cluster
+//   0x00EE     (238) Power Control Cluster
+// Relay actuation and power state messages.
+    } else if (map.clusterId == "00EE") {
+       //OPERATING_MODE     = 01
+       //RELAY_STATE        = 02
+       //RELAY_STATUS_RQST  = 03
+       //RELAY_STATUS_REPORT= 80
        if (map.command == "80") {
        def powerStateHex = "undefined"
        def powerStateDisplay = "PowerState Needs mapping ?-->"    
-	   powerStateHex  = receivedData[0]
-       powerStateHex2 = receivedData[1] // This field is always 0 on US version.   
+       powerStateHex  = receivedData[0]// This bit was to be memory but I dont get it
+       powerStateHex2 = receivedData[1]// This bit flips with switch
+       switchStats="?"   
+       if (powerStateHex2 == "00") {switchStats="OFF"}
+       if (powerStateHex2 == "01") {switchStats="ON"} 	       
        if (powerStateHex == "0B" ) {powerStateDisplay="Joining"}
        if (powerStateHex == "0C" ) {powerStateDisplay="Power Restored"}
        if (powerStateHex == "08" ) {powerStateDisplay="Power Restored"}
@@ -527,13 +542,15 @@ Internal notes: Building Cluster map
        if (powerStateHex == "0F" ) {powerStateDisplay="Button Pressed"}
        if (powerStateHex == "0D" ) {powerStateDisplay="Button Pressed"}
        if (powerStateHex == "0E" ) {powerStateDisplay="Last Power Restore memory was :OFF"}
-       if (powerStateHex == "06" ) {powerStateDisplay="Power Restored"}// Reports this if on or off after restore?
-       if (powerStateHex == "07" ) {powerStateDisplay="Last Power restore memory was :ON"}
+       if (powerStateHex == "06" ) {powerStateDisplay="Power Restored"}
+       if (powerStateHex == "07" ) {powerStateDisplay="Power Restored"}
        // need more info on these states They are diffrent than the UK models 
+//	       [07, 01]  With power on [06,00] with power off. Rower was restored in ON mode.
+//	       [07, 01]  With power on [06,00] with power off. Rower was restored in OFF mode.	       
            size = receivedData.size() 
            if (size == 2 ){cmdREC = receivedData[0..1].collect{ (char)Integer.parseInt(it, 16) }.join()}
           
-           logging("${device} :${powerStateDisplay} :${map.data} size ${size} :${cmdREC}", "info")
+	       logging("${device} :${powerStateDisplay} ${switchStats} :${map.data} size ${size} :${cmdREC}", "info")
 }     
 
 			// Switch State
@@ -576,11 +593,11 @@ Internal notes: Building Cluster map
 
 
 	 
-
+//   0x00EF     (239) Power Monitor Cluster 
 else if (map.clusterId == "00EF") {
-
-		// Power and energy messages.
-
+// RQST_PWR_REPORT      = 03
+// INST_PWR_REPORT      = 81
+// TOTAL_ENERGY_REPORT  = 82
 		if (map.command == "81") {
 
 			// Power Reading
@@ -645,15 +662,30 @@ else if (map.clusterId == "00EF") {
 
         
 } else if (map.clusterId == "00F0") {
+    
+    // if bit 0 battery voltage
+    // if bit 1 temp 
+    // if bit 3 lqi
+    // bit 5 and 6 reversed
+    // bit 7 and 8 reversed
+    // LQI = 10 (lqi * 100.0) / 255.0
         // These units have no battery but report internal voltage 12v but some report 30v ?
         // record voltage for testing as batteryVoltageWithUnit
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
+	        inspect = receivedData[1..3].reverse().join()
+                inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
-        batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+	        temperatureValue  = receivedData[7..8].reverse().join()
+ 
+	
+	
+	
+//		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
+                batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-		logging("${device} : Internal Voltage: ${batteryVoltage}", "debug")
+	        logging("${device} : Counter ${inspect2} Volts:${batteryVoltage} Temp${temperatureValue}", "debug")         
+//  		logging("${device} : Internal Voltage: ${batteryVoltage}", "debug")
 //		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V") 
 //       sendEvent(name: "battery", value: 100, unit: "%")
         sendEvent(name: "VoltageWithUnit", value: batteryVoltage, unit: "V") 
