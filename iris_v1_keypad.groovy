@@ -170,7 +170,7 @@ capability "Switch"
 command "checkPresence"
 command "normalMode"
 command "rangingMode"
-command "sendHex"
+//command "sendHex"
 //command "quietMode"
 
 attribute "batteryState", "string"
