@@ -13,6 +13,7 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
+  v2.8.1 10/06/2021 OFF was not clearing PANIC if alarm was OFF 
   v2.8   10/06/2021 Last PIN code rewrite broke button actions  Fixed
   v2.7.1 10/05/2021 Last update slowed down driver screen fixed.
   v2.7   10/05/2021 Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
@@ -137,7 +138,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.8"
+    TheVersion="2.8.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -391,9 +392,15 @@ def armNight() {
 def panic() {
 	logging ("${device} : Panic Sent","warn")
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
-//  siren()
     state.Panic = true 
-//  sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])  
+}
+def panicOff() {
+    if (state.Panic){
+        sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", displayed: true)
+        state.Panic = false
+        logging ("${device} : Panic Cleared [cancled by ${state.PinName}]","info")
+    }
+   
 }
 
 //  You only get here by authorized PIN
@@ -401,18 +408,10 @@ def disarm() {
     if (state.validPIN == false){logging ("${device} : PIN ERROR Bug detected. Report to DEV", "warn")}    
 	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${state.PinName}", displayed: true,data: /{"-1":{"name":"${state.PinName}","code":"${state.PIN}","isInitiator":true}}/)
 	sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "Disarmed by ${state.PinName}")
- 
     logging ("${device} : Sent Disarmed by ${state.PinName}", "info")
-
-    if (state.Panic){
-        sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", displayed: true)
-        state.Panic = false
-    }
-//    sendEvent(name: "strobe", value: "off", displayed: true)
-//    sendEvent(name: "alarm",  value: "off", displayed: true) 
+    panicOff()
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
-  
 }
 
 def purgePIN(){
@@ -445,9 +444,10 @@ def on(cmd) {
  logging ("${device} :Switch ON","info")   
  sendEvent(name: "switch", value: "on") 
 state.switch = true
-// Testing
-sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 00 00 26 06} {0xC216}"])
+
+ sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 00 00 26 06} {0xC216}"])
    
+
 /*
 Testing sending state to keypad by Pressing on on driver screen
 Running from bottom up....
@@ -779,32 +779,40 @@ Internal notes: Building Cluster map
      if (map.command == "0A") {  
       PinEnclosed = receivedData[0]// The command being passed to us
       pinSize     = receivedData[3]// The PIN size     
-      keyRec      = receivedData[4]// The Key pressed    
+      keyRec      = receivedData[4]// The Key pressed 
+      keyRecAsc   = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join()
 	  buttonNumber = 0 
       status = "Unknown"   
 	  size = receivedData.size()// size of data field
          // Action matrix based in iris source code.
          // Create text for logging
+         logPIN  = "Valid PIN:${state.validPIN}"
+         logPANIC= "Panic:${state.Panic}"
          if (PinEnclosed  =="20" ){   status = "STATE" }
-         if (PinEnclosed  =="21" ){   status = "PIN" }
+         if (PinEnclosed  =="21" ){   
+             status = "PIN"
+             logPIN="Pin:Processing"
+         }
          if (PinEnclosed  =="22" ){   status = "Pressed" }
          if (PinEnclosed  =="23" ){   status = "Released" }
          if (PinEnclosed  =="24" ){   status = "Poll Rate" }
          if (PinEnclosed  =="25" ){   status = "sound mask" }
          if (PinEnclosed  =="26" ){   status = "Sound ID" }
          if (PinEnclosed  =="28" ){   status = "Error" } 
+         keyRecA ="Received"
          if (keyRec == "48" ){keyRecA ="OFF"}
          if (keyRec == "41" ){keyRecA ="ON"}
          if (keyRec == "4E" ){keyRecA ="PARTIAL"}          
-         if (keyRec == "50" ){keyRecA ="PANIC"}            
+         if (keyRec == "50" ){
+             keyRecA ="PANIC"
+             logPANIC= "PANIC VALID"
+         }            
          if (keyRec == "2A" ){keyRecA ="STAR"}
          if (keyRec == "23" ){keyRecA ="POUND"}
-    
          
-         
-         if(debugLogging){logging ("${device} : Keypad #${keyRec} Action:${status} State:${state.Command} Panic:${state.Panic} PIN Valid:${state.validPIN} State:${state.Command}","debug")}
-         else {           logging ("${device} : Action :[${status}  ${keyRecA}]  Panic:${state.Panic} PIN Valid:${state.validPIN} State:${state.Command}","info")}
-      if (size == 10){ // IRIS MODE commands show up here
+       
+      logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","info")
+       if (size == 10){ // IRIS MODE commands show up here
        hexcmd = receivedData[4..9]  
        rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
        irsCMD = receivedData[4..4].collect{ (char)Integer.parseInt(it, 16) }.join() 
@@ -836,8 +844,8 @@ Internal notes: Building Cluster map
           }
 
           
-          if ( irsCMD == nextirsCMD){logging("${device} : Received: Iris command:${irsCMD1} Valid PIN ${state.validPIN}", "info")}
-          else{ logging("${device} : Received: Iris command:${irsCMD1}. Next command in qwery ${nextirsCMD}.   Valid PIN ${state.validPIN}", "info")}
+          if ( irsCMD == nextirsCMD){logging("${device} : IRIS   :[${irsCMD1}] Valid PIN ${state.validPIN}", "info")}
+          else{ logging("${device} : IRIS   :[${irsCMD1}] Next command in qwery [${nextirsCMD}].   Valid PIN ${state.validPIN}", "info")}
           logging("${device} : #${keyRec} Action:${status} Iris cmd:${rawCMD} :${hexcmd}", "trace")
           state.iriscmd = irsCMD1 // store for later use
 	      
@@ -927,6 +935,14 @@ Internal notes: Building Cluster map
 // OFF Disarm Command Valid PIN required        
        if (keyRec == "48"){
            if (state.Command == "off"){
+               if (state.Panic == true){  
+                   if (state.validPIN == true){
+                  // the PIN is valid but we are already off and need to clear PANIC
+                  logging("${device} : Button OFF (Clearing Panic) Valid PIN:${state.validPIN} State:${state.Command}","info")
+                  panicOff()
+                  return  
+                 }    
+               }     
              logging("${device} : Button OFF (But state already sent) state${state.Command}","debug")
              return
              }
