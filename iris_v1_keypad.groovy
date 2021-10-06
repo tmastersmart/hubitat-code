@@ -13,21 +13,20 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
+  v2.8   10/06/2021 Last PIN code rewrite broke button actions  Fixed
   v2.7.1 10/05/2021 Last update slowed down driver screen fixed.
   v2.7   10/05/2021 Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
                     Panic sets custom panic flag. 
-*   v2.6 10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
-*   v2.5 10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
-*   v2.4 09/30/2021 Custom Panic command added. Added Config options for * # OFF
-*   v2.3 09/30/2021 battery value changes
-*   v2.2 09/29/2021 Version detection and auto upgrade/install. 
-*   v2.1 09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command found and Logged, Master pin added 
-*   v2.0 09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, 
+  v2.6   10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
+  v2.5   10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
+  v2.4   09/30/2021 Custom Panic command added. Added Config options for * # OFF
+  v2.3   09/30/2021 battery value changes
+  v2.2   09/29/2021 Version detection and auto upgrade/install. 
+  v2.1   09/29/2021 Tamper bugs fixed, Log fix,Old IRIS command found and Logged, Master pin added 
+  v2.0   09/28/2021 Keypad support debugged , Commands debounced, Logging cleaned up, 
                     Invalid pins trapped Star key sends a 6 digit PIN *#  * Now trapped.
-*   v1.1 09/27/2021 Cleanup Button controler is working
-*   v1.0 09/27/2021 Beta test version Buttons now reporting Bat working
-
-* Minor versions are for internal testing and are not listed here.
+  v1.1   09/27/2021 Cleanup Button controler is working
+  v1.0   09/27/2021 Beta test version Buttons now reporting Bat working
 =================================================================================================
 Arming Buttons setup on driver page
 
@@ -138,7 +137,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.7.1"
+    TheVersion="2.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -445,7 +444,38 @@ def both(cmd){
 def on(cmd) {
  logging ("${device} :Switch ON","info")   
  sendEvent(name: "switch", value: "on") 
- state.switch = true
+state.switch = true
+// Testing
+sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 00 00 26 06} {0xC216}"])
+   
+/*
+Testing sending state to keypad by Pressing on on driver screen
+Running from bottom up....
+{11 00 00 06 00 26 } flashes
+{11 00 00 06 26}         [06, 26, 00, 19, 01, 00] 19 is back with a 01
+{11 00 26 00 06} ignored
+{11 00 00 26 00 06}  ignored
+{11 00 00 00 00 26 00 06} flashes
+{11 00 00 00 26 00 06}   [00, 26, 00, 18, 00, 00, 06, 00, 18, 00]
+{11 00 00 26 00 06 00}   [26, 00, 86, 06, 00, 00, 19, 01, 00]SO now I have 3 fields with a 19 and a 1
+{11 00 00 26 00 00 06}   [26, 00, 86, 00, 06, 00, 18, 00] So 2 fields perhaps the command in 1 and the action in 2
+{11 00 00 01 00 26 06}   [01, 00, 86, 26, 06, 86] so 86 shows up with data sent 18 with null
+{11 00 00 00 00 26 06}   [00, 00, 00, 18, 00, 26, 06, 86] So now i get 18 in the first field and 86 in the second
+{11 00 00 26 06 26 06}   [26, 06, 86, 26, 06, 86]
+{11 00 00 26 06}    [26, 06, 86] send sound ID opendoor 26 06 
+{11 00 00 02 21}    [02, 21, 86] 86 again
+{11 00 00 00 02 21} flashes
+{11 00 00 00 21 02} flashes
+{11 00 00 21 00 02} flashes
+{11 00 00 21 02}    [21, 02, 00, 42, 00]
+{11 00 00 21 01}       tried to send 21 set to 1 arming  received [21, 01, 00, 42, 00] 42=B 41=A would be looking for A not B
+{11 00 00 26 07}       tried to send 26 sound code 07  received [26, 07, 86]  <86= ??error??
+{11 00 00 26 08 00}​   tried to send 26 = "Sound ID" and SOUNDIDX_ARMING= 0x0800 flashes
+{11 00 00 25 08 00}​   tried to send 25 = "sound mask" and SOUNDIDX_ARMING= 0x0800 flashes
+
+Any help in trying to get the keypad to arm is welcome see docs 
+
+*/
 }
 
 
@@ -686,7 +716,7 @@ def parse(String description) {
 def processMap(Map map) {
 	logging ("${device} : ${map}","trace")
 	String[] receivedData = map.data	
-    logging("${device} : Cluster:${map.clusterId} State:${map.command} MAP:${map.data}","trace")
+    logging("${device} : Cluster:${map.clusterId} CMD:${map.command} MAP:${map.data}","trace")
     logging("${device} : Cluster:${map.clusterId} ${map.command} ","debug")
 /*
 Internal notes: Building Cluster map 
@@ -736,13 +766,7 @@ Internal notes: Building Cluster map
      
      if (map.command == "01") {
          // Reply to our sending (undocumented in iris code)
-         you  = receivedData[1]
-         me   = receivedData[3]
-         st = "-${reply}-"  
-         if (me == "30") {st="ok"}
-         if (me == "86") {st="error"}
-    
-         logging ("${device} : Received: ${you} My Reply ${st} data:${map.data}","trace")
+         logging ("${device} : Received: 000C0 01 data:${map.data}","trace")
      }
      
                                
@@ -1058,6 +1082,7 @@ Internal notes: Building Cluster map
 //      PinEnclosed = receivedData[0]// 21 = pin
 //      pinSize     = receivedData[3]// The PIN size + 4 = size   
     if (PinEnclosed == "21" ){ 
+        if (pinSize != "01" ){// dont run this for button function
         state.validPIN = false
         state.PinName = "NA"
         state.PIN     = "NA"
@@ -1109,7 +1134,7 @@ Internal notes: Building Cluster map
       state.PinName = TAMPER
       state.PIN     = asciiPin   
       return	 
-	  
+    }// Pin size check  
     }// end pin check       
 
 // Keypad button matrix 
