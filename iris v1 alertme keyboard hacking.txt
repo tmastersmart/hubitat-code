@@ -9,8 +9,8 @@ and says you have to send on the same cluster you rec on.
 "* Most messages are sent and received on the Attribute Cluster (0x00C0)"
 
 But the code is so fragmented I cant find the format to send the data.
-The java code is not clear I have yet to fine the section where it actualy
-sends a command and shows the order it sends it in.
+The java code is not clear I have yet to find the section where it actualy
+sends a command and shows the order it sends it in. There are varables on top of varables.
 
 If you understand this mess of java script and can follow this I need your help.
 
@@ -25,7 +25,9 @@ likely they will be send teh same way. Right now im lost.....
 Links 
 ZB_AlertMe_KeyPad_2_4.driver (They call it a driver but it looks nothing like a driver)
 https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_KeyPad_2_4.driver
+
 AlertmeKeyPad.java ( the first command look like what is received the other sound commands are unclear)
+
 https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/agent/arcus-reflex-controller/src/main/java/com/iris/agent/reflex/drivers/AlertmeKeyPad.java
 
 Directory ame = alertme
