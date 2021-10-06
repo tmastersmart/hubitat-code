@@ -473,8 +473,9 @@ Running from bottom up....
 {11 00 00 26 08 00}​   tried to send 26 = "Sound ID" and SOUNDIDX_ARMING= 0x0800 flashes
 {11 00 00 25 08 00}​   tried to send 25 = "sound mask" and SOUNDIDX_ARMING= 0x0800 flashes
 
-Any help in trying to get the keypad to arm is welcome see docs 
+Any help in trying to get the keypad to arm is welcome see docs and status here
 
+https://github.com/tmastersmart/hubitat-code
 */
 }
 
