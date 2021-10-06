@@ -13,6 +13,8 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
+  v2.8.2 10/06/2021 HSM status was reporting disarmed when sending arm 
+                    added delay to allow it to take action before testing state
   v2.8.1 10/06/2021 OFF was not clearing PANIC if alarm was OFF 
   v2.8   10/06/2021 Last PIN code rewrite broke button actions  Fixed
   v2.7.1 10/05/2021 Last update slowed down driver screen fixed.
@@ -369,24 +371,21 @@ def armAway() {
     sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
     state.Command = "away"
-//    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])
-
+    pauseExecution(6000)
 }
 def armHome() {
 	logging ("${device} : Sending armHome by ${state.PinName}","info")
 	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
     state.Command = "home"
-///sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"])   
-
+    pauseExecution(6000)
 }
 def armNight() {
 	logging ("${device} : Sending armNight by ${state.PinName}","info")
 	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
     state.Command = "night"
-//sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {22 00 09 18 48 23 00 09 1A 48} {0xC216}"]) 
-
+    pauseExecution(6000)
 }
 
 def panic() {
@@ -412,6 +411,7 @@ def disarm() {
     panicOff()
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
+    pauseExecution(6000)
 }
 
 def purgePIN(){
@@ -613,7 +613,6 @@ def getStatus(status) {
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
             state.Command = "off"
-            state.Panic = false
             logging ("${device} : Received HSM ${status}","info")
         }
         return
