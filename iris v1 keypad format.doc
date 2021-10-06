@@ -1,0 +1,112 @@
+
+Iris v1 alertme KeyPad format.
+===========================================================
+Typing a the pin "1111" sends 
+     
+ Cluster:00C0 CMD:0A MAP:[21, 00, 42, 04, 31, 31, 31, 31]
+ 
+ 21 = PIN Elclosed        ^
+ 04 = Size of the PIN                  ^
+ 31 = the ASCII code of 1                  ^   ^   ^   ^
+===========================================================
+
+Pressing button 1 on the keypad sends 
+
+ Cluster:00C0 CMD:0A MAP:[21, 00, 42, 01, 31] 
+
+ 21 = PIN Elclosed        ^
+ 04 = Size of the PIN                  ^
+ 31 = the ASCII code of 1                  ^ 
+ 
+ ===========================================================
+ 
+ Pressing a ACTION key (OFF ON PARTIAL PANIC # * ) sends
+ 
+ Cluster:00C0 CMD:0A MAP:[22, 00, 09, 00, 48]
+ Cluster:00C0 CMD:0A MAP:[23, 00, 09, 00, 48, 23, 00, 09, 00, 48]
+ Cluster:00C0 CMD:0A MAP:[23, 00, 09, 00, 48] <- This repeats 
+ 
+ 22 = Action key pressed  ^
+ 23 = Action key Released ^
+ 48 = The ASCII code H  (HOME)             ^
+ 48 = The ASCII code H  Next command in qwery (HOME)           ^ 
+ The other data is unkown 
+ 
+ OFF sends     H=HOME
+ ON  Sends     A=AWAY
+ PARTIAL sends N=NIGHT
+ PANIC sends   P=PANIC
+ * # send      * and #  
+ ==============================================================
+ Other known commands in the format. These may be send format 
+ 24 = "Poll Rate"
+ 25 = "sound mask"
+ 26 = "Sound ID"
+ 28 = "UNSUCCESSFUL STATECHANGE"
+ 
+ The keypad needs to be told its state but format is unknown
+ 
+Testing 
+
+sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 00 00 02 21} {0xC216}"])
+
+{11 00 00 02 21}    [02, 21, 86] 86 again
+{11 00 00 00 02 21} flashes
+{11 00 00 00 21 02} flashes
+{11 00 00 21 00 02} flashes
+{11 00 00 21 02}    [21, 02, 00, 42, 00]
+{11 00 00 21 01}       tried to send 21 set to 1 arming  received [21, 01, 00, 42, 00] 42=B 41=A would be looking for A not B
+{11 00 00 26 07}       tried to send 26 sound code 07  received [26, 07, 86]  <86= ??error??
+{11 00 00 26 08 00}​   tried to send 26 = "Sound ID" and SOUNDIDX_ARMING= 0x0800 flashes
+{11 00 00 25 08 00}​   tried to send 25 = "sound mask" and SOUNDIDX_ARMING= 0x0800 flashes
+
+
+Data from iris source code 
+
+------------------------------------------------------------
+KEYPADSTATE_UNKNOWN = 0;
+KEYPADSTATE_OFF = 1;
+KEYPADSTATE_ARMED_ON = 2;
+KEYPADSTATE_ARMED_PARTIAL = 3;
+KEYPADSTATE_PANIC = 4;
+KEYPADSTATE_ARMING_ON = 5;
+KEYPADSTATE_SOAKING_ON = 5;
+KEYPADSTATE_ALARMING_ON = 6;
+KEYPADSTATE_ARMING_PARTIAL = 7;
+KEYPADSTATE_SOAKING_PARTIAL = 7;
+KEYPADSTATE_ALARMING_PARTIAL = 8;
+-------------------------------------------------------------
+
+ sounds
+NO_REPEAT = (byte)0x00;
+VOL_MAX = (byte)0xFF;
+VOL_MID = (byte)0x80;
+VOL_LOW = (byte)0x40;
+VOL_OFF = (byte)0x00;
+
+SOUNDID_CUSTOM = 0x00;
+SOUNDID_KEYCLICK = 0x01;
+SOUNDID_LOSTHUB = 0x02;
+SOUNDID_ARMING = 0x03;
+SOUNDID_ARMED = 0x04;
+SOUNDID_HOME = 0x05;
+SOUNDID_NIGHT = 0x06;
+SOUNDID_ALARM = 0x07;
+SOUNDID_PANIC = 0x08;
+SOUNDID_BADPIN = 0x09;
+SOUNDID_OPENDOOR = 0x0A;
+SOUNDID_LOCKED = 0x0B;
+--------------------------------------------------------------
+SOUNDIDX_CUSTOM                     = 0x0100;
+SOUNDIDX_KEYCLICK                   = 0x0200;
+SOUNDIDX_LOSTHUB                    = 0x0400;
+SOUNDIDX_ARMING                     = 0x0800;
+SOUNDIDX_ARMED                      = 0x1000;
+SOUNDIDX_HOME                       = 0x2000;
+SOUNDIDX_NIGHT                      = 0x4000;
+SOUNDIDX_ALARM                      = 0x8000;
+SOUNDIDX_PANIC                      = 0x0001;
+SOUNDIDX_BADPIN                     = 0x0002;
+SOUNDIDX_OPENDOOR                   = 0x0004;
+SOUNDIDX_LOCKED                     = 0x0008;
+-------------------------------------------------------------- 
