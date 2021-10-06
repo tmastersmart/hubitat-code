@@ -1,7 +1,7 @@
 
 Iris v1 alertme KeyPad format.
 ===========================================================
-Typing a the pin "1111" sends 
+Typing the pin "1111" sends 
      
  Cluster:00C0 CMD:0A MAP:[21, 00, 42, 04, 31, 31, 31, 31]
  
