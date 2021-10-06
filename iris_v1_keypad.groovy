@@ -140,7 +140,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="2.8.1"
+    TheVersion="2.8.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
