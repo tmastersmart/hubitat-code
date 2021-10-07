@@ -1,12 +1,12 @@
-/*Iris v1 AlertMe Repeater Zigbe
+/*Iris v1 Repeator Zigbee
 https://fcc.report/FCC-ID/WJHRP11/
 
-Iris v1 Repeater zigbee driver for hubitat
+Iris v1 repeader zigbee driver for hubitat
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 notice acording to old reports the REP800 had a defect in the ZWAVE side so dont pair ZWAVE
-
-    09/08/2021 v1.9 Mispellings
+    10/06/2020 v2.0 Added logo
+    09/30/2021 v1.9 Merge in new code from KeyPad driver better error detection logging
     09/06/2021 v1.8 Battery fix / Powerfalure detection
     09/04/2021 v1.7 Button support added 
                v1.6 Model detection fix. Change flag
@@ -33,23 +33,32 @@ Tested on  REP800 uses Firmware : 2013-09-26
 
 REP901 is the new version Need firmware versions.
 
-Post comments here
-http://www.winnfreenet.com/wp/2021/09/iris-v1-alertme-repeater-zigbe-hubitat-driver/
 
 
 
 
- * using modified UK plug code
- * Forked from https://raw.githubusercontent.com/birdslikewires/hubitat/master/alertme/drivers/alertme_smartplug.groovy
- * name: "AlertMe Smart Plug" 
- * namespace: "BirdsLikeWires", 
- * author: "Andrew Davison", 
+
+
+ * based on alertme UK code from  
+   https://github.com/birdslikewires/hubitat
+
+GNU General Public License v3.0
+Permissions of this strong copyleft license are conditioned on making available
+complete source code of licensed works and modifications, which include larger
+works using a licensed work, under the same license. Copyright and license
+notices must be preserved. Contributors provide an express grant of patent rights.
  */
-
+def clientVersion() {
+    TheVersion="2.0"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
 
 metadata {
 
-	definition (name: "Iris AlertMe Repeater Zigbe", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
+	definition (name: "Iris v1 Repeator Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
@@ -66,25 +75,14 @@ metadata {
 
 		attribute "batteryState", "string"
 		attribute "batteryVoltage", "string"
-//attribute "batteryVoltageWithUnit", "string"
-//		attribute "batteryWithUnit", "string"
 		attribute "mode", "string"
-//		attribute "stateMismatch", "boolean"
-//		attribute "temperature", "string"
-//		attribute "uptime", "string"
-//		attribute "uptimeReadable", "string"
+
 
 		fingerprint profileId: "C216", inClusters: "00F0,00F3", outClusters: "", manufacturer: "Iris/AlertMe", model: "RepeaterPlug", deviceJoinName: "Iris AlertMe Repeater Plug"
 		
 	}
 
 }
-// Item #388560 Model #REP901
-//manufacturer: AlertMe
-//model: RepeaterPlug
-//profileId: C216
-//inClusters: 00F0,00F3
-//firmware: 2013-09-26
 
 preferences {
 	
@@ -112,22 +110,15 @@ def initialize() {
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
-
-	// ...but don't arbitrarily reset the state of the device's main functions or tamper status.
-
-	sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
-//	sendEvent(name: "batteryState", value: "unknown", isStateChange: false)
+    state.icon = "<img src='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gIoSUNDX1BST0ZJTEUAAQEAAAIYAAAAAAIQAABtbnRyUkdCIFhZWiAAAAAAAAAAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAAHRyWFlaAAABZAAAABRnWFlaAAABeAAAABRiWFlaAAABjAAAABRyVFJDAAABoAAAAChnVFJDAAABoAAAAChiVFJDAAABoAAAACh3dHB0AAAByAAAABRjcHJ0AAAB3AAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAFgAAAAcAHMAUgBHAEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFhZWiAAAAAAAABvogAAOPUAAAOQWFlaIAAAAAAAAGKZAAC3hQAAGNpYWVogAAAAAAAAJKAAAA+EAAC2z3BhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABYWVogAAAAAAAA9tYAAQAAAADTLW1sdWMAAAAAAAAAAQAAAAxlblVTAAAAIAAAABwARwBvAG8AZwBsAGUAIABJAG4AYwAuACAAMgAwADEANv/bAEMAAwICAgICAwICAgMDAwMEBgQEBAQECAYGBQYJCAoKCQgJCQoMDwwKCw4LCQkNEQ0ODxAQERAKDBITEhATDxAQEP/bAEMBAwMDBAMECAQECBALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/AABEIADcAZAMBIgACEQEDEQH/xAAcAAEAAgIDAQAAAAAAAAAAAAAABAUCBgEHCAP/xAA6EAABAgMCCAsHBQAAAAAAAAAAAgMBBAUGEhYXIlRVdJGSBxETMjU2coKisrMUJDRCRVFzZHGjscH/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAgED/8QAFhEBAQEAAAAAAAAAAAAAAAAAAAEC/9oADAMBAAIRAxEAPwD3DXOFC1D1Vcbps4mXlUuqbS2ltKuaq7ziyYtZaJxq8qrO3u6devp98VrL3qKNulvhiMtq4wotBpV7aIWktAr6o/vFZBN75j6pTdSGLOFoq9pR/eOcJK9pR7eK0AWWEle0o9vDCSuaSe3itAFjhHXNJP7wwhrWkn9pXAsWSLRVhMcqedV3iZN1mfXTlTMtPvoeQm8nLVdgooSYrop/sKA7Lo8/Cp0mSqLkeTVNS7b0U/a8mEf9BHsd1VpGpMemkAeeZlPvitac9RRtste5E1SY+PXrb3qKNtlE3mTlltfVCbiTMhSErUpebnXp6pJmGHnUqlmuSS3yCbvNvfNlZRNKYAAAAAAAAEv6S/2FEQmp6Kf7Cix2HY/qpR9SZ8kAY2M6p0jU2fJAAef5xN2dXrj3qKNqlcps1+sMql6ktKs7cV/Io2CVyWjlltSAAUwAAAAAAAAJsOjH/wAaiET2+jX/AMagN7sj1Vo+pNeWAFk0cVl6RD9E15YAsa3aDgtbq88qfYqns8FKvXIovGTfBvNtIuxqbMe6oAgc4vJ3SjW6oYvZ7SLGxQAHOL6oZ8x4hi+qGeseIABi/qGeMeIxwAqOeseIABgBUc9Y8Qxf1POWdgACFgKjCOXMtQ/Yl4ETLkupj2pDSVp4lOcV6OwAsbZIyrUhKMyMvC61LtpaRD7JTCEIf0AAP//Z'>"
+    
+    state.message = "REP800 should not be paired in ZWAVE as it has a defect. Only REP901 works on Zwave."
+  
+    sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-// ndEvent(name: "batteryVoltageWithUnit", value: "unknown", isStateChange: false)
-//	sendEvent(name: "batteryWithUnit", value: "unknown", isStateChange: false)
-
 	sendEvent(name: "lqi", value: 0)
 	sendEvent(name: "operation", value: "unknown", isStateChange: false)
-
-//	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
-
 	sendEvent(name: "presence", value: "not present")
-//	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
 
 
 
@@ -237,9 +228,7 @@ void reportToDev(map) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
 
-//	logging("${device} : UNKNOWN DATA!", "warn")
 	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
-//	logging("${device} : Splurge! : ${map}", "trace")
 
 }
 
@@ -302,17 +291,7 @@ def quietMode() {
 	// We don't receive any of these in quiet mode, so reset them.
 	sendEvent(name: "battery", value:0, unit: "%", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-//	sendEvent(name: "batteryVoltageWithUnit", value: ".", isStateChange: false)
-//	sendEvent(name: "batteryWithUnit", value: ".", isStateChange: false)
-//	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-//	sendEvent(name: "energyWithUnit", value: "unknown", isStateChange: false)
-	sendEvent(name: "operation", value: "quiet")
-//	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
-//	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
-//	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
-//	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
-//	sendEvent(name: "temperature", value: 0, unit: "C", isStateChange: false)
-//	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
+    sendEvent(name: "operation", value: "quiet")
 
 	logging("${device} : Mode : Quiet", "info")
 
@@ -412,84 +391,59 @@ def checkPresence() {
 
 
 def parse(String description) {
-
-	// Primary parse routine.
-
-	logging("${device} : Parse : $description", "debug")
-
-	sendEvent(name: "presence", value: "present")
-	updatePresence()
-
+// Primary parse routine.
+    clientVersion()
+    updatePresence()
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-
 	if (descriptionMap) {
-
 		processMap(descriptionMap)
-
 	} else {
-		
-		logging("${device} : Parse : Failed to parse received data. Please report these messages to the developer.", "warn")
-		logging("${device} : Splurge! : ${description}", "warn")
-
+		logging("${device} : Parse Failed ..${description}", "warn")
 	}
-
 }
 
-
-
 def processMap(Map map) {
-	// AlertMe values are always sent in a data element.
-	String[] receivedData = map.data
+	logging ("${device} : ${map}","trace")
+	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
+    logging("${device} : Cluster:${map.clusterId} Cmd:${map.command} MAP:${map.data}","debug")
+
  
-   logging("${device} : debug  Cluster:${map.clusterId}   State:${map.command}", "trace")
-    
-	if (map.clusterId == "0006") {
-		// Match Descriptor Request I have never seen on this device
-		logging("${device} : Sending Match Descriptor Response", "debug")
+    if (map.clusterID == "0013"){
+	logging("${device} : Device announce message","warn")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
+	
+
+    } else if (map.clusterId == "0006") {
+		logging("${device} : Sending Match Descriptor Response","debug")
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
-        
+       
     } else if (map.clusterId == "00EF") {
      // Relay actuation and power state messages. 
-     // doesnt send anything. Logging just in case.   
-    logging("${device} : Mains cluster: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} data: ${receivedData}", "trace")
+     // This should give us Mains decection but it never reports   
+    logging("${device} : Mains cluster Notify DEF -->: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} data: ${receivedData}", "trace")
    
 
     } else if (map.clusterId == "00F0") {
 
-	logging("${device} : Power cluster: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} data: ${receivedData}", "trace")
-      
-       
-    inspect = receivedData[2]  
-    inspect2 = zigbee.convertHexToInt(inspect)  
-    logging("${device} : debug data Hex:${inspect} dec:${inspect2}", "trace")   
-//    logging("${device} : Battery/Power Cluster:${map.clusterId}   State:${map.command}", "trace")
-
-// Report the battery voltage and calculated percentage.
-
-
-        
+	logging("${device} : Bat Cluster:${map.clusterId}, cmd:${map.command} data:${receivedData}", "trace")
+ 
         def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 //        sendEvent(name: "batteryState", value: "Pending")
+        inspect = receivedData[2..3].reverse().join()
+        inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
+    
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-//		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")// debuging not needed
-
-		if (batteryVoltageHex == "FFFF") {
-			logging("${device} : skipping bad bat value : ${batteryVoltageHex}", "debug")
-			return
-		}
-
+        temperatureValue = receivedData[7..8].reverse().join()
+        if (batteryVoltageHex == "FFFF") {return}
 		batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-		//logging("${device} : batteryVoltage sensor value : ${batteryVoltage}", "debug")
 
-
-		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
+        logging("${device} : Counter ${inspect2} Volts:${batteryVoltage} Temp${temperatureValue}", "debug")         
+     
+     	batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
         batteryVoltage = batteryVoltage + 1 // Kludge for low value being reported
-        
-
-//		logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
+      
 		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-//		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
 
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
@@ -514,29 +468,36 @@ def processMap(Map map) {
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage 
             
 			if (batteryPercentage > 10) {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
+                if (batteryVoltage != state.lastBatteryVoltage){
+                logging("${device} :Battery : $batteryPercentage% ($batteryVoltage V)", "info")  
 			} else {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
+				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
                 sendEvent(name: "batteryState", value: "Discharged")
 			}
 
 			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
 //			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-
+            }
             if (batteryVoltage < state.lastBatteryVoltage  ){
                 if (state.supplyPresent){
-                    logging("${device} : Power Falure Detected discharging ${state.lastBatteryVoltage} > ${batteryVoltage}", "debug") 
+                    logging("${device} : Discharging Last:${state.lastBatteryVoltage} > Now:${batteryVoltage}", "debug") 
                     state.supplyPresent = false
+                    sendEvent(name: "batteryState", value: "discharging")
+                    sendEvent(name: "PowerSource", value: "battery")
+                    sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
                   }
             }
             if (batteryVoltage > state.lastBatteryVoltage){
                 if(!state.supplyPresent){
-                    logging("${device} : Power on Mains charging ${state.lastBatteryVoltage} < ${batteryVoltage}", "debug") 
+                    logging("${device} : Charging Last:${state.lastBatteryVoltage} < Now:${batteryVoltage}", "debug") 
                     state.supplyPresent = true
+                    sendEvent(name: "batteryState", value: "charging")
+                    sendEvent(name: "PowerSource", value: "mains")
+                    sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
                 }
             }
-            state.lastBatteryVoltage = (batteryVoltage - 0.02)
-            
+            state.lastBatteryVoltage = batteryVoltage
+            sendEvent(name: "lastBatteryVoltage", value: "${batteryVoltage}")
 			if (batteryVoltage > batteryVoltageScaleMax) {
 //			!state.supplyPresent ?: 
             sendEvent(name: "batteryState", value: "charged")
@@ -572,53 +533,37 @@ def processMap(Map map) {
 //			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
 			sendEvent(name: "batteryState", value: "fault")
 
-		}
+            }// end else	
 
-		// Report the temperature in celsius. No sensor 
-   
-    
-    
-//Pressing button on ac gives
-//00C0, 0A [21, 00, 30, 00]
-//00C0, 0A [20, 00, 0B, 43, 46, 1A, EA]
-//00C0, 0A [23, 00, 30, 02]
-//00F3, 01 [00, 01, 4A, 72, 00, 00]
-//00F3, 00 [00, 02, 7F, 73, 00, 00]
+         
 
-//pressing button on bat gives
-//
-// 00C0, 0A [21, 00, 30, 00]
-// 00C0, 0A [20, 00, 0B, 43, 46, 1A, EA]
-// 00C0, 0A [23, 00, 30, 02]
-// 00F3, 01 [00, 01, 37, A6, 00, 00]
-// 00F3, 00 [00, 02, ED, A6, 00, 00]    
- 
-      } else if (map.clusterId == "0006") {
-        logging("${device} : Not joined - in process ${map.clusterId} MAP:${map.data}", "warn")
-
-      } else if (map.clusterId == "0013") {
-        logging("${device} : Not joined - in process ${map.clusterId} MAP:${map.data}", "warn")
-
-       
-} else if (map.clusterId == "8001") {
-//cluster: null, clusterId: 8001, attrId: null, command: 00 with value: null and 12 bits of data: [E0, 00, 72, B3, 6F, 03, 00, 6F, 0D, 00, E6, C5]
-//debug  Cluster:8001   State:00
-//catchall: 0000 8001 00 00 0040 00 C5E6 00 00 0000 00 00 E00072B36F03006F0D00E6C5  
-// This is sent when returning from power falure But not always. Likely boot up message 
-       
-       logging("${device} : Returning from power falure", "info")
-       state.supplyPresent = true
-       sendEvent(name: "PowerSource", value: "mains", isStateChange: true)
-       
-      // does this 2 times needs debounce 
+//00F3 Key Fob Cluster:00F3 Cmd:00 MAP:[00, 02, A2, A6, 00, 00]
     } else if (map.clusterId == "00F3") {
-        logging("${device} : Button pushed:${map.clusterId} MAP:${map.data}", "trace")
+    PinEnclosed = receivedData[0]// The command being passed to us
+ 
+//State:00 [F] MAP:[00, 02, B9, 80, 00, 00]
+//State:20 [F] MAP:[20, 00, 0B, CD, 6A, 3E, C3]
+//State:21 [F] MAP:[21, 00, 30, 00]        
+            
+        logging("${device} : State:${PinEnclosed} MAP:${map.data}", "trace")
         logging("${device} : Button 1 pushed", "info")
+           
 		sendEvent(name: "pushed", value: 1, isStateChange: true)
-
+        
+//00C0 KeyPad cluster
     } else if (map.clusterId == "00C0") {
-   
-        logging("${device} : Button released:${map.clusterId} MAP:${map.data}", "trace")
+       
+//Pressing button on ac Sends PIN report with 0 bytes then state F then Released NULL
+//00C0, 0A [21, 00, 30, 00]
+//          21= PIN 0 bytes
+//00C0, 0A [20, 00, 0B, 43, 46, 1A, EA]
+//          20=state message 64=F "F"
+//00C0, 0A [23, 00, 30, 02]
+//          23= Released    
+       PinEnclosed = receivedData[0]// The command being passed to us
+
+            
+        logging("${device} : State:${PinEnclosed}  MAP:${map.data}", "trace")
         logging("${device} : Button 1 released", "info")
 		sendEvent(name: "released", value: 1, isStateChange: true)
   
@@ -685,47 +630,47 @@ def processMap(Map map) {
 			String deviceManufacturer = "Iris/AlertMe"
 			String deviceModel = "" // will say RepeaterPlug
 			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
-
+            reportFirm = "Report to DEV Firm and MDL"
+            reportModel = false
+            if(deviceFirmware == "2013-09-26" ){
+                reportFirm = "Known v2013"
+                reportModel = true
+            }
+            // device: RepeaterPlug 
 			// Sometimes the model name contains spaces.
 			if (versionInfoBlockCount == 2) {
 				deviceModel = versionInfoBlocks[0]
 			} else {
 				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 			}
-
-// Firmware : 09-26-2013 Model  : RepeaterPlug manufacturer Iris/AlertMe
-// Item #388560 Model #REP901 need firmware date on REP901            
-                
-//          if (deviceModel  == "RepeaterPlug") {deviceModel = "RepeaterPlug REP901"}
+           logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "info")
+	       updateDataValue("manufacturer", deviceManufacturer)
+           updateDataValue("device", deviceModel)
+            if (reportModel){updateDataValue("model", "REP800")}// because we dont know how to detect REP901 yet
+	       updateDataValue("firmware", deviceFirmware)
+           updateDataValue("fcc", "WJHRP11")
+           updateDataValue("partno", "RP11")
           
-            if (deviceFirmware == "2013-09-26") {
-                deviceFirmware = "09-26-2013"
-                deviceModel = "RepeaterPlug REP800"
-            }
-            
-          
-            logging("${device}: Firmware: ${deviceFirmware} Md: ${deviceModel}", "info")
+        //  Centrica Connected home Limited Wireless Repeater RP11          
+        }
+} else if (map.clusterId == "8001") {
 
-			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("model", deviceModel)
-			updateDataValue("firmware", deviceFirmware)
-
-		} else {
-
-			// Not a clue what we've received.
-			reportToDev(map)
-
-		}
-
-	} else {
-
-		// Not a clue what we've received.
-		reportToDev(map)
-
+  logging("${device} : Routing and Neighbour Information", "info")	     
+// no ideal here I thought 8001 was a recovery mesg but it is not.
+//  state.supplyPresent = true
+//  sendEvent(name: "PowerSource", value: "mains", isStateChange: true)   
+        
+} else if (map.clusterId == "8032" ) {
+	// These clusters are sometimes received when joining new devices to the mesh.
+        //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
+        // We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
+	logging( "${device} : New join has triggered a routing table reshuffle.","debug")
+     } else {
+	// Not a clue what we've received.
+	reportToDev(map)
 	}
-
 	return null
-
+ 
 }
 
 
