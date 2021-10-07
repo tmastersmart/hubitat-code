@@ -5,7 +5,7 @@ Iris v1 repeader zigbee driver for hubitat
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 notice acording to old reports the REP800 had a defect in the ZWAVE side so dont pair ZWAVE
-    10/06/2020 v2.0 Added logo
+    10/06/2020 v2.0 Added logo. Reduced BAT reports now only when changed
     09/30/2021 v1.9 Merge in new code from KeyPad driver better error detection logging
     09/06/2021 v1.8 Battery fix / Powerfalure detection
     09/04/2021 v1.7 Button support added 
@@ -426,116 +426,61 @@ def processMap(Map map) {
 
     } else if (map.clusterId == "00F0") {
 
-	logging("${device} : Bat Cluster:${map.clusterId}, cmd:${map.command} data:${receivedData}", "trace")
- 
-        def batteryVoltageHex = "undefined"
-		BigDecimal batteryVoltage = 0
-//        sendEvent(name: "batteryState", value: "Pending")
-        inspect = receivedData[2..3].reverse().join()
-        inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
-    
-		batteryVoltageHex = receivedData[5..6].reverse().join()
-        temperatureValue = receivedData[7..8].reverse().join()
-        if (batteryVoltageHex == "FFFF") {return}
-		batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+  batRec = receivedData[0]// [19] This sould be set with bat data but doesnt follow standard
+      tempRec = receivedData[1]// does not folow alertme standard 1 2 3 are actualy running a timmer up and down
+    switchRec = receivedData[4]
+       lqiRec = receivedData[8]// 
+      //if (lqiRec){ lqi = receivedData[10]}
+      def batteryVoltageHex = "undefined"
+      BigDecimal batteryVoltage = 0
+      inspect = receivedData[1..3].reverse().join()
+      inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter Counts up or down
+      batteryVoltageHex = receivedData[5..6].reverse().join()
+//      if (tempRec){
+//          temp  = receivedData[7..8].reverse().join()
+//          temp = zigbee.convertHexToInt(temp)
+//      }
+      if (batteryVoltageHex == "FFFF") {return}
+//      if (batRec){ 
+     batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+     batteryVoltage = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
+     batteryVoltage = batteryVoltage + 1 // Kludge for low value being reported
+     logging("${device} Raw Battery  Bat:${batRec} ${batteryVoltage}", "debug")    
 
-        logging("${device} : Counter ${inspect2} Volts:${batteryVoltage} Temp${temperatureValue}", "debug")         
-     
-     	batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-        batteryVoltage = batteryVoltage + 1 // Kludge for low value being reported
-      
-		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
 
-		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
 		BigDecimal batteryVoltageScaleMax = 4.15
         
-        state.batteryOkay = true
+        BigDecimal batteryPercentage = 0
+        batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
+		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
+		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
-		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.40) {
-
-			// A good three-cell 3.6 V NiMH battery will sit between 4.10 V and 4.25 V. 
-            // The above may be true but the repeator works on bat at 3v. USA batteries on these
-            // units are old and no reasion to replace them. Lowering min state
-            // More testing is need to see what state it stops working at.
-            //
-            // Update when battery reads 4.2 the unit reports 3.181  a 1.02 offset has been added.
-            
-
-			state.batteryOkay = true
-
-			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
-			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
-			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage 
-            
-			if (batteryPercentage > 10) {
-                if (batteryVoltage != state.lastBatteryVoltage){
-                logging("${device} :Battery : $batteryPercentage% ($batteryVoltage V)", "info")  
-			} else {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
-                sendEvent(name: "batteryState", value: "Discharged")
-			}
-
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-//			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-            }
-            if (batteryVoltage < state.lastBatteryVoltage  ){
-                if (state.supplyPresent){
-                    logging("${device} : Discharging Last:${state.lastBatteryVoltage} > Now:${batteryVoltage}", "debug") 
-                    state.supplyPresent = false
-                    sendEvent(name: "batteryState", value: "discharging")
-                    sendEvent(name: "PowerSource", value: "battery")
-                    sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
-                  }
-            }
-            if (batteryVoltage > state.lastBatteryVoltage){
-                if(!state.supplyPresent){
-                    logging("${device} : Charging Last:${state.lastBatteryVoltage} < Now:${batteryVoltage}", "debug") 
-                    state.supplyPresent = true
-                    sendEvent(name: "batteryState", value: "charging")
-                    sendEvent(name: "PowerSource", value: "mains")
-                    sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
-                }
-            }
-            state.lastBatteryVoltage = batteryVoltage
-            sendEvent(name: "lastBatteryVoltage", value: "${batteryVoltage}")
-			if (batteryVoltage > batteryVoltageScaleMax) {
-//			!state.supplyPresent ?: 
-            sendEvent(name: "batteryState", value: "charged")
-			} else {
-			!state.supplyPresent ?: sendEvent(name: "batteryState", value: "charging")
-			}
-
-		} else if (batteryVoltage < batteryVoltageScaleMin) {
-
-			// Very low voltages indicate an exhausted battery which requires replacement.
-
-			state.batteryOkay = false
-
-			batteryPercentage = 0
-
-//			logging("${device} : Battery : Exhausted battery.", "warn")   To many warnings
-			logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-//			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-			sendEvent(name: "batteryState", value: "exhausted")
-
-		} else {
-
-			// If the charge circuitry is reporting greater than 4.5 V then the battery is either missing or faulty.
-
-			state.batteryOkay = false
-
-			batteryPercentage = 0
-
-			logging("${device} : Battery : Exhausted battery requires replacement.", "warn")
-			logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-//			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-			sendEvent(name: "batteryState", value: "fault")
-
-            }// end else	
-
+        
+        
+    if (batteryVoltage > state.lastBatteryVoltage  ){
+	 logging( "${device} : Battery : ${batteryPercentage}% (${batteryVoltage} V)","info")
+	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+     sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+     logging("${device} : Last:${state.lastBatteryVoltage} Now:${batteryVoltage}", "debug")    
+     state.supplyPresent = true
+     sendEvent(name: "batteryState", value: "charging")
+     sendEvent(name: "PowerSource", value: "mains")
+     sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
+    }
+    if (batteryVoltage < state.lastBatteryVoltage ){    
+      logging( "${device} : Battery : ${batteryPercentage}% (${batteryVoltage} V)","info")
+	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+     sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+     logging("${device} : Last:${state.lastBatteryVoltage} Now:${batteryVoltage}", "debug")    
+     logging("${device} : Discharging", "debug") 
+     state.supplyPresent = false
+     sendEvent(name: "batteryState", value: "discharging")
+     sendEvent(name: "PowerSource", value: "battery")
+     sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
+     }
+    state.lastBatteryVoltage = batteryVoltage
+     
          
 
 //00F3 Key Fob Cluster:00F3 Cmd:00 MAP:[00, 02, A2, A6, 00, 00]
@@ -700,6 +645,7 @@ private String[] millisToDhms(BigInteger millisToParse) {
 	return dhms
 
 }
+
 
 
 private BigDecimal hexToBigDecimal(String hex) {
