@@ -449,7 +449,7 @@ def processMap(Map map) {
 
 
 		BigDecimal batteryVoltageScaleMin = 2.72// 3v would be 1 volt per cell
-		BigDecimal batteryVoltageScaleMax = 4.15
+		BigDecimal batteryVoltageScaleMax = 4.19
         
         BigDecimal batteryPercentage = 0
         batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
@@ -464,7 +464,8 @@ def processMap(Map map) {
      sendEvent(name: "battery", value:batteryPercentage, unit: "%")
      logging("${device} : Last:${state.lastBatteryVoltage} Now:${batteryVoltage}", "debug")    
      state.supplyPresent = true
-     sendEvent(name: "batteryState", value: "charging")
+        if (batteryVoltage > batteryVoltageScaleMax){sendEvent(name: "batteryState", value: "Full")}
+        else{sendEvent(name: "batteryState", value: "charging")}
      sendEvent(name: "PowerSource", value: "mains")
      sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
     }
