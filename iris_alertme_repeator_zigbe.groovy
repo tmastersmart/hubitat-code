@@ -33,7 +33,8 @@ Tested on  REP800 uses Firmware : 2013-09-26
 
 REP901 is the new version Need firmware versions.
 
-
+Post comments here
+http://www.winnfreenet.com/wp/2021/09/iris-v1-alertme-repeater-zigbe-hubitat-driver/
 
 
 
