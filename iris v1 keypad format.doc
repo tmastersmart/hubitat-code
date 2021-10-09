@@ -1,5 +1,28 @@
 
 Iris v1 alertme KeyPad format.
+
+ * Keypad is device type 28 (0x1C)
+ * Most messages are sent and received on the Attribute Cluster (0x00C0).
+ * The standard device messages (Hello and Lifesign) are sent on the Join and General Clusters, as usual.
+ * The lifesign will be sent every 2 minutes, in common with other AlertMe sleepy end devices.
+ * 
+ * The keypad is responsible for;
+ *   1. Driving its LEDs according to its state (see ATTRID_KEYPADSTATE attribute below),
+ *   2. Accumulating a PIN
+ *   3. Sending an action key and/or PIN when appropriate
+ *   4. Making sound sequences on demand
+ * 
+ * The keypad expects to be told its state, and may also send a triplet of attributes whenever an "action" key is used.
+ * The triplet is ATTRID_PIN (if there is one), ATTRID_ACTIONKEY_ID and ATTRID_ACTIONKEY_TIME.
+ * 
+ * While an actionKey is held down, the keypad will send ATTRID_ACTIONKEY_ID and ATTRID_ACTIONKEY_TIME once per second.
+ * It’ll also send an ATTRID_PIN (if available) with the first ATTRID_ACTIONKEY_ID.
+ * 
+ * If a PIN has been typed in, but no action key pressed within 2 seconds of the last digit, then a single ATTRID_PIN
+ * will be sent to the hub.
+
+
+
 ===========================================================
 Typing the pin "1111" sends 
      
