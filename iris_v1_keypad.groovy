@@ -13,6 +13,9 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
+  v3.2   10/09/2021 Added cancel cmd to stop Smoke/Water alarms by OFF. 
+                    Added lights flash after action. 
+  v3.1   10/08/2021 Lock Manager dupe checking.Bug on PIN code 5 fixed.It was broken from the begining.
   v3.0   10/07/2021 Lock Code manager can now read PINs from Keypad. Max PIN legenth increased to 7
   v2.9   10/07/2021 Reduced dec to 2 in bat voltage to many reports.
   v2.8.3 10/06/2021 Only the pad that sets PANIC can remove it so it now times out
@@ -24,7 +27,7 @@ Works with Lock Code Manager
   v2.7    "         Bat Bug fixed. Arm with Pin added. Unlock with pin and OFF added.
                     Panic sets custom panic flag. 
   v2.6   10/02/2021 Added DisarmedBy command, Settings to remap Command Buttons
-  v2.5   10/02/2021 Config for tamper,Log debug cleanup,Remove alarm no sounds
+  v2.5      "       Config for tamper,Log debug cleanup,Remove alarm no sounds
   v2.4   09/30/2021 Custom Panic command added. Added Config options for * # OFF
   v2.3   09/30/2021 battery value changes
   v2.2   09/29/2021 Version detection and auto upgrade/install. 
@@ -64,13 +67,15 @@ Lock Code Manager
 Manager can add delete and verify.
 
 Please Note:
-Lock Code Manager has bugs it will dupe and corrup PINS I have also caught it adding line feeds to pins on my locks corrupting them.
+Lock Code Manager has bugs with no error checking it will dupe and corrup PINS 
+I have also caught it adding line feeds to pins on my locks corrupting them.
 When it sees its duped pin it will crash or create a new user sometimes causing it to crash.
-I will be working on error checking to protect the driver from the lock manager.
-Until then if it dupes your PINS manualy delete the dupes. PINS must be in order
-from 1 to 5 the empty ones have to be on the bottom.
-Since lock manager is run manualy you need to check your pins after it runs.
-And delete all pending jobs once its set corect.
+Basicaly anything it sees thats odd will crash it.
+
+I now dupe check what the lock manger sends so no more dupes. But if you have problems with the lock
+manager crashing I suggest you manualy delete all codes and then run it again..
+
+
 
 As a safety enter a master PIN that the lock manager cant touch.
 
@@ -165,7 +170,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.0"
+    TheVersion="3.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -206,21 +211,21 @@ attribute "lastCodeName", "string"
 attribute "batteryVoltage", "string"	
 attribute "panic", "string"
 attribute "code1", "string"
-attribute "code1", "string"
-attribute "code2", "string"
-attribute "code3", "string"
-attribute "code4", "string"
 attribute "code1n", "string"
+attribute "code2", "string"
 attribute "code2n", "string"
+attribute "code3", "string"
 attribute "code3n", "string"
+attribute "code4", "string"
 attribute "code4n", "string"
-		
+attribute "code5", "string"
+attribute "code5n", "string"		
+attribute "lockCodes", "string"		
 
-fingerprint profileId: "C216", inClusters: "00F0,00C0", outClusters: "", manufacturer: "AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
+fingerprint profileId: "C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02",outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 	}
-
 }
-// fingerprint model:"KeyPad Device", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:""
+
 
 
 preferences {
@@ -243,14 +248,26 @@ preferences {
 
 
     input("secure",  "text", title: "7 digit password", description: "A Master 7 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
+	input name: "flashError",   type: "bool", title: "Flash the lights after action", description: "Expermental. I think its actualy flashing a error code.",defaultValue: false
 
+    
+//    input name: "hack",   type: "bool", title: "Brute force probing to find lights chimes", description: "dont use! Contact me if you want to help.",defaultValue: false
+hack = false
 }
 
 // So far this doesnt work because hub detects it has a care fob and you have to manualy install
+
+
+
 def installed(){logging("${device} : Paired!", "info")}
 
  
 def initialize() {
+    
+// Testing is this needed? Because its not set right by default   
+updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
+updateDataValue("outClusters", "00C0")
+    
 state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
@@ -333,37 +350,72 @@ def updated() {
 // Legaly we cant use it without written permission
 // replacement code
 def setCode(code,pinCode,userCode){
-	logging( "${device} : setCode#${code} PIN:${pinCode} User:${userCode} ","info")
+
 	if (code == 1){ save= "code1";}
 	if (code == 2){ save= "code2";}
 	if (code == 3){ save= "code3";}
 	if (code == 4){ save= "code4";}	
     if (code == 5){ save= "code5";}	
 	if (code < 6){
-	sendEvent(name: "${save}", value: pinCode)
-	sendEvent(name: "${save}n",value: userCode)
-    pauseExecution(200)  // wait for database to catch up      
-    getCodes()   
-	}	
-}
-def deleteCode(code) {
-	logging ("${device} : deleteCode  #${code}","info")
-	if (code == 1){ save= "code1";}
-	if (code == 2){ save= "code2";}
-	if (code == 3){ save= "code3";}
-	if (code == 4){ save= "code4";}	
-	if (code == 5){ save= "code5";}	   
-	if (code < 6){
-
-// This is the worst documented language I have ever seen.
-// Had to find this in a post.        
-    device.deleteCurrentState("${save}")    
-    device.deleteCurrentState("${save}n")
-    pauseExecution(200)  // wait for database to catch up  
-    getCodes()   
-    }	
+        saveit = true
+        // Check for dupes due to broken lock manager
+        if (device.currentValue("code1") == pinCode){saveit = false} 
+        if (device.currentValue("code2") == pinCode){saveit = false}
+        if (device.currentValue("code3") == pinCode){saveit = false} 
+        if (device.currentValue("code4") == pinCode){saveit = false}        
+        if (device.currentValue("code5") == pinCode){saveit = false}        
+            logging( "${device} : ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","info")        
+        if (saveit){    
+          logging( "${device} : Saving ...${save}...","info")        
+   
+	      sendEvent(name: "${save}", value: pinCode)
+	      sendEvent(name: "${save}n",value: userCode)
+    
+        }
+	}
+     pauseExecution(1200) 
+     getCodes()  
 }
 
+private upgradeCodes(code){
+    
+    store1 = device.currentValue("code1")
+    store1n= device.currentValue("code1n")
+    store2 = device.currentValue("code2")
+    store2n= device.currentValue("code2n")    
+    store3 = device.currentValue("code3")
+    store3n= device.currentValue("code3n")    
+    store4 = device.currentValue("code4")
+    store4n= device.currentValue("code4n")    
+    store5 = device.currentValue("code5")
+    store5n= device.currentValue("code5n")
+
+}
+
+def deleteCode(code) { 
+    
+
+    if (code == 1){ save= "code1"}
+	if (code == 2){ save= "code2"}
+	if (code == 3){ save= "code3"}
+	if (code == 4){ save= "code4"}	
+	if (code == 5){ save= "code5"}	  
+    
+    
+    thecode = device.currentValue("${save}")
+    thename = device.currentValue("${save}n")
+    
+    logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","info")    
+    
+    
+	if (code < 6) {
+     device.deleteCurrentState("${save}")    
+     device.deleteCurrentState("${save}n")
+     pauseExecution(1200) 
+     getCodes()   
+
+}
+}
 // the I hate jason format Routine
 def getCodes(){
     qt= '"'
@@ -399,13 +451,15 @@ def getCodes(){
         if (needsComma== true){ setCode4 = ",${setCode4}"} 
         needsComma = true 
     }
+//    logging("${device} : building ....${device.currentValue("code5")}", "info")
     if (device.currentValue("code5")) {
+   
         code = device.currentValue("code5")
         name = device.currentValue("code5n")
         end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
         setCode5 = "${qt}5${end}"
         if (needsComma == true){ setCode5 = ",${setCode5}"} 
-        needsComma = true 
+       
     }
   
     
@@ -432,6 +486,20 @@ def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported"
 def setCodeLength(code){logging("${device} : setCodeLength 7", "info")                   }
 
 // Arming commands
+//hsmSetArm = armAway ,armHome,armNight,disarm,disarmAll,armAll,CancelAlerts
+//subscribe (location, "hsmStatus", statusHandler)
+//subscribe (location, "hsmAlerts", alertHandler)
+
+def cancelAlert(){
+    
+	logging ("${device} : Sending CancelAlerts by ${state.PinName}","info")
+    sendEvent(name: "securityKeypad",value: "Cancel Alerts",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
+	sendLocationEvent (name: "hsmSetArm", value: "CancelAlerts")
+    state.Command = "cancel"
+    pauseExecution(6000)
+
+}
+
 def armAway() {
 	logging ("${device} : Sending armAWAY by ${state.PinName}","info")
     sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
@@ -457,7 +525,7 @@ def armNight() {
 def panic() {
 	logging ("${device} : Panic Pressed","warn")
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
-    state.Panic = true 
+    state.Panic = true
     runIn(90, "panicOff") // auto purge the panic because it cant be cleared from another pad
 }
 def panicOff() {
@@ -506,11 +574,31 @@ def both(cmd){
   sendEvent(name: "alarm", value: "on") 
 }
 
+def flash(cmd){
+    if (flashError == true){
+    pauseExecution(50)// delay to make it look like its waiting for hub.
+        
+    // this flashes the lights. I think it just a error code but the lights flash.
+    // This is a cycle the keyboard runs. Think its error 3
+       
+   // The code we are sending from the iris source code
+   // This should switch states on the keyboard but it doesnt work.   
+        if (state.Command =="off")  {cmd = "01"}
+        if (state.Command =="away") {cmd = "02"}
+        if (state.Command =="night"){cmd = "03"}
+        if (state.Panic  == true  ) {cmd = "04"}
+        
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 ${cmd}} {0xC216}"])
+    logging ("${device} : Sending something to make lights flash ~~ ~~~~{11 ${cmd}} ~~~ ~~","trace")
+    return    
+    }
+   logging ("${device} : Flash disabled","trace") 
+}
 
 def on(cmd) {
- logging ("${device} :Switch ON","info")   
- sendEvent(name: "switch", value: "on") 
-state.switch = true
+
+// sendEvent(name: "switch", value: "on") 
+//state.switch = true
 /* Internal notes: Building Cluster map 
 * = likely done by HUB in Join.
 0000 Network (16-bit) Address Request *
@@ -541,9 +629,39 @@ state.switch = true
 8038 Management Network Update Request
 
 */        
+// sending 0x04 arm command 
+send = "00 00 00 10" //Big Endian
+send = "00 00 00 04" //Little Endian 
+if (!state.test){state.test =1}  
+if (state.test > 256 ){return}       
+send = "00 04 00 00" //reverse
+
+def hexStr = hubitat.helper.HexUtils.integerToHexString(state.test, 1) 
+    send = "${hexStr}" 
+    send = "{${send}}"
+//def clust = hubitat.helper.HexUtils.integerToHexString(state.test, 2)  
+    
+    logging ("${device} :Probing >--- dec${state.test}  0x00C0 ${send}","info")   
+    
+ sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 ${send} {0xC216}"])
+state.test = state.test + 1
+    pauseExecution(2200)
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x${clust} {11 02 FA 04 00} {0xC216}"])
+    
+//runIn(8, "on")    
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x0006 {11 02 00 ${send}} "])
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00F6 {11 02 00 ${send}} "])
+
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
+    
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
+
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
+
+// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
    
- sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00F6 {19 01 00 03 03 00 00} "])
-// zigbee.command(0x00C0, 0x02,20)
+    
+    // zigbee.command(0x00C0, 0x02,20)
     
 /*
 "raw 0x501 {09 01 00 0${armMode}}",
@@ -580,9 +698,10 @@ https://github.com/tmastersmart/hubitat-code
 
 
 def off(cmd){
- logging ("${device} : Switch OFF","info")
- sendEvent(name: "switch", value: "off")   
+ logging ("${device} : OFF counter reset to 0","info")
+// sendEvent(name: "switch", value: "off")   
 state.switch = false
+ state.test =0
 }
 
 def tamper(){
@@ -601,28 +720,22 @@ def press(buttonNumber){
 
 
 void reportToDev(map) {
-
 	String[] receivedData = map.data
-
 	def receivedDataCount = ""
 	if (receivedData != null) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
-	logging("${device} : Report to DEV cluster:${map.cluster}, clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+	logging("${device} : New unknown Cluster Detected: Report to DEV clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 }
-// clusters so far
-//0013, command:00 12 bits of data: [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]
+
 
 def normalMode() {
-
 	// This is the standard running mode.
-
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
 	state.operatingMode = "normal"
 	refresh()
 	sendEvent(name: "operation", value: "normal")
 	logging ( "${device} : Mode : Normal","info")
-
 }
 
 
@@ -651,17 +764,29 @@ def quietMode() {
 }
 
 // Get HSM status And update our state if its changed
-// HUB armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
+//====================================================STATUS    STATUS
+//hsmStatus armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
+//hsmAlert  intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
 
 
 def getStatus(status) {
     status = location.hsmStatus
-    logging ("${device} : Received HSM ${status} Our state:${state.Command}","trace")
+    state.alertST = location.hsmAlert
+    if (!state.alertST){state.alertST = "none"}
+    if (state.alertST != "none"){
+        if(device.currentValue("HSMAlert")!= state.alertST){
+        sendEvent(name: "HSMAlert", value: state.alertST)
+        logging ("${device} : HSMAlert  Status:${state.alertST}","info")    
+        }
+    }
+    
+   logging ("${device} : HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "away"
+            flash()
         }
      return
     }
@@ -670,6 +795,7 @@ def getStatus(status) {
           sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Received HSM ${status}","info")
           state.Command = "away"
+          flash()  
         }
       return 
     }
@@ -679,6 +805,7 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
+            flash()
         }
         return
        }
@@ -687,6 +814,7 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "home"
+            flash()
         }
         return
        }  
@@ -696,6 +824,7 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Received HSM ${status}","info")
             state.Command = "night"
+            flash()
         }
         return
        }
@@ -705,6 +834,7 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Received HSM  ${status}","info")
             state.Command = "night"
+            flash()
         }
         return
        } 
@@ -716,6 +846,7 @@ def getStatus(status) {
             state.Command = "off"
             state.iriscmd = "Erased"
             panicOff()
+            flash()
         }
         return
     }
@@ -726,10 +857,11 @@ def getStatus(status) {
             state.Command = "off"
             state.iriscmd = "Erased"
             panicOff()
+            flash()
         }
         return
     } 
-    logging ("${device} : Received HSM ${status} INVALID Unable to decode. Our state:${state.Command}","warn")
+    logging ("${device} : Received HSM ${status} <- (Unknown report to DEV for coding) What is this? Our state:${state.Command}","warn")
 }
 
 void refresh() {
@@ -850,13 +982,13 @@ Internal notes: Building Cluster map
 8005 Active Endpoint Response (tells you what the device can do)
 8032 Received when new devices join
 8038 Management Network Update Request
-
 */        
    
-    if (map.clusterID == "0013"){
-	logging("${device} : Device announce message","warn")   
-	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
-	
+    if (map.clusterId == "0013"){
+	logging("${device} : Device announce message (new device?)","warn")   
+	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device?","debug")
+//0013, command:00 [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]	<-- Earler
+//0013, command:00 [81, AA, 2F, 6D, 07, 9C, 02, 00, 6F, 0D, 00, 80] <-- this is what we get
 
     } else if (map.clusterId == "0006") {
 		logging("${device} : Sending Match Descriptor Response","debug")
@@ -868,14 +1000,24 @@ Internal notes: Building Cluster map
 //   if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
      
      if (map.command == "01") {
-         // Reply to our sending (undocumented in iris code)
-         logging ("${device} : Received: 000C0 01 data:${map.data}","trace")
+         // Reply to our sending (undocumented) 
+         logging ("${device} : ACK to REC  01  :${map.data}","warn")
      }
      
                                
      if (map.command == "00" ) {
-         // Lifeline status report
-         logging ("${device} : Lifeline:  raw data:${map.data}","trace") 
+         // Lifeline status report Its always [20, 00] waiting for it to change
+         // We monitor it for change and Log what caused it to change. 
+         // Still looking for proper command to change status. 
+         mode1 = receivedData[0]
+         mode2 = receivedData[1]
+         if (mode1 != "20"){logging ("${device} : Notify DEV!!!! : Badly needed data: NEW MODE raw data:${map.data}","warn")}
+         if (mode2 != "00"){logging ("${device} : Notify DEV!!!! : Badly needed data: NEW DATA raw data:${map.data}","warn")}
+ //        logging ("${device} : Lifeline:  raw data:${map.data}","trace") 
+         testdata = "[${mode1},${mode2}]" 
+         if (testdata != "[20,00]"){state.testing ="---[${mode1},${mode2}]--->>>>[${state.test}]<<<<}"}
+        // else {state.testing = "testing mode" }
+         if (hack){ on ()}
      }  
         
      if (map.command == "0A") {  
@@ -1016,26 +1158,33 @@ Internal notes: Building Cluster map
          
 	 }          
          
-// OFF Disarm Command Valid PIN required        
-       if (keyRec == "48"){
-           if (state.Command == "off"){
-               if (state.Panic == true){  
-                   if (state.validPIN == true){
-                  // the PIN is valid but we are already off and need to clear PANIC
-                  logging("${device} : Button OFF (Clearing Panic) Valid PIN:${state.validPIN} State:${state.Command}","info")
+// OFF Disarm Command Valid PIN required 
+//=============================================OFF OFF OFF ==================================================================         
+// OFF with produce triplits SO we will loop through here several times.
+         if (keyRec == "48"){
+           if (state.validPIN == true){ // Valid PIN in memory
+            if (state.Command == "off"){// We have already sent disarm
+                  if (state.Panic == true){// the PIN is valid we are disarmed and need to clear PANIC
+                  logging("${device} : Button OFF (Clearing Panic) Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic}","info")
                   panicOff()
+                  cancelAlert()
                   return  
                  }    
-               }     
-             logging("${device} : Button OFF (But state already sent) state${state.Command}","debug")
+                  if (state.alertST != "none"){// the PIN is valid we are disarmed and something is alarming
+                  logging("${device} : Button OFF (Clearing ${state.alertST}) Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic} ","info")
+                  panicOff()
+                  cancelAlert()
+                  return  
+                 }    
+             logging("${device} : Button OFF (already disarmed Skipping) Alarm:${state.alertST} Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic}","debug")
              return
-             }
-         if (state.validPIN == true){  
-            logging("${device} : Button OFF Valid PIN: ${state.validPIN} State: ${state.Command}","info")
+             }//End if already disarmed
+               
+            logging("${device} : Button OFF Valid PIN: ${state.validPIN} State:${state.Command}  Panic:${state.Panic}","info")
             disarm()
-         return
-         }
-         logging("${device} : Button OFF Valid PIN: ${state.validPIN} State: ${state.Command}","info")
+            return
+         }// end valid PIN
+         logging("${device} : Button OFF Valid PIN:false  State:${state.Command} Panic:${state.Panic}","info")
          return  
 	 }         
          
@@ -1169,12 +1318,13 @@ Internal notes: Building Cluster map
      logging("${device} : Button # ${PoundSet}","debug")
      return
      } 
-   
+// ====================================PANIC   
      if (keyRec == "50"){
          if (state.Panic){ 
              logging("${device} : Button PANIC but already sent","debug") 
              return }    
 		 panic()
+         flash()
          logging("${device} : Button *** PANIC ***","info") 
          
          return
