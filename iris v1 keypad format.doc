@@ -33,6 +33,54 @@ Pressing button 1 on the keypad sends
  The other data is unkown 
  
  OFF sends     H=HOME
+ 
+
+
+AlertMe cluster map (a work in progress)
+ 
+0000 Network (16-bit) Address Request *
+0004 Simple Descriptor Request *
+0005 Active Endpoint Request *
+0006 Match Descriptor Request (Light Flashes)
+0013 Device announce message (Light Flashes)
+00C0 Attribute Cluster 
+     Button report (button on repeator)
+     00 = Unknown (Lifeline report)
+     0A = Button
+00EE Power Control Cluster  Relay actuation (smartPlugs)
+     80 = PowerState
+00EF Power Monitor Cluster
+     81 = Power Reading
+     82 = Energy
+00F0 General Cluster  Battery & Temp
+     FB 
+00F2 Tamper Cluster
+     released 0
+     pressed  1
+     clear    2
+
+00F3 Button Cluster
+00F4 Key Fob Cluster
+     ALARM_IN_HOUSE = 0x00
+     ARM_HAPPY = 0x01
+     ARM_UNHAPPY = 0x02
+     DISARM_HAPPY = 0x03
+     DISARM_UNHAPPY = 0x04
+     FAILED_IN_HOME_CMD = 0x05
+     HAPPY_IN_HOME_CMD = 0x06
+
+00F6 Discovery Cluster
+     FD = Ranging
+     FE = Device version response.
+0500 Security Cluster (Tamper & Reed)
+8001 Routing Neighobor information
+8004 simple descriptor response
+8005 Active Endpoint Response (tells you what the device can do)
+8032 Received when new devices join
+8038 Management Network Update Request
+0B7D Upgrade Cluster (dont use)
+0B7E  "         " 
+
  ON  Sends     A=AWAY
  PARTIAL sends N=NIGHT
  PANIC sends   P=PANIC
