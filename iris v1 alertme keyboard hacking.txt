@@ -94,6 +94,18 @@ Expermenting.
 I added the send command under the switch on so I can send it from the driver screen with on
 and then monitor what the log says. 
 
+UPDATE the format is this 
+{11 00 02 20 03}  20 is command 03 is data        {11 00 02 20 cmd} should set the pad state
+
+If its correct that the command is 20 this is the proper position and next to it should be the state 03
+sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 00 02 20 03} {0xC216}"])
+But the above does not work. 
+
+I also discovered the the Care Fob uses the same Cluster 00C0 and also wants a command sent back to it to verify signal was sent
+The hubitat knows this code and sends it but the internal drivers are not published. The iris source says the command is 2 for the care fob
+Im still not sure that the command should even be sent on 00C0. As I get nothing but replies back no actions
+
+
 So I add this 
 sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 10 00 00 01} {0xC216}"])
 
