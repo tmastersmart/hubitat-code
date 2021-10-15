@@ -2,6 +2,8 @@
 Hubitat Iris v1 KeyPad driver 
 Supports keypad disarm arm functions 
 Works with Lock Code Manager 
+Works with or Without HSM 
+
 
   _____ _____  _____  _____        __    _  __                          _ 
  |_   _|  __ \|_   _|/ ____|      /_ |  | |/ /                         | |
@@ -13,6 +15,8 @@ Works with Lock Code Manager
                                                   |___/|_|   
 
 =================================================================================================
+  v3.4   10/14/2021 HSM was throwing errors if keyboard enable in HSM. We did not use that earler.
+                    Be sure to enable the keyboard in HSM to enable receiving all commands
   v3.3   10/12/2021 Bug fix * and # reversed in the logs. More debugging in logs
   v3.2   10/09/2021 Added cancel cmd to stop Smoke/Water alarms by OFF. 
                     Added lights flash after action. 
@@ -171,7 +175,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.3"
+    TheVersion="3.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -270,6 +274,8 @@ def initialize() {
 // Testing is this needed? Because its not set right by default   
 updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
+
+state.message = "Please remember to enable [${device}] in HSM"
     
 state.batteryOkay = true
 state.operatingMode = "normal"
@@ -280,7 +286,6 @@ state.Panic = false
 state.validPIN = false
 state.PinName = "none"
 state.PIN = "none"
-
 state.icon ="<img src='data:image/jpeg;base64,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'>"
    
 sendEvent(name: "operation", value: "normal", isStateChange: false)
@@ -299,7 +304,7 @@ state.remove("irisKeyPad")
 state.remove("rssi")
 state.remove("pushed")
 state.remove("state.reportToDev")
-state.remove("message")
+
     
 removeDataValue("image")
 device.deleteCurrentState("alarm")    
@@ -553,22 +558,69 @@ def cancelAlert(){
     pauseExecution(6000)
 
 }
+// ===========================================HSM RECEIVED =======================================
+// Incomming command from HSM 
+// We only switch if we are not in the same mode.
+// The delay is not needed and ignored until we get chimes working
+def armAway(cmd){ 
+    logging ("${device} : Received CMD >> ArmAWAY Delay:${cmd}  Our State:${state.Command} ", "info")
+        if (state.Command != "away"){
+            sendEvent(name: "securityKeypad", value: "armed away")
+            logging ("${device} : Switching to HSM ArmAWAY","info")
+            state.Command = "away"
+            sendIrisCmd (2)
+            flash()
+        }
+}
+def armHome(cmd){ 
+    logging ("${device} : Received CMD >> ArmHOME delay:${cmd}  Our State:${state.Command} ", "info")
+        if (state.Command != "home"){
+            sendEvent(name: "securityKeypad", value: "armed home")
+            logging ("${device} : Switching to HSM ArmHOME","info")
+            state.Command = "home"
+            sendIrisCmd (2)
+            flash()
+        }
+}
+def armNight(cmd){
+    logging ("${device} : Received CMD >> ArmNight delay:${cmd}  Our State:${state.Command} ", "info")
+        if (state.Command != "home"){
+            sendEvent(name: "securityKeypad", value: "armed night")
+            logging ("${device} : Switching to HSM ArmNIGHT","info")
+            state.Command = "night"
+            sendIrisCmd (3)
+            flash()
+        }
+}
+def disarm(cmd) { 
+    logging ("${device} : Received CMD >> Disarm delay:${cmd}  Our State:${state.Command} ", "info")
+        if (state.Command != "off"){
+            sendEvent(name: "securityKeypad", value: "disarmed")
+            logging ("${device} : Switching to HSM disarmed","info")
+            state.Command = "off"
+            state.iriscmd = "Erased"
+            sendIrisCmd (1)
+            panicOff() // This should disarm panic from other keypads
+            flash()
+        }
+}
 
-def armAway() {
+// My arming commands 
+private MyarmAway() {
 	logging ("${device} : Sending armAWAY by [${state.PinName}]","info")
     sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
     state.Command = "away"
     pauseExecution(6000)
 }
-def armHome() {
+private MyarmHome() {
 	logging ("${device} : Sending armHome by [${state.PinName}]","info")
 	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
     state.Command = "home"
     pauseExecution(6000)
 }
-def armNight() {
+private MyarmNight() {
 	logging ("${device} : Sending armNight by [${state.PinName}]","info")
 	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
@@ -592,8 +644,8 @@ def panicOff() {
     }
 }
 
-def disarm() {
-    // Prevent disarm from driver screen without a valid pin (security)
+
+private MyDisarm() {
     if (state.validPIN == false){
         logging ("${device} : Must enter a PIN to Disarm.", "warn")
         tamper()
@@ -689,10 +741,10 @@ def sendIrisCmd (cmdI){
     
     if (cmdtest == true){    
     sendZigbeeCommands(zigbee.readAttribute(0x00C0,cmdI))    
-        logging ("${device} : Notifing KeyPad of state .${cmdI} #${hexOUT}","debug")
+        logging ("${device} : Sending KeyPad state command .${cmdI} #${hexOUT}","debug")
         return
     }
-    logging ("${device} : Notifing KeyPad Disabled","debug") 
+//    logging ("${device} : Notifing KeyPad Disabled","trace") 
 }    
 
 def on(cmd) {
@@ -885,21 +937,15 @@ def quietMode() {
     refresh()
 }
 
-/* Get HSM status And update our state if its changed
-//====================================================STATUS    STATUS
+
+//==================================================== POLL for HSM STATUS =================================================
+// Polls HSM and sets state even if keyboard is not setup in HSM
+// Not sure if this is still needed its part of the Keyboard debounce code. To prevent repeat commands. Once state changed
+
+// 
 //hsmStatus armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
 //hsmAlert  intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
-  KEYPAD_STATE_UNKNOWN = 0x00;
-  KEYPAD_STATE_HOME = 0x01;
-  KEYPAD_STATE_ARMED = 0x02;
-  KEYPAD_STATE_NIGHT = 0x03;
-  KEYPAD_STATE_PANIC = 0x04;
-  KEYPAD_STATE_ARMING = 0x05;
-  KEYPAD_STATE_ALARMING = 0x06;
-  KEYPAD_STATE_NIGHT_ARMING = 0x07;
-  KEYPAD_STATE_NIGHT_ALARMING = 0x08;
-  KEYPAD_STATE_LOCKED_MASK = 0x80;
-*/
+
 def getStatus(status) {
     status = location.hsmStatus
     state.alertST = location.hsmAlert
@@ -911,11 +957,11 @@ def getStatus(status) {
         }
     }
     
-   logging ("${device} : HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")
+   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "away"
             sendIrisCmd (2)
             flash()
@@ -925,7 +971,7 @@ def getStatus(status) {
     if (status == "armingAway"){ 
         if (state.Command != "away"){
           sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
           state.Command = "away"
           sendIrisCmd (2) 
           flash() 
@@ -936,7 +982,7 @@ def getStatus(status) {
     if (status == "armedHome"){
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "home"
             sendIrisCmd (2)
             flash()
@@ -946,7 +992,7 @@ def getStatus(status) {
     if (status == "armingHome"){ 
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "home"
             sendIrisCmd (2)
             flash()
@@ -957,7 +1003,7 @@ def getStatus(status) {
     if (status == "armedNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "night"
             sendIrisCmd (3)
             flash()
@@ -968,7 +1014,7 @@ def getStatus(status) {
     if (status == "armingNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Received HSM  ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "night"
             sendIrisCmd (3)
             flash()
@@ -979,7 +1025,7 @@ def getStatus(status) {
     if (status == "disarmed"){
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "off"
             state.iriscmd = "Erased"
             sendIrisCmd (1)
@@ -991,7 +1037,7 @@ def getStatus(status) {
     if (status == "allDisarmed"){
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "all disarmed")
-            logging ("${device} : Received HSM ${status}","info")
+            logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "off"
             state.iriscmd = "Erased"
             sendIrisCmd (1)
@@ -1000,8 +1046,12 @@ def getStatus(status) {
         }
         return
     } 
-    logging ("${device} : Received HSM ${status} <- (Unknown report to DEV for coding) What is this? Our state:${state.Command}","warn")
+    logging ("${device} : Polled HSM ${status} <- (Unknown report to DEV for coding) What is this? Our state:${state.Command}","warn")
 }
+
+
+
+
 
 void refresh() {
     logging ("${device} : Refresh. Sending Hello to Device","info")
@@ -1259,13 +1309,13 @@ Internal notes: Building Cluster map
              logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armAway()
+               MyarmAway()
                return
                }
               }
               else{
               state.PinName = "Not Required"  
-              armAway()
+              MyarmAway()
               return
               }
               
@@ -1278,13 +1328,13 @@ Internal notes: Building Cluster map
              logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armHome()
+               MyarmHome()
                return
                }
               }
               else
               state.PinName = "Not Required"    
-              armHome()
+              MyarmHome()
               return
               } 
           }
@@ -1299,13 +1349,13 @@ Internal notes: Building Cluster map
           logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
               if (requirePIN){
                if (state.validPIN == true){           
-               armNight()
+               MyarmNight()
                return
                }
               }
               else{
               state.PinName = "Not Required"
-              armNight()
+              MyarmNight()
               return
               } 
          }
@@ -1316,13 +1366,13 @@ Internal notes: Building Cluster map
           logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
               if (requirePIN){
                if (state.validPIN == true){           
-               armAway()
+               MyarmAway()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armAway()
+              MyarmAway()
               return
               } 
          }   
@@ -1353,7 +1403,7 @@ Internal notes: Building Cluster map
              }//End if already disarmed
                
             logging("${device} : Button OFF Valid PIN: ${state.validPIN} State:${state.Command}  Panic:${state.Panic}","info")
-            disarm()
+            MyDisarm()
             return
          }// end valid PIN
          logging("${device} : Button OFF Valid PIN:false  State:${state.Command} Panic:${state.Panic}","info")
@@ -1373,13 +1423,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armHome()
+               MyarmHome()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armHome()
+              MyarmHome()
               return
               }    
          }
@@ -1390,13 +1440,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armNight()
+               MyarmNight()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armNight()
+              MyarmNight()
               return
               }    
          } 
@@ -1407,13 +1457,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button * ${StarSet} ${state.validPIN}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armAway()
+               MyarmAway()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armAway()
+              MyarmAway()
               return
               }    
          }     
@@ -1442,13 +1492,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armHome()
+               MyarmHome()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armHome()
+              MyarmHome()
               return
               }    
          }
@@ -1459,13 +1509,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armNight()
+               MyarmNight()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armNight()
+              MyarmNight()
               return
               }   
          } 
@@ -1476,13 +1526,13 @@ Internal notes: Building Cluster map
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
                if (state.validPIN == true){           
-               armAway()
+               MyarmAway()
                return
                }
               }
               else{
               state.PinName = "Not Required"    
-              armAway()
+              MyarmAway()
               return
               }   
          }     
