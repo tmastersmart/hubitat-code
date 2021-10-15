@@ -15,8 +15,8 @@ Works with or Without HSM
                                                   |___/|_|   
 
 =================================================================================================
-  v3.4   10/14/2021 HSM was throwing errors if keyboard enable in HSM. We did not use that earler.
-                    Be sure to enable the keyboard in HSM to enable receiving all commands
+  v3.4   10/14/2021 HSM was throwing errors if keyboard was enable in HSM. Fixed
+                    Works with or without being Enabled but better enabled.
   v3.3   10/12/2021 Bug fix * and # reversed in the logs. More debugging in logs
   v3.2   10/09/2021 Added cancel cmd to stop Smoke/Water alarms by OFF. 
                     Added lights flash after action. 
