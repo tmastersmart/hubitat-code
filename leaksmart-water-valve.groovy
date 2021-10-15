@@ -29,6 +29,8 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    2.8   10/14/2021   Added back switch/contact and Water sensor Wet= Open Dry=Closed
+                       Notifier APP has no valve option this fixes it
     2.7   10/05/2021   Updates to match my others drivers version no system
     2.6   09/11/2021   Detection for false mains flag (firm bug fixed)
     2.5.1 09/10/2021   Mains is working on v2.1 but not v1 valve
@@ -80,7 +82,7 @@ http://www.winnfreenet.com/wp/2021/09/leaksmart-water-valve-driver-for-hubitat/
  *  for the specific language governing permissions and limitations under the License.
  */
 def clientVersion() {
-    TheVersion="2.7"
+    TheVersion="2.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -94,8 +96,9 @@ metadata {
 		capability "Battery"
 		capability "Configuration"
 		capability "Refresh"
-//		capability "Switch"
-//              capability "Contact Sensor"
+		capability "Switch"
+                capability "Contact Sensor"
+		capability "Water Sensor"
 		capability "Valve"
 		capability "Polling"
                 capability "Power Source"
@@ -172,8 +175,10 @@ def parse(String description) {
 // valve status        
         if (evt.name == "switch") {
 			def val2 = (evt.value == "on") ? "open" : "closed"
+		        def val3 = (evt.value == "on") ? "wet" : "dry"
 			result << createEvent(name: "contact", value: val2)
 			result << createEvent(name: "valve", value: val2)
+		        result << createEvent(name: "water", value: val3)
 			result << createEvent(name: "switch", value: evt.value, displayed:false)
             log.info "${device}: Valve ${val2}"
 			result << createEvent(name: "lastPoll",value: new Date().time, isStateChange: true, displayed: false)
