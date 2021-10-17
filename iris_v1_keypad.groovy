@@ -2,7 +2,7 @@
 Hubitat Iris v1 KeyPad driver 
 Supports keypad disarm arm functions 
 Works with Lock Code Manager 
-Works with or Without HSM 
+Works with HSM 
 
 
   _____ _____  _____  _____        __    _  __                          _ 
@@ -15,8 +15,11 @@ Works with or Without HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v3.5   10/16/2021 No longer polling HSM sate. This requires that Keyboard be enabled in HSM
+                    Last pin stats bug, was only reporting disarm
+                    Added codeChanged Lock manager may look for this.
+                    Added entry HSM sends this command with a delay. Future use.
   v3.4   10/14/2021 HSM was throwing errors if keyboard was enable in HSM. Fixed
-                    Works with or without being Enabled but better enabled.
   v3.3   10/12/2021 Bug fix * and # reversed in the logs. More debugging in logs
   v3.2   10/09/2021 Added cancel cmd to stop Smoke/Water alarms by OFF. 
                     Added lights flash after action. 
@@ -175,7 +178,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.4"
+    TheVersion="3.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -208,7 +211,7 @@ capability "Switch"
 command "checkPresence"
 command "normalMode"
 command "rangingMode"
-
+command "entry" //fired from HSM on system entry
 //command "quietMode"
 
 attribute "batteryState", "string"
@@ -240,8 +243,7 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
 
 	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN", defaultValue: true
-  
-    input name: "requirePIN",   type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
+    input name: "requirePIN",  type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
 
 
     input name: "OnSet",   type: "enum", title: "ON Button", description: "Customize ON Button", options: ["Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
@@ -296,7 +298,8 @@ sendEvent(name: "maxCodes", value:5)
 sendEvent(name: "codeLength", value:7)
 sendEvent(name: "securityKeypad", value: "Fetching")
 sendEvent(name: "tamper", value: "clear")
-
+sendEvent(name: "switch", value: "off")
+    
 state.remove("switch")	
 state.remove("uptime")
 state.remove("logo")
@@ -318,6 +321,7 @@ randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
 // Initialisation complete.
 logging("${device} : Initialised", "info")
+getStatus(status)    
 }
 
 
@@ -432,8 +436,12 @@ def setCode(code,pinCode,userCode){
     
         }
 	}
-     pauseExecution(1200) 
-     getCodes()  
+     pauseExecution(3000) // We have to wait for database update
+     getCodes() 
+     sendEvent(name:"codeChanged",value:"added",data:"${codeStore}", isStateChange: true)
+     pauseExecution(3000) // We have to wait for database update
+     getCodes() 
+    
 }
 
 private upgradeCodes(code){
@@ -470,9 +478,11 @@ def deleteCode(code) {
 	if (code < 6) {
      device.deleteCurrentState("${save}")    
      device.deleteCurrentState("${save}n")
-     pauseExecution(1200) 
-     getCodes()   
-
+     pauseExecution(3000) // We have to wait for database update
+     getCodes() 
+     sendEvent(name:"codeChanged",value:"deleted",data:"${codeStore}", isStateChange: true)
+     pauseExecution(3000) // We have to wait for database update
+     getCodes()    
 }
 }
 // the I hate jason format Routine
@@ -559,8 +569,8 @@ def cancelAlert(){
 
 }
 // ===========================================HSM RECEIVED =======================================
-// Incomming command from HSM 
-// We only switch if we are not in the same mode.
+// Incomming command from HSM Including a delay
+// We ignore if we are already in this mode.
 // The delay is not needed and ignored until we get chimes working
 def armAway(cmd){ 
     logging ("${device} : Received CMD >> ArmAWAY Delay:${cmd}  Our State:${state.Command} ", "info")
@@ -570,7 +580,9 @@ def armAway(cmd){
             state.Command = "away"
             sendIrisCmd (2)
             flash()
+            return
         }
+    logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def armHome(cmd){ 
     logging ("${device} : Received CMD >> ArmHOME delay:${cmd}  Our State:${state.Command} ", "info")
@@ -580,7 +592,9 @@ def armHome(cmd){
             state.Command = "home"
             sendIrisCmd (2)
             flash()
+            return
         }
+    logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def armNight(cmd){
     logging ("${device} : Received CMD >> ArmNight delay:${cmd}  Our State:${state.Command} ", "info")
@@ -590,7 +604,9 @@ def armNight(cmd){
             state.Command = "night"
             sendIrisCmd (3)
             flash()
+            return
         }
+    logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def disarm(cmd) { 
     logging ("${device} : Received CMD >> Disarm delay:${cmd}  Our State:${state.Command} ", "info")
@@ -602,7 +618,19 @@ def disarm(cmd) {
             sendIrisCmd (1)
             panicOff() // This should disarm panic from other keypads
             flash()
+            return
         }
+    logging ("${device} : Ignored HSM CMD Already in that state","info")
+}
+
+// hub sends when entry starts.  We dont use it yet. But need to trap it
+def entry(cmd){ 
+    logging ("${device} : Received >> Entry delay:${cmd}","warn")
+//  Chimes will triger from here   
+    
+//  Lets check our states to make sure we stay in the loop
+    runIn(10,getStatus)
+    runIn(44,getStatus)
 }
 
 // My arming commands 
@@ -652,13 +680,131 @@ private MyDisarm() {
         return
     } 
 	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${state.PinName}", displayed: true,data: /{"-1":{"name":"${state.PinName}","code":"${state.PIN}","isInitiator":true}}/)
-	sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "Disarmed by ${state.PinName}")// May be needed by other aps.
     logging ("${device} : Sent Disarmed by [${state.PinName}]", "info")
     panicOff()
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
     pauseExecution(6000)// Wait for hub to finish or we will loop.
 }
+
+
+//==================================================== POLL for HSM STATUS =================================================
+// Polls HSM and sets state even if keyboard is not setup in HSM
+// 
+//hsmStatus= armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
+//hsmAlert = intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
+
+def getStatus(status) {
+    status = location.hsmStatus
+    state.alertST = location.hsmAlert // We expect the HSM to send us this state. But how it does that is not yet known.
+    if (!state.alertST){state.alertST = "none"}
+    if (state.alertST != "none"){
+        if(device.currentValue("HSMAlert")!= state.alertST){
+        sendEvent(name: "HSMAlert", value: state.alertST)
+        logging ("${device} : HSMAlert  Status:${state.alertST}","info")    
+        }
+    }
+    
+   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","info") // moved to info 
+    if (status == "armedAway"){  
+        if (state.Command != "away"){
+            sendEvent(name: "securityKeypad", value: "armed away")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "away"
+            sendIrisCmd (2)
+            flash()
+        }
+     return
+    }
+    if (status == "armingAway"){ 
+        if (state.Command != "away"){
+          sendEvent(name: "securityKeypad", value: "armed away")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+          state.Command = "away"
+          sendIrisCmd (2) 
+          flash() 
+        }
+      return 
+    }
+    
+    if (status == "armedHome"){
+        if (state.Command != "home"){
+            sendEvent(name: "securityKeypad", value: "armed home")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "home"
+            sendIrisCmd (2)
+            flash()
+        }
+        return
+       }
+    if (status == "armingHome"){ 
+        if (state.Command != "home"){
+            sendEvent(name: "securityKeypad", value: "armed home")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "home"
+            sendIrisCmd (2)
+            flash()
+        }
+        return
+       }  
+    
+    if (status == "armedNight"){
+        if (state.Command != "night"){
+            sendEvent(name: "securityKeypad", value: "armed night")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "night"
+            sendIrisCmd (3)
+            flash()
+        }
+        return
+       }
+
+    if (status == "armingNight"){
+        if (state.Command != "night"){
+            sendEvent(name: "securityKeypad", value: "armed night")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "night"
+            sendIrisCmd (3)
+            flash()
+        }
+        return
+       } 
+    
+    if (status == "disarmed"){
+        if (state.Command != "off"){
+            sendEvent(name: "securityKeypad", value: "disarmed")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "off"
+            state.iriscmd = "Erased"
+            sendIrisCmd (1)
+            panicOff()
+            flash()
+        }
+        return
+    }
+    if (status == "allDisarmed"){
+        if (state.Command != "off"){
+            sendEvent(name: "securityKeypad", value: "all disarmed")
+            logging ("${device} : Polled HSM ${status} switching now","info")
+            state.Command = "off"
+            state.iriscmd = "Erased"
+            sendIrisCmd (1)
+            panicOff()
+            flash()
+        }
+        return
+    } 
+    logging ("${device} : Polled HSM ${status} <- (Unknown report to DEV for coding) What is this? Our state:${state.Command}","warn")
+}
+
+
+
+
+
+
+
+
+
 
 def purgePIN(){
     if (state.validPIN){logging ("${device} : PIN [${state.PinName}] Removed from memory", "info")}
@@ -873,7 +1019,7 @@ https://github.com/tmastersmart/hubitat-code
 
 def off(cmd){
  logging ("${device} : OFF counter reset to 0","info")
-// sendEvent(name: "switch", value: "off")   
+ sendEvent(name: "switch", value: "off")   
 state.switch = false
  state.test =0
 }
@@ -938,127 +1084,18 @@ def quietMode() {
 }
 
 
-//==================================================== POLL for HSM STATUS =================================================
-// Polls HSM and sets state even if keyboard is not setup in HSM
-// Not sure if this is still needed its part of the Keyboard debounce code. To prevent repeat commands. Once state changed
-
-// 
-//hsmStatus armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
-//hsmAlert  intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
-
-def getStatus(status) {
-    status = location.hsmStatus
-    state.alertST = location.hsmAlert
-    if (!state.alertST){state.alertST = "none"}
-    if (state.alertST != "none"){
-        if(device.currentValue("HSMAlert")!= state.alertST){
-        sendEvent(name: "HSMAlert", value: state.alertST)
-        logging ("${device} : HSMAlert  Status:${state.alertST}","info")    
-        }
-    }
-    
-   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")
-    if (status == "armedAway"){  
-        if (state.Command != "away"){
-            sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "away"
-            sendIrisCmd (2)
-            flash()
-        }
-     return
-    }
-    if (status == "armingAway"){ 
-        if (state.Command != "away"){
-          sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-          state.Command = "away"
-          sendIrisCmd (2) 
-          flash() 
-        }
-      return 
-    }
-    
-    if (status == "armedHome"){
-        if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "home"
-            sendIrisCmd (2)
-            flash()
-        }
-        return
-       }
-    if (status == "armingHome"){ 
-        if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "home"
-            sendIrisCmd (2)
-            flash()
-        }
-        return
-       }  
-    
-    if (status == "armedNight"){
-        if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "night"
-            sendIrisCmd (3)
-            flash()
-        }
-        return
-       }
-
-    if (status == "armingNight"){
-        if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "night"
-            sendIrisCmd (3)
-            flash()
-        }
-        return
-       } 
-    
-    if (status == "disarmed"){
-        if (state.Command != "off"){
-            sendEvent(name: "securityKeypad", value: "disarmed")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "off"
-            state.iriscmd = "Erased"
-            sendIrisCmd (1)
-            panicOff()
-            flash()
-        }
-        return
-    }
-    if (status == "allDisarmed"){
-        if (state.Command != "off"){
-            sendEvent(name: "securityKeypad", value: "all disarmed")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "off"
-            state.iriscmd = "Erased"
-            sendIrisCmd (1)
-            panicOff()
-            flash()
-        }
-        return
-    } 
-    logging ("${device} : Polled HSM ${status} <- (Unknown report to DEV for coding) What is this? Our state:${state.Command}","warn")
-}
-
 
 
 
 
 void refresh() {
     logging ("${device} : Refresh. Sending Hello to Device","info")
-// send a "Hello" message, to get version, etc.   
+    getStatus(status)
+
+    
 	def cmds = new ArrayList<String>()
 	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}")    // version information request
-//	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}")    // power control operating mode nudge
+//	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}")    // power control operating mode nudge ( I dont think we need this)
 	sendZigbeeCommands(cmds)
 }
 
@@ -1124,7 +1161,7 @@ def parse(String description) {
     // We check stat first and debounce ARM buttons if it took.
     // Keyboard spams cmd about 6 times. So we autodebounce and resend.
     clientVersion()
-    getStatus(status)
+//  getStatus(status) // moved to refreash for now
     updatePresence()
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
 	if (descriptionMap) {
@@ -1268,7 +1305,7 @@ Internal notes: Building Cluster map
           if (irsCMD == "*") {irsCMD1= "STAR"}
 
           
-          if ( irsCMD == nextirsCMD){logging("${device} : IRIS   :[${irsCMD1}] Valid PIN ${state.validPIN}", "info")}
+          if ( irsCMD == nextirsCMD){logging("${device} : IRIS   :[${irsCMD1}] Valid PIN ${state.validPIN}", "debug")} // moved to debugging.
           else{ logging("${device} : IRIS   :[${irsCMD1}] Next command in qwery [${nextirsCMD}].   Valid PIN ${state.validPIN}", "info")}
           logging("${device} : #${keyRec} Action:${status} Iris cmd:${rawCMD} :${hexcmd}", "trace")
           state.iriscmd = irsCMD1 // store for later use
@@ -1304,7 +1341,7 @@ Internal notes: Building Cluster map
       if (keyRec == "41"){
           if (OnSet == "Arm Away"){
            if (state.Command =="away"){ 
-             logging("${device} : Button ON ${OnSet} (But state already sent)","debug")
+             logging("${device} : Button ON ${OnSet} (But sent and Verified)","debug")
              return }
              logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
               if (requirePIN){
@@ -1323,7 +1360,7 @@ Internal notes: Building Cluster map
           
            if (OnSet == "Arm Home"){
            if (state.Command =="home"){ 
-             logging("${device} : Button ON ${OnSet} (But state already sent)","debug")
+             logging("${device} : Button ON ${OnSet} (But sent and Verified)","debug")
              return }
              logging("${device} : Button ON ${OnSet} Valid PIN ${state.validPIN}","info")
               if (requirePIN){
@@ -1344,7 +1381,7 @@ Internal notes: Building Cluster map
      if (keyRec == "4E"){
          if (PartSet =="Arm Night"){          
 		  if (state.Command =="night"){
-          logging("${device} : Button PARTIAL ${PartSet} (But state already sent)","debug")  
+          logging("${device} : Button PARTIAL ${PartSet} (But sent and Verified)","debug")  
           return }
           logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
               if (requirePIN){
@@ -1361,7 +1398,7 @@ Internal notes: Building Cluster map
          }
           if (PartSet =="Arm Home"){          
 		  if (state.Command =="home"){
-          logging("${device} : Button PARTIAL ${PartSet} (But state already sent)","debug")  
+          logging("${device} : Button PARTIAL ${PartSet} (But sent and Verified)","debug")  
           return }
           logging("${device} : Button PARTIAL ${PartSet} Valid PIN ${state.validPIN}","info")  
               if (requirePIN){
@@ -1418,7 +1455,7 @@ Internal notes: Building Cluster map
      if (keyRec == "2A"){
       if (StarSet == "Arm Home"){
 		 if (state.Command =="home"){
-         logging("${device} : Button * ${StarSet} (But state already sent) state${state.Command}","debug")
+         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")
               if (requirePIN){
@@ -1435,7 +1472,7 @@ Internal notes: Building Cluster map
          }
        if (StarSet == "Arm Night"){
 		 if (state.Command =="night"){
-         logging("${device} : Button * ${StarSet} (But state already sent) state${state.Command}","debug")
+         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")
               if (requirePIN){
@@ -1452,7 +1489,7 @@ Internal notes: Building Cluster map
          } 
         if (StarSet == "Arm Away"){
 		 if (state.Command =="away"){
-         logging("${device} : Button * ${StarSet} (But state already sent) state${state.Command}","debug")
+         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button * ${StarSet} ${state.validPIN}","info")
               if (requirePIN){
@@ -1487,7 +1524,7 @@ Internal notes: Building Cluster map
      if (keyRec == "23"){
       if (PoundSet == "Arm Home"){
 		 if (state.Command =="home"){
-             logging("${device} : Button # ${PoundSet}","debug")
+             logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
@@ -1504,7 +1541,7 @@ Internal notes: Building Cluster map
          }
        if (PoundSet == "Arm Night"){
 		 if (state.Command =="night"){
-         logging("${device} : Button # ${PoundSet}","debug")
+         logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
@@ -1521,7 +1558,7 @@ Internal notes: Building Cluster map
          } 
         if (PoundSet == "Arm Away"){
 		 if (state.Command =="away"){
-         logging("${device} : Button # ${PoundSet}","debug")
+         logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
          return }
          logging("${device} : Button # ${PoundSet}","info")
               if (requirePIN){
@@ -1587,8 +1624,9 @@ Internal notes: Building Cluster map
           state.PinName = name
           state.PIN     = asciiPin  
           logging("${device} : Valid Pin Entered:${name} Waiting for Action CMD" ,"info")
-          runIn(60, "purgePIN")
-
+          sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}]")// May be needed by other aps.
+          sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}]")
+          runIn(90, "purgePIN")// Purge time increased to allow button repeating to finish
      	  return  
         }   
          
@@ -1596,7 +1634,9 @@ Internal notes: Building Cluster map
       if(tamperPIN){tamper()}
       state.validPIN = false
       state.PinName = TAMPER
-      state.PIN     = asciiPin   
+      state.PIN     = asciiPin 
+      sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}]")// May be needed by other aps.
+      sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}]")
       return	 
     }// Pin size check  
     }// end pin check       
