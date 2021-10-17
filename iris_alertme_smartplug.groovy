@@ -12,7 +12,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
                                                                             |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
-
+   10/16/2021 v2.7  Operating state logging changed.
    10/05/2021 v2.6  Icon added
  * 09/20/2021 v2.5  Merging in code from my KepPad driver. Better error handeling and logging
  * 09-14-2021 v2.4  Some log fixes and cleanup
@@ -53,7 +53,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="2.6"
+    TheVersion="2.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -81,15 +81,12 @@ metadata {
 		command "rangingMode"
 		command "quietMode"
 
-		attribute "alarmcmd", "string"
+
 		attribute "strobe", "string"
 		attribute "VoltageWithUnit", "string"
 		attribute "siren", "string"
-//		attribute "energyWithUnit", "string"
-		attribute "mode", "string"
+		attribute "operatingMode", "string"
 		attribute "power", "string"
-//		attribute "stateMismatch", "boolean"
-//		attribute "temperatureWithUnit", "string"
 		attribute "uptime", "string"
 		attribute "uptimeReadable", "string"
 
@@ -118,12 +115,6 @@ def installed() {
 
 
 def initialize() {
-
-	// Set states to starting values and schedule a single refresh.
-	// Runs on reboot, or can be triggered manually.
-
-	// Reset states...
-
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
@@ -131,34 +122,37 @@ def initialize() {
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
     sendEvent(name: "alarmcmd", value: "0")
-	sendEvent(name: "lqi", value: 0)
-	sendEvent(name: "operation", value: "unknown", isStateChange: false)
+	sendEvent(name: "operatingMode", value:"initialize")
+
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
-//	sendEvent(name: "powerSource", value: "unknown", isStateChange: false)
-//	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
+
 	sendEvent(name: "presence", value: "not present")
-//	sendEvent(name: "stateMismatch", value: true, isStateChange: false)
-	sendEvent(name: "switch", value: "unknown")
-//	sendEvent(name: "temperature", value: 0, unit: "F", isStateChange: false)
-//	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
+	sendEvent(name: "switch", value: "?")
+	sendEvent(name: "siren", value: "?")
+	sendEvent(name: "strobe", value: "?")
+
+ 
 	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
-	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
+//	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
 
 	// Remove disused state variables from earlier versions.
-	state.remove("powerWithUnit")
-    state.remove("energyWithUnit")
-    state.remove("temperature")
-	state.remove("temperatureWithUnit")	
-	state.remove("battery")
-    state.remove("batteryVoltage")
-	state.remove("powerSource")
-	state.remove("batteryWithUnit")
-	state.remove("supplyPresent")
-	state.remove("stateMismatch")
-
-    state.remove("batteryOkay")
+state.remove("powerWithUnit")
+state.remove("energyWithUnit")
+state.remove("icon")
+state.remove("relayClosed")	
+state.remove("battery")
+state.remove("batteryVoltage")
+state.remove("powerSource")
+state.remove("batteryWithUnit")
+state.remove("operatingMode")
+state.remove("power")
+state.remove("operation")
+	
 	// Remove unnecessary device details.
-	removeDataValue("application")
+
+    device.deleteCurrentState("alarm")
+    device.deleteCurrentState("alarmcmd")
+
 
 	// Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -166,7 +160,8 @@ def initialize() {
 
 	// Initialisation complete.
 	logging("${device} : Initialised", "info")
-
+    
+    off()
 }
 
 
@@ -174,6 +169,7 @@ def configure() {
 
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
+    sendEvent(name: "operatingMode", value:"configure")
     state.alarmcmd = 0
 	initialize()
 	unschedule()
@@ -249,24 +245,16 @@ void reportToDev(map) {
 	if (receivedData != null) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
-// Removed dont need in the extra warn in the logs
-//	logging("${device} : UNKNOWN DATA! Please report these messages to the developer.", "warn")
-	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
-//	logging("${device} : Splurge! : ${map}", "trace")
-
-
+logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 }
 
 
 def normalMode() {
-
-	// This is the standard running mode.
-
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
-	state.operatingMode = "normal"
+//	state.operatingMode = "normal"
 	refresh()
-	sendEvent(name: "operation", value: "normal")
-	logging("${device} : Mode : Normal", "info")
+   	sendEvent(name: "operatingMode", value: "normal")
+	logging("${device} : operatingMode : Normal", "info")
 
 }
 
@@ -279,8 +267,8 @@ def rangingMode() {
 	// Don't set state.operatingMode here! Ranging is a temporary state only.
 
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
-	sendEvent(name: "operation", value: "ranging")
-    logging("${device} : Mode : Ranging ${state.rangingPulses}", "info")
+	sendEvent(name: "operatingMode", value: "ranging")
+    logging("${device} : operatingMode : Ranging ${state.rangingPulses}", "info")
 
 	// Ranging will be disabled after a maximum of 30 pulses.
 	state.rangingPulses = 0
@@ -296,13 +284,13 @@ def lockedMode() {
 
 	// To complicate matters this mode cannot be disabled remotely, so far as I can tell.
 
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 02 01} {0xC216}"])
-	refresh()
-	state.operatingMode = "locked"
-	sendEvent(name: "operation", value: "locked")
+//	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 02 01} {0xC216}"])
+//	refresh()
+//	state.operatingMode = "locked"
+//	sendEvent(name: "operation", value: "locked")
 
-	logging("${device} : Mode : Locked", "info")
-
+//	logging("${device} : Mode : Locked", "info")
+//  Useless mode removed.
 }
 
 
@@ -311,64 +299,45 @@ def quietMode() {
 	// Turns off all reporting except for a ranging message every 2 minutes.
 
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"])
-	state.operatingMode = "quiet"
-
+//	state.operatingMode = "quiet"
 	// We don't receive any of these in quiet mode, so reset them.
-
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
-	sendEvent(name: "operation", value: "quiet")
+	sendEvent(name: "operatingMode", value: "quiet")
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
-//	sendEvent(name: "powerWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
-	sendEvent(name: "uptimeReadable", value: "unknown", isStateChange: false)
-
-
-	logging("${device} : Mode : Quiet", "info")
-
+	sendEvent(name: "uptimeReadable", value: "No Reports in quiet", isStateChange: false)
+	logging("${device} : operatingMode : Quiet", "info")
 	refresh()
-
 }
 
-
+                    
+                    
+                    
 def siren(cmd){
     state.alarmcmd = 1
-    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+    sendEvent(name: "siren", value: "on")
   on()
-
 }
 def strobe(cmd){
     state.alarmcmd = 2
-    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+    sendEvent(name: "strobe", value: "on")
   on()
-   
-    
 }
 def both(cmd){
     state.alarmcmd = 3
-    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
+    sendEvent(name: "siren", value: "on")
+    sendEvent(name: "strobe", value: "on")
   on()
-
 }
-
-
-
-
-
 
 def off() {
 	state.alarmcmd = 0
-    sendEvent(name: "alarmcmd", value: "${state.alarmcmd}")
-	// The off command is custom to AlertMe equipment, so has to be constructed.
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 00 01} {0xC216}"])
-
 }
 
-
 def on() {
-
-	// The on command is custom to AlertMe equipment, so has to be constructed.
+    state.alarmcmd = 0
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 01 01} {0xC216}"])
- 
 }
 
 
@@ -526,42 +495,14 @@ Internal notes: Building Cluster map
        //OPERATING_MODE     = 01
        //RELAY_STATE        = 02
        //RELAY_STATUS_RQST  = 03
-       //RELAY_STATUS_REPORT= 80
-       if (map.command == "80") {
-       def powerStateHex = "undefined"
-       def powerStateDisplay = "PowerState Needs mapping ?-->"    
-       powerStateHex  = receivedData[0]// This bit was to be memory but I dont get it
-       powerStateHex2 = receivedData[1]// This bit flips with switch
-       switchStats="?"   
-       if (powerStateHex2 == "00") {switchStats="OFF"}
-       if (powerStateHex2 == "01") {switchStats="ON"} 	       
-       if (powerStateHex == "0B" ) {powerStateDisplay="Joining"}
-       if (powerStateHex == "0C" ) {powerStateDisplay="Power Restored"}
-       if (powerStateHex == "08" ) {powerStateDisplay="Power Restored"}
-       if (powerStateHex == "0A" ) {powerStateDisplay="Button Pressed"}
-       if (powerStateHex == "0F" ) {powerStateDisplay="Button Pressed"}
-       if (powerStateHex == "0D" ) {powerStateDisplay="Button Pressed"}
-       if (powerStateHex == "0E" ) {powerStateDisplay="Last Power Restore memory was :OFF"}
-       if (powerStateHex == "06" ) {powerStateDisplay="Power Restored"}
-       if (powerStateHex == "07" ) {powerStateDisplay="Power Restored"}
-       // need more info on these states They are diffrent than the UK models 
-//	       [07, 01]  With power on [06,00] with power off. Rower was restored in ON mode.
-//	       [07, 01]  With power on [06,00] with power off. Rower was restored in OFF mode.	       
-           size = receivedData.size() 
-           if (size == 2 ){cmdREC = receivedData[0..1].collect{ (char)Integer.parseInt(it, 16) }.join()}
-          
-	       logging("${device} :${powerStateDisplay} ${switchStats} :${map.data} size ${size} :${cmdREC}", "info")
-}     
-
-			// Switch State
-
-			def switchStateHex = "undefined"
-			switchStateHex = receivedData[1]
-
-			if (switchStateHex == "01") {
-
-				state.relayClosed = true
-                if(state.alarmcmd == 1){
+       
+       if (map.command == "80") { //RELAY_STATUS_REPORT= 80
+       OPERATING_MODE  = receivedData[0]
+       RELAY_STATE     = receivedData[1]
+      
+       if (RELAY_STATE == "01") {
+	       if (device.currentValue("switch") != "on"){// Reduce events only change if dif 
+               if(state.alarmcmd == 1){
                     sendEvent(name: "siren", value: "on")
                     logging("${device} : Sirene Alarm : ON", "info")
                 }
@@ -574,23 +515,44 @@ Internal notes: Building Cluster map
                     sendEvent(name: "siren", value: "on")
                     logging("${device} : Siren-Strobe Alarm : ON", "info")
                 }
-                
-                
-				sendEvent(name: "switch", value: "on")
+                sendEvent(name: "switch", value: "on")
                 logging("${device} : Switch : ON ${state.power} Watts", "info")
+	         }
+		} 
+       if (RELAY_STATE == "00") {
+	          if (device.currentValue("switch") != "off"){// Only send state if its diff
+                  sendEvent(name: "switch", value: "off") 
+                  sendEvent(name: "siren", value: "off")
+                  sendEvent(name: "strobe", value: "off")
+		          logging("${device} : Switch : OFF ${state.power} Watts", "info")	   
+		   }    
+       }
+	// Operating modes seen are 6 and 7 (doesnt relate to power on state as on UK models)		    
 
-			} else {
+	       state.operatingModeCode = OPERATING_MODE
+           // States seen so far on USA version
+           // 7 if on
+           // 6 if off
+           
+	       if (OPERATING_MODE == "06"){
+		       logging("${device} Operating Mode 6 relay:${RELAY_STATE} ", "debug")
+	               return
+	       }
+	       if (OPERATING_MODE == "07"){
+		       logging("${device} Operating Mode 7 relay:${RELAY_STATE} ", "debug")
+	               return
+	       }
+	       logging("${device} Operating Mode :${OPERATING_MODE} relay:${RELAY_STATE} ", "debug")
+	
+	       
+	       
+      }// end map 80
+	else {
+	// We only know about map 80	
+	reportToDev(map)
 
-				state.relayClosed = false
-				sendEvent(name: "switch", value: "off") 
-                sendEvent(name: "siren", value: "off")
-                sendEvent(name: "strobe", value: "off")
-
-				logging("${device} : Switch-siren-strobe : Off", "info")
-			}
-}
-
-
+	}    
+    }
 
 	 
 //   0x00EF     (239) Power Monitor Cluster 
@@ -610,9 +572,9 @@ else if (map.clusterId == "00EF") {
 			logging("${device} : Current Power: ${powerValue} Watts :HEX ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
 			logging("${device} : Current Power: ${powerValue} Watts", "debug") // This has to be debug way to many reports
-            state.power = powerValue
+//          state.power = powerValue
 			sendEvent(name: "power", value: powerValue, unit: "W")
-//			sendEvent(name: "powerWithUnit", value: "${powerValue} W")
+
 
 		} else if (map.command == "82") {
 
@@ -633,7 +595,6 @@ else if (map.clusterId == "00EF") {
 			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "debug")
 
 			sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh")
-//			sendEvent(name: "energyWithUnit", value: "${energyValueDecimal} kWh")
 
 			// Uptime
 
@@ -718,12 +679,16 @@ else if (map.clusterId == "00EF") {
 		logging("${device} : Ranging lqi:${lqiRanging} ", "debug")
 //            logging("${device} : lqi:${lqiRanging} ", "info")
 			if (receivedData[1] == "77") {
-				// This is ranging mode, which must be temporary. Make sure we come out of it.
-				state.rangingPulses++
-				if (state.rangingPulses > 30) {
-					"${state.operatingMode}Mode"()
-                    logging("${device} : Ranging Pulse: ${state.rangingPulse}. To Long Stopping", "warn")
-				}
+			state.rangingPulses++
+		     // This is ranging mode, which must be temporary. Make sure we come out of it.
+             // I had a problem with errors so commands moved here    
+			if (state.rangingPulses > 20) {
+			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
+            sendEvent(name: "operatingMode", value: "normal")
+	        logging("${device} : Ranging ${state.rangingPulses} times is to Long Stopping", "warn")
+            refresh()
+            return
+			}
 
 			} else if (receivedData[1] == "FF") {
 
