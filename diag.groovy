@@ -108,7 +108,9 @@ def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported"
 def setCodeLength(code){logging("${device} : setCodeLength 4", "info")                   }
 
 
-
+def parse(String description) {
+	
+}
 
 
 
