@@ -313,7 +313,7 @@ operation
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
 
-playSound(1)
+playSound(10)
    
 logging("${device} : Initialised", "info")
   
