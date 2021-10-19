@@ -67,25 +67,12 @@ Pressing button 1 on the keypad sends
  26 = "Sound ID"
  28 = "UNSUCCESSFUL STATECHANGE"
  
- The keypad needs to be told its state but format is unknown
  
-Testing 
+Keyboard has to be told mode this is done by the following format
 
-sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 02 {11 00 00 02 21} {0xC216}"])
+Cluster 0x00C0 EndPoint 0x02
 
-{11 00 00 02 21}    [02, 21, 86] 86 again
-{11 00 00 00 02 21} flashes
-{11 00 00 00 21 02} flashes
-{11 00 00 21 00 02} flashes
-{11 00 00 21 02}    [21, 02, 00, 42, 00]
-{11 00 00 21 01}       tried to send 21 set to 1 arming  received [21, 01, 00, 42, 00] 42=B 41=A would be looking for A not B
-{11 00 00 26 07}       tried to send 26 sound code 07  received [26, 07, 86]  <86= ??error??
-{11 00 00 26 08 00}​   tried to send 26 = "Sound ID" and SOUNDIDX_ARMING= 0x0800 flashes
-{11 00 00 25 08 00}​   tried to send 25 = "sound mask" and SOUNDIDX_ARMING= 0x0800 flashes
-
-
-Data from iris source code 
-
+Sending cmd 0x020 with the following commands
 ------------------------------------------------------------
 KEYPADSTATE_UNKNOWN = 0;
 KEYPADSTATE_OFF = 1;
@@ -99,7 +86,22 @@ KEYPADSTATE_ARMING_PARTIAL = 7;
 KEYPADSTATE_SOAKING_PARTIAL = 7;
 KEYPADSTATE_ALARMING_PARTIAL = 8;
 -------------------------------------------------------------
+Cluster 0x00C0 Endpoint 0x02
+sending 0x026 with the following commands plays alarms
+stop 0x00
+SOUNDID_KEYCLICK = 0x01;
+SOUNDID_LOSTHUB = 0x02;
+SOUNDID_ARMING = 0x03;
+SOUNDID_ARMED = 0x04;
+SOUNDID_HOME = 0x05;
+SOUNDID_NIGHT = 0x06;
+SOUNDID_ALARM = 0x07;
+SOUNDID_PANIC = 0x08;
+SOUNDID_BADPIN = 0x09;
 
+
+================================================================================
+Thise codes not yet produced. 
  sounds
 NO_REPEAT = (byte)0x00;
 VOL_MAX = (byte)0xFF;
