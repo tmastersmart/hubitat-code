@@ -15,6 +15,11 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v3.8   10/18/2021 Bug in Pin fixed.  Arming sounds added.  Alarm is working Enabled.
+                    Chimes 1 2 3 4 added but not fully working. 
+                    Added alarm arming delay
+  v3.7   10/17/2021 bug in reboot logging throwing a error fixed
+  v3.6   10/17/2021 Master PIN any legenth all PINS legenth increased to 10
   v3.5   10/16/2021 No longer polling HSM sate. This requires that Keyboard be enabled in HSM
                     Last pin stats bug, was only reporting disarm
                     Added codeChanged Lock manager may look for this.
@@ -89,21 +94,12 @@ As a safety enter a master PIN that the lock manager cant touch.
 
 
 
-
-
-Chimes Lights not working. Help is needed on this. 
-
-
-
-
-
 Total worktime to build up to v2 2 days. Have fun.
  
 FCC ID:FU5TSA04 https://fccid.io/FU5TSA04
 Built by Everspring Industry Co Ltd Smart Keypad TSA04            
 
-I would use the sample keypad code hubitat posted 
-but its not open source so I wrote my own.
+
 I wrote this for my keyboards you are welcome to use it.
 ================================================================================================
 To Reset for paring:
@@ -115,9 +111,7 @@ then press "ON" button device 5 times within the first 10 seconds.
 
 the On button will begin to blink twice periodically.
 
-Tested on 
-2013-06-28
-2012-12-11
+Tested on Firmware 2013-06-28 and 2012-12-11 Only known versions
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy
@@ -126,11 +120,6 @@ Post your comments here.
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 
-* See opensource IRIS code at. The orginal v1 code is in a zigbee driver but they
-have no source code for it and are going to replace it with a new zigbee driver.
-If anyone can decompile the bin let me know.
-
-"keypad:enabledSounds": ["ARMED", "ARMING", "SOAKING", "ALERTING", "DISARMED", "BUTTONS"],
 
 * To Reset Device:
  *    Insert battery and then press "ON" button device 5 times within the first 10 seconds.
@@ -156,15 +145,6 @@ If anyone can decompile the bin let me know.
  * will be sent to the hub.
  * 
 
-https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_KeyPad_2_4.driver
-https://github.com/arcus-smart-home/arcusweb/blob/c8f30cef8d59c94a3be83fe3d3c7bfa5c151a091/src/models/capability/KeyPad.js
-https://github.com/arcus-smart-home
-https://github.com/arcus-smart-home/arcushubos/tree/master/meta-iris
-https://github.com/arcus-smart-home/arcushubos/tree/master/meta-iris/recipes-core/iris-utils/files
-
-I have been unable to find any iris v1 code in it but it does have some drivers. 
-==========================================================================================================================
-
 
 
  * based on alertme UK code from  
@@ -178,7 +158,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.5"
+    TheVersion="3.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -186,7 +166,8 @@ def clientVersion() {
 }
 
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
-
+//import hubitat.zigbee
+import hubitat.helper.HexUtils
 
 metadata {
 
@@ -204,15 +185,15 @@ capability "PushableButton"
 capability "TamperAlert"
 capability "Switch"
 
-//capability "Chime"
-//capability "Alarm"
+capability "Chime"
+capability "Alarm"
 
 
 command "checkPresence"
 command "normalMode"
 command "rangingMode"
-command "entry" //fired from HSM on system entry
-//command "quietMode"
+command "entry" 
+command "quietMode"
 
 attribute "batteryState", "string"
 attribute "lastCodeName", "string"
@@ -255,15 +236,8 @@ preferences {
 
 
     input("secure",  "text", title: "7 digit password", description: "A Master 7 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
-	input name: "flashError",   type: "bool", title: "Flash the lights after action", description: "Expermental. I think its actualy flashing a error code.",defaultValue: false
 
-    
-hack = false
-cmdtest = false    
-   
-    input name: "cmdtest",   type: "bool", title: "Send arming commands to KeyPad", description: "Testing only this does not work yet",defaultValue: false
-     
-    if (cmdtest == true){flashError = false}// Overide we cant do both
+  
 
 }
 
@@ -278,7 +252,8 @@ updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
 
 state.message = "Please remember to enable [${device}] in HSM"
-    
+state.waiting = 0 // Out of state tinmer
+state.delay =5 // hub will set this     
 state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
@@ -320,8 +295,9 @@ operation
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
 // Initialisation complete.
+   
 logging("${device} : Initialised", "info")
-getStatus(status)    
+  
 }
 
 
@@ -330,7 +306,7 @@ def configure() {
 	unschedule()
 	// Default logging preferences.
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
-	device.updateSetting("debugLogging",[value:"false",type:"bool"])
+	device.updateSetting("debugLogging",[value:"true",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	// Schedule our ranging report.
 	int checkEveryHours = 10 // Request a ranging report and refresh every x hours.						
@@ -358,54 +334,7 @@ def updated() {
 	refresh()
 
 }
-/*
 
-from iris source code 
-constants alertme.KeyPad {
-  DEVICE_TYPE = 0x1C;
-
-  ATTR_STATE = 0x20;
-  ATTR_PIN = 0x21;
-  ATTR_ACTION_KEY_PRESS = 0x22;
-  ATTR_ACTION_KEY_RELEASE = 0x23;
-  ATTR_HUB_POLL_RATE = 0x24;
-  ATTR_SOUNDS_MASK = 0x25;
-  ATTR_SOUND_ID = 0x26;
-  ATTR_CUSTOM_SOUND = 0x27;
-  ATTR_UNSUCCESSFUL_STATE_CHANGE = 0x27;
-
-  KEYPAD_STATE_UNKNOWN = 0x00;
-  KEYPAD_STATE_HOME = 0x01;
-  KEYPAD_STATE_ARMED = 0x02;
-  KEYPAD_STATE_NIGHT = 0x03;
-  KEYPAD_STATE_PANIC = 0x04;
-  KEYPAD_STATE_ARMING = 0x05;
-  KEYPAD_STATE_ALARMING = 0x06;
-  KEYPAD_STATE_NIGHT_ARMING = 0x07;
-  KEYPAD_STATE_NIGHT_ALARMING = 0x08;
-
-  KEYPAD_STATE_LOCKED_MASK = 0x80;
-
-  ACTION_KEY_POUND = 0x23; // '#'
-  ACTION_KEY_HOME = 0x48; // 'H'
-  ACTION_KEY_AWAY = 0x41; // 'A'
-  ACTION_KEY_NIGHT = 0x4E; // 'N'
-  ACTION_KEY_PANIC = 0x50; // 'P'
-
-  SOUND_CUSTOM = 0x00;
-  SOUND_KEYCLICK = 0x01;
-  SOUND_LOSTHUB = 0x02;
-  SOUND_ARMING = 0x03;
-  SOUND_ARMED = 0x04;
-  SOUND_HOME = 0x05;
-  SOUND_NIGHT = 0x06;
-  SOUND_ALARM = 0x07;
-  SOUND_PANIC = 0x08;
-  SOUND_BADPIN = 0x09;
-  SOUND_OPENDOOR = 0x0A;
-  SOUND_LOCKED = 0x0B;
-}
-*/
 
 
 
@@ -570,40 +499,57 @@ def cancelAlert(){
 }
 // ===========================================HSM RECEIVED =======================================
 // Incomming command from HSM Including a delay
-// We ignore if we are already in this mode.
-// The delay is not needed and ignored until we get chimes working
-def armAway(cmd){ 
+//         if (state.Command == "off")  {sendIrisCmd (0x01)}// OFF
+//         if (state.Command == "home") {sendIrisCmd (0x02)}// ON 
+//         if (state.Command == "away") {sendIrisCmd (0x02)}// ON 
+//         if (state.Command == "night"){sendIrisCmd (0x03)}// Part
+
+def setA(){
+sendIrisCmd(0x02)
+}    
+def setN(){
+sendIrisCmd(0x03)
+}    
+ 
+
+def armAway(cmd){
+    state.delay =cmd
     logging ("${device} : Received CMD >> ArmAWAY Delay:${cmd}  Our State:${state.Command} ", "info")
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Switching to HSM ArmAWAY","info")
             state.Command = "away"
-            sendIrisCmd (2)
-            flash()
+            sendIrisCmd (0x05) // arming
+            runIn(cmd,setA)
+           
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def armHome(cmd){ 
+    state.delay =cmd
     logging ("${device} : Received CMD >> ArmHOME delay:${cmd}  Our State:${state.Command} ", "info")
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Switching to HSM ArmHOME","info")
             state.Command = "home"
-            sendIrisCmd (2)
-            flash()
+            sendIrisCmd (0x05) // arming
+            runIn(cmd,setA)
+            
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def armNight(cmd){
+    state.delay =cmd
     logging ("${device} : Received CMD >> ArmNight delay:${cmd}  Our State:${state.Command} ", "info")
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Switching to HSM ArmNIGHT","info")
             state.Command = "night"
-            sendIrisCmd (3)
-            flash()
+            sendIrisCmd (0x07) // arming night
+            runIn(cmd,setN)
+            
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
@@ -615,22 +561,37 @@ def disarm(cmd) {
             logging ("${device} : Switching to HSM disarmed","info")
             state.Command = "off"
             state.iriscmd = "Erased"
-            sendIrisCmd (1)
+            sendIrisCmd (0x01)
             panicOff() // This should disarm panic from other keypads
-            flash()
+            
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 
-// hub sends when entry starts.  We dont use it yet. But need to trap it
+// hub sends when entry starts. 
+//hsmAlert = intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
+def setNA(){
+sendIrisCmd(0x08)
+}
+def setAA(){
+sendIrisCmd(0x06)
+}
+
 def entry(cmd){ 
-    logging ("${device} : Received >> Entry delay:${cmd}","warn")
-//  Chimes will triger from here   
+    state.alertST = location.hsmAlert
+    logging ("${device} : Received >> Entry delay:${cmd}  ${state.alertST}","warn")
     
-//  Lets check our states to make sure we stay in the loop
-    runIn(10,getStatus)
-    runIn(44,getStatus)
+    if (state.Command == "night"){
+    sendIrisCmd (0x07) // night armming sound  
+    runIn(cmd,sendIrisCmd(0x08)) // night Alarming sound after delay
+    runIn(cmd+1,setNA) 
+
+    }else{
+    sendIrisCmd (0x05) // armming sound  
+    runIn(cmd,sendIrisCmd(0x06)) // Alarming sound after delay
+    runIn(cmd+1,setAA)
+    }    
 }
 
 // My arming commands 
@@ -638,37 +599,33 @@ private MyarmAway() {
 	logging ("${device} : Sending armAWAY by [${state.PinName}]","info")
     sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armAway")
-    state.Command = "away"
-    pauseExecution(6000)
 }
 private MyarmHome() {
 	logging ("${device} : Sending armHome by [${state.PinName}]","info")
 	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armHome")
-    state.Command = "home"
-    pauseExecution(6000)
 }
 private MyarmNight() {
 	logging ("${device} : Sending armNight by [${state.PinName}]","info")
 	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
 	sendLocationEvent (name: "hsmSetArm", value: "armNight")
-    state.Command = "night"
-    pauseExecution(6000)
 }
 
 def panic() {
 	logging ("${device} : Panic Pressed","warn")
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
     state.Panic = true
-    sendIrisCmd (4)
-    runIn(10000, "panicOff") // auto purge the panic because it cant be cleared from another pad
+    sendIrisCmd (0x04)
+    runIn(10000, "panicOff") // auto purge the panic
 }
 def panicOff() {
     if (state.Panic){
         logging ("${device} : Panic cancled by [${state.PinName}]","info")
         sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
         state.Panic = false
-        sendIrisCmd (1)
+        sendIrisCmd (0x01) // dsarm 
+        state.Command = "off"  
+        runIn(2, getStatus)  
     }
 }
 
@@ -684,7 +641,9 @@ private MyDisarm() {
     panicOff()
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
     state.Command = "off"
-    pauseExecution(6000)// Wait for hub to finish or we will loop.
+    sendIrisCmd (0x01) // OFF
+//    pauseExecution(6000)// Wait for hub to finish or we will loop.
+//    getStatus(status) // Reset our state
 }
 
 
@@ -696,7 +655,7 @@ private MyDisarm() {
 
 def getStatus(status) {
     status = location.hsmStatus
-    state.alertST = location.hsmAlert // We expect the HSM to send us this state. But how it does that is not yet known.
+    state.alertST = location.hsmAlert 
     if (!state.alertST){state.alertST = "none"}
     if (state.alertST != "none"){
         if(device.currentValue("HSMAlert")!= state.alertST){
@@ -705,14 +664,14 @@ def getStatus(status) {
         }
     }
     
-   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","info") // moved to info 
+   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")  
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "away"
-            sendIrisCmd (2)
-            flash()
+            sendIrisCmd (0x02)
+       
         }
      return
     }
@@ -721,8 +680,8 @@ def getStatus(status) {
           sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Polled HSM ${status} switching now","info")
           state.Command = "away"
-          sendIrisCmd (2) 
-          flash() 
+          sendIrisCmd (0x02) 
+   
         }
       return 
     }
@@ -732,8 +691,8 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "home"
-            sendIrisCmd (2)
-            flash()
+            sendIrisCmd (0x02)
+ 
         }
         return
        }
@@ -742,8 +701,8 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "home"
-            sendIrisCmd (2)
-            flash()
+            sendIrisCmd (0x02)
+       
         }
         return
        }  
@@ -753,8 +712,8 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "night"
-            sendIrisCmd (3)
-            flash()
+            sendIrisCmd (0x03)
+       
         }
         return
        }
@@ -764,8 +723,8 @@ def getStatus(status) {
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "night"
-            sendIrisCmd (3)
-            flash()
+            sendIrisCmd (0x03)
+      
         }
         return
        } 
@@ -776,9 +735,9 @@ def getStatus(status) {
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "off"
             state.iriscmd = "Erased"
-            sendIrisCmd (1)
+            sendIrisCmd (0x01)
             panicOff()
-            flash()
+
         }
         return
     }
@@ -788,9 +747,9 @@ def getStatus(status) {
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "off"
             state.iriscmd = "Erased"
-            sendIrisCmd (1)
+            sendIrisCmd (0x01)
             panicOff()
-            flash()
+ 
         }
         return
     } 
@@ -817,7 +776,7 @@ def siren(cmd){
   logging ("${device} : Siren ON", "info")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
-  
+  sendIrisCmd (0x04)
 }
 def strobe(cmd){
   logging ("${device} : Strobe ON","info")  
@@ -827,201 +786,142 @@ def strobe(cmd){
 def both(cmd){
   logging ("${device} : both ON siren/strobe","info")
   sendEvent(name: "siren", value: "on")  
-  sendEvent(name: "strobe", value: "on", descriptionText: "not supported yet", displayed: true) 
+  sendEvent(name: "strobe", value: "on") 
   sendEvent(name: "alarm", value: "on") 
+  sendIrisCmd (0x04)  // panic sound
+ 
 }
-/*
+def playSound(cmd){
+
+// this plays the sounds then switches the pad backinto its proper state.    
+    
+    if (cmd == 1){
+    sendIrisCmd (0x01)  // disarm sound
+    state.Command = "off"  
+    runIn(2, getStatus)      
+    }    
+    if (cmd == 2){
+    sendIrisCmd (0x05)  // arming sound
+    state.Command = "off"  
+    runIn(5, getStatus)      
+    }   
+    if (cmd == 2){
+    sendIrisCmd (0x06)  // alarming sound
+    state.Command = "off"  
+    runIn(5, getStatus)      
+    }   
+    if (cmd == 3){
+    sendIrisCmd (0x04)  // Panic sound
+    state.Command = "off"  
+    runIn(5, getStatus)      
+    }      
+    
   
+    
+}    
+
+
+// The keypad needs to be notified of its state.
+// Send the command
+def sendIrisCmd (cmdI){
+ 
+state.waiting = 0 
+def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmdI, 3) 
+cluster = 0x00C0
+attributeId = 0x020
+dataType = DataType.ENUM8
+
+sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, cmdI, [destEndpoint :0x02]))    
+
+    if (cmdI == 1){status= "OFF"}
+    if (cmdI == 2){status= "ON"}
+    if (cmdI == 3){status= "PARTIAL"}
+    if (cmdI == 4){status= "PANIC"}
+    if (cmdI == 5){status= "Arming"}
+    if (cmdI == 6){status= "Alarming"}
+    if (cmdI == 5){status= "Partial Arming"}
+    if (cmdI == 6){status= "Partial Alarming"}
+logging ("${device} : Sending KeyPad state command ${status} ","debug")
+}   
+
+/*
+
+from iris source code 
+constants alertme.KeyPad {
+  DEVICE_TYPE = 0x1C;
+
+  ATTR_STATE = 0x20;
+  ATTR_PIN = 0x21;
+  ATTR_ACTION_KEY_PRESS = 0x22;
+  ATTR_ACTION_KEY_RELEASE = 0x23;
+  ATTR_HUB_POLL_RATE = 0x24;
+  ATTR_SOUNDS_MASK = 0x25;
+  ATTR_SOUND_ID = 0x26;
+  ATTR_CUSTOM_SOUND = 0x27;
+  ATTR_UNSUCCESSFUL_STATE_CHANGE = 0x27;
+
+  KEYPAD_STATE_UNKNOWN = 0x00;
+  KEYPAD_STATE_HOME = 0x01;
+  KEYPAD_STATE_ARMED = 0x02;
+  KEYPAD_STATE_NIGHT = 0x03;
+  KEYPAD_STATE_PANIC = 0x04;
+  KEYPAD_STATE_ARMING = 0x05;
+  KEYPAD_STATE_ALARMING = 0x06;
+  KEYPAD_STATE_NIGHT_ARMING = 0x07;
+  KEYPAD_STATE_NIGHT_ALARMING = 0x08;
+
+  KEYPAD_STATE_LOCKED_MASK = 0x80;
+
   ACTION_KEY_POUND = 0x23; // '#'
   ACTION_KEY_HOME = 0x48; // 'H'
   ACTION_KEY_AWAY = 0x41; // 'A'
   ACTION_KEY_NIGHT = 0x4E; // 'N'
   ACTION_KEY_PANIC = 0x50; // 'P'
+
+  SOUND_CUSTOM = 0x00;
+  SOUND_KEYCLICK = 0x01;
+  SOUND_LOSTHUB = 0x02;
+  SOUND_ARMING = 0x03;
+  SOUND_ARMED = 0x04;
+  SOUND_HOME = 0x05;
+  SOUND_NIGHT = 0x06;
+  SOUND_ALARM = 0x07;
+  SOUND_PANIC = 0x08;
+  SOUND_BADPIN = 0x09;
+  SOUND_OPENDOOR = 0x0A;
+  SOUND_LOCKED = 0x0B;
+}
 */
 
-def sendCommandToKeypad (cmd){
-def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmd, 1) 
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 00 FA ${hexOUT} 00} {0xC216}"])
-    logging ("${device} : Sending CMD:${cmd} Cluster:0x00C0 {11 00 FA ${hexOUT} 00} ","warn")
 
+
+def on() {
+
+
+cluster = 0x00C0
+attributeId = 0x025
+dataType = DataType.ENUM16
+value = 0x05
+
+  
+sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
+
+//    sendZigbeeCommands(zigbee.readAttribute(0x00C0,cmdI))     
+    
+return
 }
-
-def sendCommandToKeypad2(input) {
-   // def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmd, 2) 
-
-	
-sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 2 0x0000 0x04 "])
-
-    
-logging ("${device} : Sending ","info") 
-}
-// zigbee.swapOctets(device.deviceNetworkId)
-
-
-// To be removed once the correct commands are found..
-def flash(cmd){
-    if (flashError == true){
-    pauseExecution(50)// delay to make it look like its waiting for hub.
-        
-    // flashes the lights. 
-    // This runs a cycle on the keybard making it unable to take anyinput till it finishes.
-       
-        if (state.Command =="off")  {cmd = "01"}
-        if (state.Command =="away") {cmd = "02"}
-        if (state.Command =="night"){cmd = "03"}
-        if (state.Panic  == true  ) {cmd = "04"}
-   
-  // This is clearly a responce to me sending the wrong format But offers some feedback since cmds are not working 
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 ${cmd}} {0xC216}"])
-    logging ("${device} : flash ~~ ~~~~ ~~~ ~~","trace")      
-    return    
-    }
-
-}
-
-// The keypad needs to be notified of its state.
-// This must not be formatted right because it doesnt take the command.
-// Anyone know whats missing please let me know
-def sendIrisCmd (cmdI){
-    def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmdI, 2) 
-    
-    if (cmdtest == true){    
-    sendZigbeeCommands(zigbee.readAttribute(0x00C0,cmdI))    
-        logging ("${device} : Sending KeyPad state command .${cmdI} #${hexOUT}","debug")
-        return
-    }
-//    logging ("${device} : Notifing KeyPad Disabled","trace") 
-}    
-
-def on(cmd) {
-
-// sendEvent(name: "switch", value: "on") 
-//state.switch = true
-/* Internal notes: Building Cluster map 
-* = likely done by HUB in Join.
-0000 Network (16-bit) Address Request *
-0004 Simple Descriptor Request *
-0005 Active Endpoint Request *
-0006 Match Descriptor Request (Light Flashes)
-0013 Device announce message (Light Flashes)
-00C0 Attribute Cluster 
-     Button report (button on repeator)
-     00 = Unknown (Lifeline report)
-     0A = Button
-00EE Power Control Cluster  Relay actuation (smartPlugs)
-     80 = PowerState
-00EF Power Monitor Cluster
-     81 = Power Reading
-     82 = Energy
-00F0 General Cluster  Battery & Temp
-     FB 
-00F2 Tamper Cluster
-     released 0
-     pressed  1
-     clear    2
-
-00F3 Button Cluster
-00F4 Key Fob Cluster
-     ALARM_IN_HOUSE = 0x00
-     ARM_HAPPY = 0x01
-     ARM_UNHAPPY = 0x02
-     DISARM_HAPPY = 0x03
-     DISARM_UNHAPPY = 0x04
-     FAILED_IN_HOME_CMD = 0x05
-     HAPPY_IN_HOME_CMD = 0x06
-
-00F6 Discovery Cluster
-     FD = Ranging
-     FE = Device version response.
-0500 Security Cluster (Tamper & Reed)
-8001 Routing Neighobor information
-8004 simple descriptor response
-8005 Active Endpoint Response (tells you what the device can do)
-8032 Received when new devices join
-8038 Management Network Update Request
-0B7D Upgrade Cluster (dont use)
-0B7E  "         " 
-HE Raw Zigbee Frame for AlertMe
-he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 01 01} {0xC216}
-
-*/        
-// sending 0x04 arm command 
-send = "00 00 00 10" //Big Endian
-send = "00 00 00 04" //Little Endian 
-if (!state.test){state.test =1}  
-if (state.test > 256 ){return}       
-send = "00 04 00 00" //reverse
-
-def hexStr = hubitat.helper.HexUtils.integerToHexString(state.test, 1) 
-    send = "${hexStr} 23" 
-    rev = send.reverse()
-    send = "{11 00 00 ${send}}"
-//def clust = hubitat.helper.HexUtils.integerToHexString(state.test, 2)  
-    send = "FB ${hexStr}"
-    send = "{11 00 20 04 00}" //   command 4 should work but it doesnt
-//    {11 00 02 20 03}  20 is command 03 is data
-   logging ("${device} :Probing >--- dec${state.test} ","info")   
-
-   cmdI =state.test
-    
-
-//sendIrisCmd (cmdI)    
-    
-    
- sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 00 25 00} ",
-                    "he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 00 00 03 00} "]
-                   )
-//he raw 0x2FAA 1 0x02 0x00C0 {10 00 00 25 00}
- //sendCommandToKeypad(2)  
-// sendZigbeeCommands(zigbee.readAttribute(0x00C0,0x25))      
-// sendZigbeeCommands(zigbee.readAttribute(0x00C0,0x01))  
-    
-    
-//  zigbeeWriteAttribute(2, 0x00C0, 0,0 , 2 ) 
-//    logging("zigbeeWriteAttribute()", 1)  
-    
-    
-    
-  // Send Zigbee Cmd :[he raw 0x2FAA 1 0x02 0x00F0 {10 00 00 C0 00}, delay 2000] 
-  //             Cmd :[he raw 0x2FAA 1 0x02 0x00C0 {10 00 00 03 00}, delay 2000]
-// sendCommandToKeypad2(2)   
-    
- //   sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00C0 {11 05 } {0xC216}"])
-       
-state.test = state.test + 1
-//    pauseExecution(2200)
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x${clust} {11 02 FA 04 00} {0xC216}"])
-    
-//runIn(8, "on")    
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x0006 {11 02 00 ${send}} "])
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00F6 {11 02 00 ${send}} "])
-
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
-    
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
-
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
-
-// sendZigbeeCommands(["he raw ${device.deviceNetworkId} 01 ${device.endpointId} 0x00C0 ${send} "])
-   
-    
-    // zigbee.command(0x00C0, 0x02,20)
-    
-/*
-
-Any help in trying to get the keypad to arm is welcome see docs and status here
-
-https://github.com/tmastersmart/hubitat-code
-*/
-}
-
 
 
 def off(cmd){
- logging ("${device} : OFF counter reset to 0","info")
- sendEvent(name: "switch", value: "off")   
-state.switch = false
- state.test =0
+  logging ("${device} : OFF siren/strobe","info")
+  sendEvent(name: "siren", value: "off")  
+  sendEvent(name: "strobe", value: "off") 
+  sendEvent(name: "alarm", value: "off") 
+  sendIrisCmd (0x01) // dsarm 
+  state.Command = "off"  
+  runIn(2, getStatus)  
+
+ 
 }
 
 def tamper(){
@@ -1064,7 +964,7 @@ def rangingMode() {
 	// Ranging mode double-flashes (good signal) or triple-flashes (poor signal) the ON button
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
 	sendEvent(name: "operation", value: "ranging")
-    lqi = device.currentValue(lqi)
+    lqi = device.currentValue("lqi")
     logging ("${device} : Mode: Ranging LQI:${lqi}","info")
 	// Ranging will be disabled after a maximum of 30 pulses.
 	state.rangingPulses = 0
@@ -1090,7 +990,6 @@ def quietMode() {
 
 void refresh() {
     logging ("${device} : Refresh. Sending Hello to Device","info")
-    getStatus(status)
 
     
 	def cmds = new ArrayList<String>()
@@ -1221,40 +1120,34 @@ Internal notes: Building Cluster map
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 
     } else if (map.clusterId == "00C0") {
-     // Iris Button report cluster 
+     // Iris KeyPad report cluster 
  
 //   if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
      
      if (map.command == "01") {
-         // Reply to our sending (undocumented) 
+         // Reply to our sending (undocumented) Wont be seen in normal use
          mode1 = receivedData[0]
          mode2 = receivedData[1]
-         logging ("${device} : KeyPad Received CMD:[${mode1} ${mode2}]","warn")
+         logging ("${device} : KeyPad Replied with  CMD:[${mode1} ${mode2}]","warn")
      }
      
-                               
+// KeyPad does not know its state So its asking                               
      if (map.command == "00" ) {
-         // I beleive this is theKeyPad asking for status reply. The care fobs do this same thing when asking for a reply.
-         
-         // Lifeline status report Its always [20, 00] waiting for it to change
-         // We monitor it for change and Log what caused it to change. 
-         // Still looking for proper command to change status. 
-//  iris source recomends 
-//  *  - We send a Stop Polling (0xFD) message after each Lifesign message received, to lengthen time between 
-//  *    Lifesign messages to 2 minutes.  ( what cluster to send this on?)      
-         
-         mode1 = receivedData[0]
-         mode2 = receivedData[1]
-         if (mode1 != "20"){logging ("${device} : Notify DEV!!!! : Badly needed data: NEW MODE raw data:${map.data}","warn")}
-         if (mode2 != "00"){logging ("${device} : Notify DEV!!!! : Badly needed data: NEW DATA raw data:${map.data}","warn")}
-         
-         testdata = "[${mode1},${mode2}]" 
-         if (testdata != "[20,00]"){state.testing ="---[${mode1},${mode2}]--->>>>[${state.test}]<<<<}"}
-         logging ("${device} : Test Data: STATE:${testdata}","debug") 
+         mode1 = receivedData[0]// mode 20 is normal
+         mode2 = receivedData[1]// state 0 is a unknown state
+         state.waiting ++
+             logging ("${device} : KeyPad waiting for final state...${state.waiting} of ${state.delay}","debug")
 
- //        if (hack){ on ()}
+         if (state.waiting > state.delay){ // Correct lost state but wait out the delay
+           getStatus(status) 
+           if (state.Command == "off")  {sendIrisCmd (0x01)}// OFF
+           if (state.Command == "home") {sendIrisCmd (0x02)}// ON 
+           if (state.Command == "away") {sendIrisCmd (0x02)}// ON 
+           if (state.Command == "night"){sendIrisCmd (0x03)}// Part
+         }  
      }  
-        
+       
+     // Should be returning status commands to us   
      if (map.command == "0A") {  
       PinEnclosed = receivedData[0]// The command being passed to us
       pinSize     = receivedData[3]// The PIN size     
@@ -1267,7 +1160,7 @@ Internal notes: Building Cluster map
          // Create text for logging
          logPIN  = "Valid PIN:${state.validPIN}"
          logPANIC= "Panic:${state.Panic}"
-         if (PinEnclosed  =="20" ){   status = "STATE" }
+         if (PinEnclosed  =="20" ){   status = "STATE" }  // this is where it tells its arming state
          if (PinEnclosed  =="21" ){   
              status = "PIN"
              logPIN="Pin:Processing"
@@ -1275,9 +1168,24 @@ Internal notes: Building Cluster map
          if (PinEnclosed  =="22" ){   status = "Pressed" }
          if (PinEnclosed  =="23" ){   status = "Released" }
          if (PinEnclosed  =="24" ){   status = "Poll Rate" }
-         if (PinEnclosed  =="25" ){   status = "sound mask" }
-         if (PinEnclosed  =="26" ){   status = "Sound ID" }
-         if (PinEnclosed  =="28" ){   status = "Error" } 
+         if (PinEnclosed  =="25" ){
+             status = "sound mask" 
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         return 
+         } // This should should show up when we request a sound
+         if (PinEnclosed  =="26" ){
+         status = "Sound ID"
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         return          
+         }  //  this should show up with a sound code 
+         if (PinEnclosed  =="28" ){ 
+             status = "Error"
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         return   
+         } // This indicates a error in mode change it should auto correct  
+         
+         // more code needed only pressed released and PIN should pass this point
+         
          keyRecA ="Received"
          if (keyRec == "48" ){keyRecA ="OFF"}
          if (keyRec == "41" ){keyRecA ="ON"}
@@ -1584,16 +1492,23 @@ Internal notes: Building Cluster map
 //      pinSize     = receivedData[3]// The PIN size + 4 = size   
     if (PinEnclosed == "21" ){ 
         if (pinSize != "01" ){// dont run this for button function
+        pinSize = receivedData[3]
+        size = receivedData.size() 
         state.validPIN = false
         state.PinName = "NA"
         state.PIN     = "NA"
         asciiPin = "NA"
         logging("${device} : Data Size:${size} pinSize${pinSize}" , "debug")
+	// there is a better way but receivedData wont take a varable? No docs	
         if (size == 8) {asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()}
         if (size == 9) {asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()}
         if (size == 10){asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()}
         if (size == 11){asciiPin = receivedData[4..10].collect{ (char)Integer.parseInt(it, 16) }.join()}
-//      sendEvent(name: "PIN", value: asciiPin)
+        if (size == 12){asciiPin = receivedData[4..11].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        if (size == 13){asciiPin = receivedData[4..12].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        if (size == 14){asciiPin = receivedData[4..13].collect{ (char)Integer.parseInt(it, 16) }.join()}
+        
+        logging("${device} : Pin Entered:${asciiPin} DataSize${size} pinSize${pinSize} ","trace")
  
       if (device.currentValue("code1") == asciiPin){
           name = device.currentValue("code1n")
@@ -1828,8 +1743,8 @@ FaultReport 0x01
 	} else if (receivedData[1] == "00") {
           // This is the ranging report received when the device reboots.
 	  // After rebooting a refresh is required to bring back remote control.
-            loging("${device} : --reboot-- ","warn")// We need to know its rebooted in case of crash.
-          refresh()
+       logging("${device} : >>>--reboot--<<< We crashed it. Or is this normal? ","error")// We need to know its rebooted in case of crash.
+       refresh()
 
 	} else {
           // Something to do with ranging we don't know about!
