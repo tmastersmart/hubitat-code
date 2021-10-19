@@ -12,7 +12,8 @@ Centrica Connected home Limited Wireless Smartplug SP11
                                                                             |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
-   10/16/2021 v2.7  Operating state logging changed.
+   10/19/2021 v2.8  Ranging bug fixes
+   10/15/2021 v2.7  Operating state logging changed.
    10/05/2021 v2.6  Icon added
  * 09/20/2021 v2.5  Merging in code from my KepPad driver. Better error handeling and logging
  * 09-14-2021 v2.4  Some log fixes and cleanup
@@ -53,7 +54,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="2.7"
+    TheVersion="2.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -161,7 +162,7 @@ state.remove("operation")
 	// Initialisation complete.
 	logging("${device} : Initialised", "info")
     
-    off()
+//off()
 }
 
 
@@ -263,7 +264,7 @@ def rangingMode() {
 
 	// Ranging mode double-flashes (good signal) or triple-flashes (poor signal) the indicator
 	// while reporting LQI values. It's also a handy means of identifying or pinging a device.
-
+   state.operatingMode = "normal"
 	// Don't set state.operatingMode here! Ranging is a temporary state only.
 
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
@@ -284,13 +285,13 @@ def lockedMode() {
 
 	// To complicate matters this mode cannot be disabled remotely, so far as I can tell.
 
-//	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 02 01} {0xC216}"])
-//	refresh()
-//	state.operatingMode = "locked"
-//	sendEvent(name: "operation", value: "locked")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 02 01} {0xC216}"])
+	refresh()
+	state.operatingMode = "locked"
+	sendEvent(name: "operation", value: "locked")
 
-//	logging("${device} : Mode : Locked", "info")
-//  Useless mode removed.
+	logging("${device} : Mode : Locked", "info")
+
 }
 
 
@@ -299,7 +300,7 @@ def quietMode() {
 	// Turns off all reporting except for a ranging message every 2 minutes.
 
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"])
-//	state.operatingMode = "quiet"
+	state.operatingMode = "quiet"
 	// We don't receive any of these in quiet mode, so reset them.
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
 	sendEvent(name: "operatingMode", value: "quiet")
@@ -683,8 +684,9 @@ else if (map.clusterId == "00EF") {
 		     // This is ranging mode, which must be temporary. Make sure we come out of it.
              // I had a problem with errors so commands moved here    
 			if (state.rangingPulses > 20) {
-			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
-            sendEvent(name: "operatingMode", value: "normal")
+              "${state.operatingMode}Mode"() 
+//			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
+//            sendEvent(name: "operatingMode", value: "normal")
 	        logging("${device} : Ranging ${state.rangingPulses} times is to Long Stopping", "warn")
             refresh()
             return
