@@ -15,7 +15,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
-  v3.9   10/28/2021 Bug in the entry delay chimes.
+  v3.9   10/18/2021 Bug in the entry delay chimes.
   v3.8   10/18/2021 Bug in Pin fixed.  Arming sounds added.  Alarm is working Enabled.
                     Chimes 1 2 3 4 added but not fully working. 
                     Added alarm arming delay
