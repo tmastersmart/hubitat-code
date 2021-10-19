@@ -15,6 +15,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.1   10/19/2021 Rewrite Entry code.
   v4.0   10/19/2021 Bugs in arming disarming and entry Fixed    
                     Alarm tones setup. Chimes now working using play command.
   v3.9   10/18/2021 Bug in the entry delay chimes.
@@ -173,7 +174,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.0"
+    TheVersion="4.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -498,8 +499,8 @@ def getCodes(){
         logging("${device} : lockCode Database ${codeStore}", "info")          
  }
 
-def setEntryDelay(code){logging("${device} : setEntryDelay ${code}  unsupported", "info")}
-def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported", "info")}
+def setEntryDelay(code){logging("${device} : setEntryDelay ${code}  unsupported Set in HSM", "info")}
+def setExitDelay(code){	logging("${device} : setExitDelay  ${code}  unsupported Set in HSM", "info")}
 def setCodeLength(code){logging("${device} : setCodeLength 7", "info")                   }
 
 // Arming commands
@@ -577,8 +578,9 @@ def armNight(cmd){
 def disarm(cmd) { 
     state.alertST = location.hsmAlert 
     logging ("${device} : Received CMD >> Disarm delay:${cmd}  hsmAlarm:${state.alertST} Our State:${state.Command} ", "info")
- //       if (state.Command != "off"){
+ //       if (state.Command != "off"){  (until I figure out why we were missing disarm no disarm skipped
             sendEvent(name: "securityKeypad", value: "disarmed")
+            sendEvent(name: "alarm", value: "off") 
             logging ("${device} : Switching to HSM disarmed","info")
             state.Command = "off"
             state.iriscmd = "Erased"
@@ -593,27 +595,55 @@ def disarm(cmd) {
 // hub sends when entry starts. 
 //hsmAlert = intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
 def setNA(){
-sendIrisCmd(0x08)
+sendIrisCmd(0x08) // flash Part
+sendEvent(name: "alarm", value: "on")
+logging ("${device} : Alarm on ","info")    
 }
 def setAA(){
-sendIrisCmd(0x06)
+sendIrisCmd(0x06) // flash ON
+sendEvent(name: "alarm", value: "on")
+logging ("${device} : Alarm on ","info")      
+}
+
+def softOFF(){
+  logging ("${device} : Alarm OFF ","info")  
+  sendEvent(name: "alarm", value: "off") 
+  getStatus()
 }
 
 def entry(cmd){ 
-    state.alertST = location.hsmAlert
-    if (cmd < 1){cmd = 30}
-    logging ("${device} : Received >> Entry delay:${cmd}  ${state.alertST}","warn")
+    state.alertST = location.hsmAlert // we always get null
+    state.Command == "entry" 
+// delay holds back the keypad from resetting its state
+// here it will control how many times it Polls.     
+// 10 sec delay in = 10 poll delay (1 poll 2to4 sec)
+
+    if (cmd){ // a delay has been included
+    if (cmd < 3){instantEntry()} // to short a delay trashes our tones   
+    state.delay = cmd 
+    logging ("${device} : Received >> Entry delay:${cmd}  ","warn")
     
     if (state.Command == "night"){
     sendIrisCmd (0x07) // night armming sound  
     runIn(cmd+1,setNA) // night Alarming sound after delay
-    state.Command == "entry"
     }else{
     sendIrisCmd (0x05) // armming sound  
     runIn(cmd+1,setAA)// Alarming sound after delay
-    state.Command == "entry"    
-    }    
-}
+      } 
+    runIn(120,softOFF) // turn off the flags and check state. in 120 seconds   
+    }// end delay     
+
+    else { instantEntry()}
+}    
+        
+def instantEntry(){    
+    logging ("${device} : Received >> Entry Alarm INSTANT  ","warn")    
+    if (state.Command == "night"){setNA()}
+    else {setAA()}
+    // how long the alarm lasts. 10Polls ~ 40sec app
+    state.delay = 10// Alarm flag doesnt go off after timeout  
+    runIn(60,softOFF) // turn off the flags and check state. in 60 seconds
+ }
 
 // My arming commands 
 private MyarmAway() {
@@ -661,6 +691,7 @@ private MyDisarm() {
     logging ("${device} : Sent Disarmed by [${state.PinName}]", "info")
     panicOff()
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
+    sendEvent(name: "alarm", value: "off") 
     state.Command = "off"
     sendIrisCmd (0x01) // OFF
 //    pauseExecution(6000)// Wait for hub to finish or we will loop.
@@ -979,6 +1010,8 @@ return
 }
 
 
+
+
 def off(cmd){
   logging ("${device} : OFF siren/strobe","info")
   sendEvent(name: "siren", value: "off")  
@@ -1184,7 +1217,7 @@ Internal notes: Building Cluster map
          // Reply to our sending commands in raw (undocumented) Wont be seen in normal use
          mode1 = receivedData[0]
          mode2 = receivedData[1]
-         logging ("${device} : KeyPad Replied with  CMD:[${mode1} ${mode2}]","warn")
+         logging ("${device} : Error KeyPad Replied with CMD:[${mode1} ${mode2}] ","warn")
      }
      
 // KeyPad does not know its state So its asking                               
@@ -1192,7 +1225,7 @@ Internal notes: Building Cluster map
          mode1 = receivedData[0]// mode 20 is normal
          mode2 = receivedData[1]// state 0 is a unknown state
          state.waiting ++
-             logging ("${device} : KeyPad waiting for final state...${state.waiting} of ${state.delay}","debug")
+             logging ("${device} : KeyPad waiting for final state...${state.waiting} of ${state.delay} - ${mode2}","debug")
 
          if (state.waiting > state.delay){ // Correct lost state but wait out the delay
            getStatus(status) 
