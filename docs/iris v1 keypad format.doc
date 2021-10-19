@@ -21,8 +21,11 @@ Iris v1 alertme KeyPad format.
  * If a PIN has been typed in, but no action key pressed within 2 seconds of the last digit, then a single ATTRID_PIN
  * will be sent to the hub.
 
+The keypad polls for its arming state with
 
-
+Cluster:00C0  CMD00 Map:[20,00]
+once you send the state it will stop.
+It also does this when you send it a pending arming command
 ===========================================================
 Typing the pin "1111" sends 
      
@@ -61,11 +64,19 @@ Pressing button 1 on the keypad sends
  PANIC sends   P=PANIC
  * # send      * and #  
  ==============================================================
- Other known commands in the format. These may be send format 
+ undocumented.
+ Cluster:00C0 CMD:01 MAP:[01, ---
+ Replies with what you sent it. I think this is a error return
+ As sending in the correct format ever generates anything.
+ 
+ 
+ 
+ Other known commands in the format. These aree send format 28 is a error
  24 = "Poll Rate"
  25 = "sound mask"
  26 = "Sound ID"
  28 = "UNSUCCESSFUL STATECHANGE"
+ 
  
  
 Keyboard has to be told mode this is done by the following format
