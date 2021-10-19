@@ -15,6 +15,8 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.0   10/19/2021 Bugs in arming disarming and entry Fixed    
+                    Alarm tones setup. Chimes now working using play command.
   v3.9   10/18/2021 Bug in the entry delay chimes.
   v3.8   10/18/2021 Bug in Pin fixed.  Arming sounds added.  Alarm is working Enabled.
                     Chimes 1 2 3 4 added but not fully working. 
@@ -79,6 +81,18 @@ This must be disarmed on the keyboard thats in Panic.
 
 Lock Code Manager
 Manager can add delete and verify.
+
+Play chimes select 1 to 10
+1 KEYCLICK
+2 LOSTHUB
+3 ARMING
+4 ARMED
+5 HOME
+6 NIGHT
+7 ALARM
+8 PANIC
+9 BADPIN
+10 Plays OFF sound then resets state (2 tone)
 
 Please Note:
 Lock Code Manager has bugs with no error checking it will dupe and corrup PINS 
@@ -159,7 +173,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.9"
+    TheVersion="4.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -198,6 +212,7 @@ command "quietMode"
 
 attribute "batteryState", "string"
 attribute "lastCodeName", "string"
+attribute "lastCodePIN", "string"        
 attribute "batteryVoltage", "string"	
 attribute "panic", "string"
 attribute "code1", "string"
@@ -233,8 +248,8 @@ preferences {
     input name: "PoundSet",type: "enum", title: "# Button", description: "Customize Pound Button",  options: ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home",required: true 
     input name: "StarSet" ,type: "enum", title: "* Button", description: "Customize Star Button",  options:  ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Disabled",required: true 
 
-    input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline" 
-
+    input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline",required: true  
+    input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone", options: ["KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN"], defaultValue: "ALARM",required: true  
 
     input("secure",  "text", title: "7 digit password", description: "A Master 7 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
 
@@ -253,8 +268,8 @@ updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
 
 state.message = "Please remember to enable [${device}] in HSM"
-state.waiting = 0 // Out of state tinmer
-state.delay =5 // hub will set this     
+state.waiting = 0 // Out of state timer
+state.delay = 10  // hub will set this     
 state.batteryOkay = true
 state.operatingMode = "normal"
 state.presenceUpdated = 0
@@ -275,6 +290,8 @@ sendEvent(name: "codeLength", value:7)
 sendEvent(name: "securityKeypad", value: "Fetching")
 sendEvent(name: "tamper", value: "clear")
 sendEvent(name: "switch", value: "off")
+sendEvent(name: "lastCodeName", value: "none", descriptionText: "Initialised")
+sendEvent(name: "lastCodePIN",  value: "0000", descriptionText: "Initialised")    
     
 state.remove("switch")	
 state.remove("uptime")
@@ -296,8 +313,7 @@ operation
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
 
-// Force driver to update in case pad already knows its state it wont poll    
-runIn(20, getStatus)
+playSound(1)
    
 logging("${device} : Initialised", "info")
   
@@ -557,9 +573,11 @@ def armNight(cmd){
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
+// dont ignore any OFF commands 
 def disarm(cmd) { 
-    logging ("${device} : Received CMD >> Disarm delay:${cmd}  Our State:${state.Command} ", "info")
-        if (state.Command != "off"){
+    state.alertST = location.hsmAlert 
+    logging ("${device} : Received CMD >> Disarm delay:${cmd}  hsmAlarm:${state.alertST} Our State:${state.Command} ", "info")
+ //       if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
             logging ("${device} : Switching to HSM disarmed","info")
             state.Command = "off"
@@ -567,9 +585,9 @@ def disarm(cmd) {
             sendIrisCmd (0x01)
             panicOff() // This should disarm panic from other keypads
             
-            return
-        }
-    logging ("${device} : Ignored HSM CMD Already in that state","info")
+ //           return
+      //  }
+//logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 
 // hub sends when entry starts. 
@@ -583,15 +601,17 @@ sendIrisCmd(0x06)
 
 def entry(cmd){ 
     state.alertST = location.hsmAlert
+    if (cmd < 1){cmd = 30}
     logging ("${device} : Received >> Entry delay:${cmd}  ${state.alertST}","warn")
     
     if (state.Command == "night"){
     sendIrisCmd (0x07) // night armming sound  
     runIn(cmd+1,setNA) // night Alarming sound after delay
-
+    state.Command == "entry"
     }else{
     sendIrisCmd (0x05) // armming sound  
     runIn(cmd+1,setAA)// Alarming sound after delay
+    state.Command == "entry"    
     }    
 }
 
@@ -773,20 +793,30 @@ state.PinName = "none"
 state.PIN = "NA"    
 }
 
+
 def siren(cmd){
-  logging ("${device} : Siren ON", "info")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
-  sendIrisCmd (0x04)
+  if (AlarmTone == "KEYCLICK"){soundCode(1)}
+  if (AlarmTone == "LOSTHUB") {soundCode(2)}
+  if (AlarmTone == "ARMING")  {soundCode(3)}
+  if (AlarmTone == "ARMED")   {soundCode(4)}
+  if (AlarmTone == "HOME")    {soundCode(5)}
+  if (AlarmTone == "NIGHT")   {soundCode(6)}
+  if (AlarmTone == "ALARM")   {soundCode(7)}
+  if (AlarmTone == "PANIC")   {soundCode(8)}
+  if (AlarmTone == "BADPIN")  {soundCode(9)}
+  logging ("${device} : Siren ${AlarmTone} ON", "warn")  
 }
 def strobe(cmd){
-  logging ("${device} : Strobe ON","info")  
-  sendEvent(name: "strobe", value: "on", displayed: true)  
-// This does nothing but set flag    
+  logging ("${device} : Panic Strobe ON","info")  
+  sendEvent(name: "strobe", value: "on", displayed: true) 
+  sendEvent(name: "alarm", value: "on")  
+  sendIrisCmd (0x04)  // panic sound 
 }
 def both(cmd){
-  logging ("${device} : both ON siren/strobe","info")
-  sendEvent(name: "siren", value: "on")  
+  logging ("${device} : Panic Strobe ON Siren OFF (cant do both at the same time)","info")
+  sendEvent(name: "siren", value: "off")  
   sendEvent(name: "strobe", value: "on") 
   sendEvent(name: "alarm", value: "on") 
   sendIrisCmd (0x04)  // panic sound
@@ -794,31 +824,48 @@ def both(cmd){
 }
 def playSound(cmd){
 
-// this plays the sounds then switches the pad backinto its proper state.    
     
-    if (cmd == 1){
+    if (cmd == 10){// Using to reset in case of problems.
     sendIrisCmd (0x01)  // disarm sound
     state.Command = "off"  
-    runIn(2, getStatus)      
-    }    
+    runIn(2, getStatus) 
+    return    
+    } 
+    
+    
+    if (cmd == 1){
+        soundCode(cmd)
+
+        runIn(5, soundCode)}//
     if (cmd == 2){
-    sendIrisCmd (0x05)  // arming sound
-    state.Command = "off"  
-    runIn(5, getStatus)      
-    }   
-    if (cmd == 2){
-    sendIrisCmd (0x06)  // alarming sound
-    state.Command = "off"  
-    runIn(5, getStatus)      
-    }   
+        soundCode(cmd)
+
+        runInMillis(1000, soundCodeOff)}// Bad pin
     if (cmd == 3){
-    sendIrisCmd (0x04)  // Panic sound
-    state.Command = "off"  
-    runIn(5, getStatus)      
-    }      
-    
-  
-    
+        soundCode(cmd)
+
+        runIn(5, soundCodeOff)}// Slow beep 
+    if (cmd == 4){
+        soundCode(cmd)
+
+        runIn(8, soundCodeOff)}// fast beep 
+    if (cmd == 5){
+        soundCode(cmd)
+        runIn(1, soundCodeOff)
+//        runInMillis(9000, soundCodeOff)
+    }// 2 tone repeating
+    if (cmd == 6){
+        soundCode(cmd)
+        runIn(1, soundCodeOff)
+        runInMillis(9000, soundCodeOff)
+    }// long tome repeating
+    if (cmd == 7){ soundCode(cmd)}// short long Alarm
+    if (cmd == 8){ soundCode(cmd)}// faster lower Alarm
+    if (cmd == 9){ 
+        soundCode(cmd)
+        runIn(1, soundCodeOff)
+
+    }// Hi Lo Buzz Bad PIN
 }    
 
 
@@ -827,22 +874,22 @@ def playSound(cmd){
 def sendIrisCmd (cmdI){
  
 state.waiting = 0 
-def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmdI, 3) 
+//def hexOUT = hubitat.helper.HexUtils.integerToHexString(cmdI, 3) 
 cluster = 0x00C0
 attributeId = 0x020
 dataType = DataType.ENUM8
 
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, cmdI, [destEndpoint :0x02]))    
 
-    if (cmdI == 1){status= "OFF"}
-    if (cmdI == 2){status= "ON"}
-    if (cmdI == 3){status= "PARTIAL"}
-    if (cmdI == 4){status= "PANIC"}
-    if (cmdI == 5){status= "Arming"}
-    if (cmdI == 6){status= "Alarming"}
-    if (cmdI == 5){status= "Partial Arming"}
-    if (cmdI == 6){status= "Partial Alarming"}
-logging ("${device} : Sending KeyPad state command ${status} ","debug")
+    if (cmdI == 0x01){status= "OFF"}
+    if (cmdI == 0x02){status= "ON"}
+    if (cmdI == 0x03){status= "PARTIAL"}
+    if (cmdI == 0x04){status= "PANIC"}
+    if (cmdI == 0x05){status= "Arming"}
+    if (cmdI == 0x06){status= "Alarming"}
+    if (cmdI == 0x07){status= "Partial Arming"}
+    if (cmdI == 0x08){status= "Partial Alarming"}
+    logging ("${device} : Sending KeyPad command [${status}]","info")
 }   
 
 /*
@@ -873,12 +920,6 @@ constants alertme.KeyPad {
 
   KEYPAD_STATE_LOCKED_MASK = 0x80;
 
-  ACTION_KEY_POUND = 0x23; // '#'
-  ACTION_KEY_HOME = 0x48; // 'H'
-  ACTION_KEY_AWAY = 0x41; // 'A'
-  ACTION_KEY_NIGHT = 0x4E; // 'N'
-  ACTION_KEY_PANIC = 0x50; // 'P'
-
   SOUND_CUSTOM = 0x00;
   SOUND_KEYCLICK = 0x01;
   SOUND_LOSTHUB = 0x02;
@@ -889,24 +930,49 @@ constants alertme.KeyPad {
   SOUND_ALARM = 0x07;
   SOUND_PANIC = 0x08;
   SOUND_BADPIN = 0x09;
-  SOUND_OPENDOOR = 0x0A;
-  SOUND_LOCKED = 0x0B;
+  SOUND_OPENDOOR = 0x0A; doesnt work same as alarm
+  SOUND_LOCKED = 0x0B; same as losthub
 }
 */
+def stop(){
+    soundCode(0x00)
+    off()
+}
+def soundCodeOff(cmd){soundCode(0x00)}
+def soundCode(cmd){
+value = 0x00
+    if (cmd == 1){value = 0x01}
+    if (cmd == 2){value = 0x02}
+    if (cmd == 3){value = 0x03}
+    if (cmd == 4){value = 0x04}
+    if (cmd == 5){value = 0x05}
+    if (cmd == 6){value = 0x06}
+    if (cmd == 7){value = 0x07}
+    if (cmd == 8){value = 0x08}
+    if (cmd == 9){value = 0x09}
+cluster = 0x00C0
+attributeId = 0x26
+dataType = DataType.ENUM8
+ 
+sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
+    logging ("${device} : Playing Sound code ${value} ","info")
+}
 
 
+// 26 - 07 alarm low.
 
 def on() {
 
 
 cluster = 0x00C0
-attributeId = 0x025
-dataType = DataType.ENUM16
-value = 0x05
+attributeId = 0x26
+dataType = DataType.ENUM8
+value = 0x0B
 
   
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
 
+    
 //    sendZigbeeCommands(zigbee.readAttribute(0x00C0,cmdI))     
     
 return
@@ -1055,13 +1121,7 @@ def checkPresence() {
 
 
 def parse(String description) {
-	// Primary parse routine.
-	// catchall: C216 00C0 02 02 0040 00 1E00 00 00 0000 00 01 2000 <--- spams this 
-//logging ("${device} : Parsing - - -","debug")
-    // We check stat first and debounce ARM buttons if it took.
-    // Keyboard spams cmd about 6 times. So we autodebounce and resend.
     clientVersion()
-//  getStatus(status) // moved to refreash for now
     updatePresence()
 	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
 	if (descriptionMap) {
@@ -1078,7 +1138,6 @@ def processMap(Map map) {
 	logging ("${device} : ${map}","trace")
 	String[] receivedData = map.data	
     logging("${device} : Cluster:${map.clusterId} CMD:${map.command} MAP:${map.data}","trace")
-//    logging("${device} : Cluster:${map.clusterId} ${map.command} ","debug")
 /*
 Internal notes: Building Cluster map 
 * = likely done by HUB in Join.
@@ -1113,8 +1172,6 @@ Internal notes: Building Cluster map
     if (map.clusterId == "0013"){
 	logging("${device} : Device announce message (new device?)","warn")   
 	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device?","debug")
-//0013, command:00 [82, 00, 1E, 28, 7E, 6C, 03, 00, 6F, 0D, 00, 80]	<-- Earler
-//0013, command:00 [81, AA, 2F, 6D, 07, 9C, 02, 00, 6F, 0D, 00, 80] <-- this is what we get
 
     } else if (map.clusterId == "0006") {
 		logging("${device} : Sending Match Descriptor Response","debug")
@@ -1122,11 +1179,9 @@ Internal notes: Building Cluster map
 
     } else if (map.clusterId == "00C0") {
      // Iris KeyPad report cluster 
- 
-//   if (map.command != "00"){logging ("${device} : key Cluster CMD:${map.command} MAP:${map.data}","trace") }
-     
+    
      if (map.command == "01") {
-         // Reply to our sending (undocumented) Wont be seen in normal use
+         // Reply to our sending commands in raw (undocumented) Wont be seen in normal use
          mode1 = receivedData[0]
          mode2 = receivedData[1]
          logging ("${device} : KeyPad Replied with  CMD:[${mode1} ${mode2}]","warn")
@@ -1168,20 +1223,24 @@ Internal notes: Building Cluster map
          }
          if (PinEnclosed  =="22" ){   status = "Pressed" }
          if (PinEnclosed  =="23" ){   status = "Released" }
-         if (PinEnclosed  =="24" ){   status = "Poll Rate" }
+         if (PinEnclosed  =="24" ){   
+             status = "Poll Rate" 
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} MAP:${map.data}","info")
+              return 
+         } // I dont want to change anything about polling
          if (PinEnclosed  =="25" ){
              status = "sound mask" 
-         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} MAP:${map.data}","info")
          return 
-         } // This should should show up when we request a sound
+         } ///  I think this is only for sending
          if (PinEnclosed  =="26" ){
          status = "Sound ID"
-         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} MAP:${map.data}","info")
          return          
-         }  //  this should show up with a sound code 
+         }  //  I think this is only for sending
          if (PinEnclosed  =="28" ){ 
              status = "Error"
-         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","warn")
+         logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} MAP:${map.data}","error")
          return   
          } // This indicates a error in mode change it should auto correct  
          
@@ -1193,14 +1252,19 @@ Internal notes: Building Cluster map
          if (keyRec == "4E" ){keyRecA ="PARTIAL"}          
          if (keyRec == "50" ){
              keyRecA ="PANIC"
-             logPANIC= "-*-PANIC VALID -*-"
+             logPANIC= "-*-PANIC-*-"
          }            
          if (keyRec == "2A" ){keyRecA ="STAR"}
          if (keyRec == "23" ){keyRecA ="POUND"}
          
        
       logging ("${device} : Action :[${status} ${keyRecA}] Key:${keyRecAsc} ${logPANIC} ${logPIN} State:${state.Command}","info")
-       if (size == 10){ // IRIS MODE commands show up here
+
+// IRIS MODE commands show up here
+// The command has a second command in qwery if you press 2 buttons one after another.
+// We dont need any of this it likely triggered a mode switch but we use the buttons
+// It comes in as a 10 digit PIN which prevents us using 10 digit PINS      
+       if (size == 10){ 
        hexcmd = receivedData[4..9]  
        rawCMD = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()
        irsCMD = keyRecAsc
@@ -1212,13 +1276,11 @@ Internal notes: Building Cluster map
           if (irsCMD == "P") {irsCMD1= "PANIC"}
           if (irsCMD == "#") {irsCMD1= "POUND"}
           if (irsCMD == "*") {irsCMD1= "STAR"}
-
-          
-          if ( irsCMD == nextirsCMD){logging("${device} : IRIS   :[${irsCMD1}] Valid PIN ${state.validPIN}", "debug")} // moved to debugging.
-          else{ logging("${device} : IRIS   :[${irsCMD1}] Next command in qwery [${nextirsCMD}].   Valid PIN ${state.validPIN}", "info")}
-          logging("${device} : #${keyRec} Action:${status} Iris cmd:${rawCMD} :${hexcmd}", "trace")
+          if ( irsCMD == nextirsCMD){logging("${device} : Action :[${status} IRIS:[${irsCMD1}]", "debug")} 
+          else{ logging("${device} : Action :[${status} IRIS:[${irsCMD1}] Next command in qwery [${nextirsCMD}]", "debug")}
+//          logging("${device} : Action:${status} Iris cmd:${rawCMD} :${hexcmd}", "trace")
           state.iriscmd = irsCMD1 // store for later use
-	      
+     // We let this flow down as it also contains the correct code for another keypress
 	 }    
 
 // Now check for our command buttons 
@@ -1236,9 +1298,7 @@ Internal notes: Building Cluster map
              return
          }    
 		 panic()
-         
          logging("${device} : Button *** PANIC ***","info") 
-         
          return
    	  }    
          
@@ -1338,12 +1398,12 @@ Internal notes: Building Cluster map
                   cancelAlert()
                   return  
                  }    
-                  if (state.alertST != "none"){// the PIN is valid we are disarmed and something is alarming
-                  logging("${device} : Button OFF (Clearing ${state.alertST}) Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic} ","info")
-                  panicOff()
-                  cancelAlert()
-                  return  
-                 }    
+//                  if (state.alertST != "none"){// the PIN is valid we are disarmed and something is alarming
+//                  logging("${device} : Button OFF (Clearing ${state.alertST}) Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic} ","info")
+//                  panicOff()
+//                  cancelAlert()
+//                  return  
+//                 }    
              logging("${device} : Button OFF (already disarmed Skipping) Alarm:${state.alertST} Valid PIN:${state.validPIN} State:${state.Command} Panic:${state.Panic}","debug")
              return
              }//End if already disarmed
@@ -1500,7 +1560,7 @@ Internal notes: Building Cluster map
         state.PIN     = "NA"
         asciiPin = "NA"
         logging("${device} : Data Size:${size} pinSize${pinSize}" , "debug")
-	// there is a better way but receivedData wont take a varable? No docs	
+	// there is a better way but receivedData wont take a varable? How	
         if (size == 8) {asciiPin = receivedData[4..7].collect{ (char)Integer.parseInt(it, 16) }.join()}
         if (size == 9) {asciiPin = receivedData[4..8].collect{ (char)Integer.parseInt(it, 16) }.join()}
         if (size == 10){asciiPin = receivedData[4..9].collect{ (char)Integer.parseInt(it, 16) }.join()}
