@@ -15,6 +15,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v3.9   10/28/2021 Bug in the entry delay chimes.
   v3.8   10/18/2021 Bug in Pin fixed.  Arming sounds added.  Alarm is working Enabled.
                     Chimes 1 2 3 4 added but not fully working. 
                     Added alarm arming delay
@@ -158,7 +159,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="3.8"
+    TheVersion="3.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -294,7 +295,9 @@ operation
 // Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
-// Initialisation complete.
+
+// Force driver to update in case pad already knows its state it wont poll    
+runIn(20, getStatus)
    
 logging("${device} : Initialised", "info")
   
@@ -584,13 +587,11 @@ def entry(cmd){
     
     if (state.Command == "night"){
     sendIrisCmd (0x07) // night armming sound  
-    runIn(cmd,sendIrisCmd(0x08)) // night Alarming sound after delay
-    runIn(cmd+1,setNA) 
+    runIn(cmd+1,setNA) // night Alarming sound after delay
 
     }else{
     sendIrisCmd (0x05) // armming sound  
-    runIn(cmd,sendIrisCmd(0x06)) // Alarming sound after delay
-    runIn(cmd+1,setAA)
+    runIn(cmd+1,setAA)// Alarming sound after delay
     }    
 }
 
