@@ -15,6 +15,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.3   10/21/2021 Arming and Entry have priority over chime. Timeout timmer for chime
   v4.2   10/20/2021 Code cleanup UI text changes Longer PIN'S added. 
                     More Undocumented chimes found. Door chime is sound 10. Bad PIN sound added.
                     Entry Alarm fixed. Uncluttering the logs.
@@ -67,6 +68,13 @@ Arming
 Can be set to require PIN or not
 ActionButtons can be remaped.
 
+Alarm
+Siren = plays tone set
+strobe= strobes panic
+both  = plays tone set
+Note: Key pad has its own HSM alarm mode.
+sending alarm while in HSM alarming will change the tones.
+
 
 Button Support
 If a key is pressed once it acts like a button not a PIN
@@ -102,15 +110,16 @@ Play chimes select 1 to 13
 12 CPU
 13 Real Bad PIN
 
+Chimes repeat to stop them I have added a countdown timmer. 
+Beware sometimes the keypad is slow and you may not get the same tone legenth every time..
+
+
+
 Please Note:
 Lock Code Manager has bugs with no error checking it will dupe and corrup PINS 
 I have also caught it adding line feeds to pins on my locks corrupting them.
 When it sees its duped pin it will crash or create a new user sometimes causing it to crash.
-Basicaly anything it sees thats odd will crash it.
-
-I now dupe check what the lock manger sends so no more dupes. But if you have problems with the lock
-manager crashing I suggest you manualy delete all codes and then run it again..
-
+If you have any problems erase all your codes.Do not reinstall lock manager
 
 
 As a safety enter a master PIN that the lock manager cant touch.
@@ -125,15 +134,6 @@ Built by Everspring Industry Co Ltd Smart Keypad TSA04
 
 I wrote this for my keyboards you are welcome to use it.
 ================================================================================================
-To Reset for paring:
-Remove batteries (if already powered up.)
-
-Insert two batteries side-by-side at one end or the other
-
-then press "ON" button device 5 times within the first 10 seconds.
-
-the On button will begin to blink twice periodically.
-
 Tested on Firmware 2013-06-28 and 2012-12-11 Only known versions
 
 https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
@@ -142,18 +142,11 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.
 Post your comments here. 
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
-
-
 * To Reset Device:
  *    Insert battery and then press "ON" button device 5 times within the first 10 seconds.
  * 
- * Keypad is device type 28 (0x1C)
- * Most messages are sent and received on the Attribute Cluster (0x00C0).
- * The standard device messages (Hello and Lifesign) are sent on the Join and General Clusters, as usual.
- * The lifesign will be sent every 2 minutes, in common with other AlertMe sleepy end devices.
- * 
  * The keypad is responsible for;
- *   1. Driving its LEDs according to its state (see ATTRID_KEYPADSTATE attribute below),
+ *   1. Driving its LEDs according to its state
  *   2. Accumulating a PIN
  *   3. Sending an action key and/or PIN when appropriate
  *   4. Making sound sequences on demand
@@ -170,7 +163,7 @@ http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 
 
- * based on alertme UK code from  
+ * ranging code based on alertme UK code from  
    https://github.com/birdslikewires/hubitat
 
 GNU General Public License v3.0
@@ -181,7 +174,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.2"
+    TheVersion="4.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -260,6 +253,7 @@ preferences {
 
     input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline",required: true  
     input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone", options: ["KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "ALARM",required: true  
+    input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
 
@@ -544,8 +538,9 @@ def armAway(cmd){
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Switching to HSM ArmAWAY","info")
-            state.Command = "away"
+            state.Command = "delay"
             sendIrisCmd (0x05) // arming
+            state.Command = "away"
             runIn(cmd,SendState)
             return
         }
@@ -557,8 +552,9 @@ def armHome(cmd){
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Switching to HSM ArmHOME","info")
-            state.Command = "home"
+            state.Command = "delay"
             sendIrisCmd (0x05) // arming
+            state.Command = "home"
             runIn(cmd,SendState)
             return
         }
@@ -570,8 +566,9 @@ def armNight(cmd){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Switching to HSM ArmNIGHT","info")
-            state.Command = "night"
+            state.Command = "delay"
             sendIrisCmd (0x07) // arming night
+            state.Command = "night"
             runIn(cmd,SendState)
             return
         }
@@ -646,8 +643,14 @@ def entry(cmd){
         
 def instantEntry(){    
     logging ("${device} : Received >> Entry Alarm INSTANT  ","warn")    
-    if (state.Command == "night"){setNA()}
-    else {setAA()}
+    if (state.Command == "night"){
+        state.Command = "Entry"
+        setNA()
+    }
+    else {
+       state.Command = "Entry"
+        setAA()
+    }
     // how long the alarm lasts. 10Polls ~ 40sec app
     state.delay = 10
     runIn(60,softOFF) 
@@ -727,7 +730,7 @@ def getStatus(status) {
 //        }
 //    }
     
-   logging ("${device} : Polling HSMStatus:${status} HSMAlert:${state.alertST} Our state:${state.Command}","debug")  
+   logging ("${device} : Polling HSMStatus:${status} Our state:${state.Command}","debug")  
     if (status == "armedAway"){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
@@ -834,17 +837,12 @@ def siren(cmd){
 def strobe(cmd){
   logging ("${device} : Panic Strobe ON","info")  
   sendEvent(name: "strobe", value: "on", displayed: true) 
-  sendEvent(name: "alarm", value: "on")  
-  sendIrisCmd (0x04)  // panic sound 
+  sendEvent(name: "alarm", value: "on")
+  state.Command = "panic"  
+  SendState()  
 }
-def both(cmd){
-  logging ("${device} : Panic Strobe ON Siren OFF (cant do both at the same time)","info")
-  sendEvent(name: "siren", value: "off")  
-  sendEvent(name: "strobe", value: "on") 
-  sendEvent(name: "alarm", value: "on") 
-  sendIrisCmd (0x04)  // panic sound
- 
-}
+def both(cmd){siren(cmd)}
+
 def off(cmd){
   logging ("${device} : OFF siren/strobe","info")
   sendEvent(name: "siren", value: "off")  
@@ -863,6 +861,13 @@ def off(cmd){
 //status - ENUM ["playing", "stopped"]
 
 def playSound(cmd){
+    
+    if (state.Command == "Entry" | state.Command == "delay"){
+        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","info")
+        sendEvent(name: "status", value: "Inuse")
+        return
+        }         
+                 
   sound = "none" 
   if (cmd ==1){ sound = "KEYCLICK"}
   if (cmd ==2){ sound = "LOSTHUB"}
@@ -878,6 +883,7 @@ def playSound(cmd){
   if (cmd ==12){ sound = "CPU"}
   if (cmd ==13){ sound = "Error Tone"}  
 
+    
   sendEvent(name: "soundName", value: sound)   
   sendEvent(name: "status", value: "playing")  
     
@@ -889,8 +895,15 @@ def playSound(cmd){
          device.deleteCurrentState("soundName") 
          return    
     }
+ 
 soundCode(cmd)
-pauseExecution(10000)    
+    
+    if (chimeTime > 10){ 
+        logging ("${device} : Chime Delay ${chimeTime}","info")    
+    pauseExecution(chimeTime)
+    soundCode(0)
+    }    
+   
 sendEvent(name: "status", value: "stopped") 
 device.deleteCurrentState("soundName")     
 }    
