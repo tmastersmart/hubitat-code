@@ -2,14 +2,14 @@
 Hubitat Driver
 =============================
 
-Corrects mising options in built in driver. Which converts it into a keyfob
+Corrects mising options in built in driver. Which conv
 
 
  
 
  This driver simulates the IRIS pay Care Tier which the Senior Care Pendant was for.
 
-Add 2 devices to your dashboard for the pendant a FOB and a ALARM
+Add 2 devices to your dashboard for the pendant a FOB and a Switch
 
 Pressing the HELP button turns on the alarm, The pendant is then notified help is coming and flashes red.
 You need to have rules to notify you of the alarm.
@@ -17,13 +17,14 @@ You then turn off the alarm from the dashboard and the pendant is notified help 
 After a set delay it then clears for next use.
 
 =============================================================================================================
+v1.2 10/23/2021 Switch addded to be compatable with Dashboard
 v1.2 10/22/2021 typos
 v1.1 10/22/2021 First release
 
 reset:
 HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
 
-Tested on firmware:2012-09-20
+Tested on 2012-09-20
 
 
 "Iris Care monitored "aging adults," and let owners receive notifications when a loved one fell or 
@@ -68,8 +69,8 @@ metadata {
 		capability "SignalStrength"
 //		capability "HoldableButton"
 		capability "PushableButton"
-//		capability "ReleasableButton"
         capability "Tone" 
+		capability "Switch" 
         capability "Alarm"
         
 		command "normalMode"
@@ -310,7 +311,8 @@ def off(){
   sendEvent(name: "care", value: "Help Coming", isStateChange: true) 
   sendEvent(name: "alarm", value: "off")
   sendEvent(name: "siren", value: "off")
-  sendEvent(name: "strobe", value: "off")  
+  sendEvent(name: "strobe", value: "off")
+  sendEvent(name: "switch", value: "off")  
   if (delayTime <5){delayTime = 5}
     
   runIn(delayTime,offFOB)   
@@ -329,7 +331,7 @@ def siren(cmd){
   sendEvent(name: "alarm", value: "on")
   sendEvent(name: "siren", value: "on")
   sendEvent(name: "strobe", value: "on") 
-    
+  sendEvent(name: "switch", value: "on")   
   sendEvent(name: "pushed", value: 1, isStateChange: true)
   state.Command = "helpAck"
   sendIrisCmd (2)//ack
