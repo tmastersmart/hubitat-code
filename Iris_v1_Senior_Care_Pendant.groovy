@@ -1,8 +1,9 @@
 /*Iris v1 Senior Care Pendant
 Hubitat Driver
+CARE PRESENCE BEEP TONE FLASH
 =============================
 
-Corrects mising options in built in driver. Which conv
+Corrects mising options in built in driver. 
 
 
  
@@ -17,7 +18,7 @@ You then turn off the alarm from the dashboard and the pendant is notified help 
 After a set delay it then clears for next use.
 
 =============================================================================================================
-v1.2 10/23/2021 Switch addded to be compatable with Dashboard
+v1.3 10/23/2021 Switch addded to be compatable with Dashboard. Added Keyfob mode with Long flash reply
 v1.2 10/22/2021 typos
 v1.1 10/22/2021 First release
 
@@ -49,7 +50,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 
 def clientVersion() {
-    TheVersion="1.2"
+    TheVersion="1.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -102,6 +103,9 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
 	input("delayTime",  "number", title: "Notify Timeout", description: "How many seconds to flash HELP Coming",defaultValue: 35,required: true)
 
+    input name: "mode", type: "enum", title: "Mode", options: ["CARE", "KeyFOB"],description: "Use as CARE or 1 Button Keyfob", defaultValue: "CARE",required: true  
+    
+    
 }
 
 
@@ -168,15 +172,19 @@ def configure() {
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
 	// Schedule our ranging report. ( using 12 hrs for keyfobs)
-	int checkEveryHours = 12									           //  6 hours or every 1 hour for outlets.						
+	int checkEveryHours = 12									           
+    //  6 hours or every 1 hour for outlets.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	
+    // At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
 
 	// Schedule the presence check.
-	int checkEveryMinutes = 1																					// Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
+	int checkEveryMinutes = 1																					
+    // Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
+	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									
+    // At X seconds past the minute, every checkEveryMinutes minutes.
 
 	// Configuration complete.
 	logging("${device} : Configured", "info")
@@ -304,6 +312,20 @@ void refresh() {
 def on(){
 }
 
+def press(buttonNumber){
+   logging("${device} : Button ${buttonNumber}","info")
+   sendEvent(name: "pushed", value: buttonNumber, isStateChange: true) 
+}
+
+// Advanced keyfob responce Long flash and beep
+def keyfob(cmd){
+    sendIrisCmd (2)
+    press(1)
+    pauseExecution(1500)
+    sendIrisCmd (4)
+    runIn(10,offFOB)
+}
+
 def off(){
   logging("${device} : Alarm set OFF delay:${delayTime}", "info")    
   state.Command = "HelpComing"  
@@ -319,7 +341,7 @@ def off(){
 }
 
 def offFOB(){
-//  logging("${device} : Care set clear", "info")  
+  logging("${device} : Clear  mode:${mode}", "info") 
   state.Command = "Clear"  
   sendIrisCmd (0)
   sendEvent(name: "care", value: "Clear", isStateChange: true)    
@@ -327,6 +349,7 @@ def offFOB(){
     
 
 def siren(cmd){
+  press(1)  
   log.info "${device} :Alarm :ON"
   sendEvent(name: "alarm", value: "on")
   sendEvent(name: "siren", value: "on")
@@ -529,16 +552,20 @@ HELP_COMING = 0x04;
       cmd3 = receivedData[2]// 30 
       cmd4 = receivedData[3]// HELP_NEEDED = 0x01
         // [20, 00, 30, 01]         
-        if (cmd4 == "02") {
-           notifyHelpComing()
+        if (cmd4 == "02") {// Missed the 1st ACK send again
+            if (mode == "CARE"){notifyHelpComing()} 
+            else{keyfob(1)}
            return 
         }
            
-		if (cmd4 == "01") {
-           siren()// Turn on the alarm flags
+		if (cmd4 == "01") {// Button pressed answer it
+         if (mode =="CARE"){ 
+           siren()
            runIn(3,notifyHelpComing)
-           return
-            } 
+         }
+        else {keyfob(1)}
+        return
+       } 
            
   
            }
