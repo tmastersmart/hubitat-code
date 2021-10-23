@@ -23,7 +23,7 @@ v1.1 10/22/2021 First release
 reset:
 HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
 
-Tested on 2012-09-20
+Tested on firmware:2012-09-20
 
 
 "Iris Care monitored "aging adults," and let owners receive notifications when a loved one fell or 
