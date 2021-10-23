@@ -15,6 +15,8 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.4   10/22/2021 Added Beep cmd. Tamper or shock alarm for bad pin.
+                    Arming overides chime rewritten. Automatic dead bat detection
   v4.3   10/21/2021 Arming and Entry have priority over chime. Timeout timmer for chime
   v4.2   10/20/2021 Code cleanup UI text changes Longer PIN'S added. 
                     More Undocumented chimes found. Door chime is sound 10. Bad PIN sound added.
@@ -136,8 +138,8 @@ I wrote this for my keyboards you are welcome to use it.
 ================================================================================================
 Tested on Firmware 2013-06-28 and 2012-12-11 Only known versions
 
-https://github.com/tmastersmart/hubitat-code/blob/main/iris_v1_keypad.groovy
-https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy
+https://github.com/tmastersmart/hubitat-code
+
 
 Post your comments here. 
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
@@ -199,9 +201,8 @@ capability "SignalStrength"
 capability "Security Keypad"
 capability "PushableButton"
 capability "TamperAlert"
-//capability "Switch"
-        
-
+capability "Tone"        
+capability "ShockSensor"
 capability "Chime"
 capability "Alarm"
 
@@ -242,9 +243,9 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
 
-	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN", defaultValue: true
+	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN (off use shock)", defaultValue: true
     input name: "requirePIN",  type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
-
+    input name: "detectBadBat",  type: "bool", title: "Automatic dead battery detection", defaultValue: true, required: true
 
     input name: "OnSet",   type: "enum", title: "ON Button", description: "Customize ON Button", options: ["Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
     input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
@@ -530,46 +531,82 @@ def cancelAlert(){
     pauseExecution(6000)
 
 }
+
+// For calling delayed arming.
+def setAway(){
+state.Command = "away"
+SendState()
+}
+def setHome(){
+state.Command = "home"
+SendState()
+}
+def setNight(){
+state.Command = "night"
+SendState()
+}
+
+def setNA(){
+if (state.Command == "armingNight"){ 
+    state.Command ="alarmingNight"
+    SendState()
+    sendEvent(name: "alarm", value: "on")
+    logging ("${device} : Alarm on ","info")    
+ }        
+}
+
+def setAA(){
+if (state.Command == "armingHome"){ 
+    state.Command ="alarmingHome"    
+    SendState()
+    sendEvent(name: "alarm", value: "on")
+    logging ("${device} : Alarm on ","info")      
+ }
+}
+
+
+
 // ===========================================HSM RECEIVED =======================================
 // Incomming command from HSM Including a delay
+
 def armAway(cmd){
+    if (!cmd){cmd =3 }
     state.delay =cmd
     logging ("${device} : Received CMD >> [ArmAWAY] Delay:${cmd}  Our State:${state.Command} ", "info")
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Switching to HSM ArmAWAY","info")
-            state.Command = "delay"
-            sendIrisCmd (0x05) // arming
-            state.Command = "away"
-            runIn(cmd,SendState)
+            state.Command = "armingHome"// The keypad has no away tones
+            SendState()
+            runIn(cmd,setAway)
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
-def armHome(cmd){ 
+def armHome(cmd){
+    if (!cmd){cmd =3 }
     state.delay =cmd
     logging ("${device} : Received CMD >> [ArmHOME] delay:${cmd}  Our State:${state.Command} ", "info")
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Switching to HSM ArmHOME","info")
-            state.Command = "delay"
-            sendIrisCmd (0x05) // arming
-            state.Command = "home"
-            runIn(cmd,SendState)
+            state.Command = "armingHome"
+            SendState()
+            runIn(cmd,setHome)
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
 }
 def armNight(cmd){
+    if (!cmd){cmd =3 }
     state.delay =cmd
-    logging ("${device} : Received CMD >> [ArmNight] delay:${cmd}  Our State:${state.Command} ", "info")
+    logging ("${device} : Received CMD >> [ArmNight] delay:${state.delay}  Our State:${state.Command} ", "info")
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Switching to HSM ArmNIGHT","info")
-            state.Command = "delay"
-            sendIrisCmd (0x07) // arming night
-            state.Command = "night"
-            runIn(cmd,SendState)
+            state.Command = "armingNight"
+            SendState()
+            runIn(cmd,setNight)
             return
         }
     logging ("${device} : Ignored HSM CMD Already in that state","info")
@@ -591,20 +628,6 @@ def disarm(cmd) {
 }
 
 
-def setNA(){
-    if (state.Command == "Entry"){ // Check that its not disarmed  
-    sendIrisCmd(0x08) // flash Part
-    sendEvent(name: "alarm", value: "on")
-    logging ("${device} : Alarm on ","info")    
-    }        
-}
-def setAA(){
-if (state.Command == "Entry"){// Check that its not disarmed    
-sendIrisCmd(0x06) // flash ON
-sendEvent(name: "alarm", value: "on")
-logging ("${device} : Alarm on ","info")      
-}
-}
 
 def softOFF(){
   logging ("${device} : Alarm OFF ","info")  
@@ -627,12 +650,12 @@ def entry(cmd){
     logging ("${device} : Received >> Entry delay:${cmd}  ","warn")
     
     if (state.Command == "night"){
-    state.Command = "Entry"    
-    sendIrisCmd (0x07) // night armming sound  
+    state.Command = "armingNight"    
+    SendState()
     runIn(cmd+1,setNA) // Night ALARM
     }else{
-    state.Command = "Entry"     
-    sendIrisCmd (0x05) // armming sound  
+    state.Command = "armingHome"     
+    SendState() 
     runIn(cmd+1,setAA)// ALARM
       } 
     runIn(120,softOFF)   
@@ -644,11 +667,11 @@ def entry(cmd){
 def instantEntry(){    
     logging ("${device} : Received >> Entry Alarm INSTANT  ","warn")    
     if (state.Command == "night"){
-        state.Command = "Entry"
+        state.Command = "armingNight"
         setNA()
     }
     else {
-       state.Command = "Entry"
+       state.Command = "armingHome"
         setAA()
     }
     // how long the alarm lasts. 10Polls ~ 40sec app
@@ -702,36 +725,27 @@ private MyDisarm() {
   
 
 }
-
 def SendState(cmd){
 // Iris KeyPad states not HSM
 // Iris only has 2 armed states ON and PART    
-if (state.Command == "off")  {sendIrisCmd (0x01)}// OFF
-if (state.Command == "home") {sendIrisCmd (0x02)}// ON 
-if (state.Command == "away") {sendIrisCmd (0x02)}// ON 
-if (state.Command == "night"){sendIrisCmd (0x03)}// Part  
-if (state.Command == "panic"){sendIrisCmd (0x04)}// Panic  
- 
+if (state.Command == "off")  {        sendIrisCmd (0x01)}// OFF
+if (state.Command == "home") {        sendIrisCmd (0x02)}// ON 
+if (state.Command == "away") {        sendIrisCmd (0x02)}// ON 
+if (state.Command == "night"){        sendIrisCmd (0x03)}// Part  
+if (state.Command == "panic"){        sendIrisCmd (0x04)}// Panic 
+if (state.Command == "armingHome"){   sendIrisCmd (0x05)}// Arming ON
+if (state.Command == "armingNight"){  sendIrisCmd (0x07)}// Arming Part
+if (state.Command == "alarmingHome"){ sendIrisCmd (0x06)}// alarming ON
+if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming Part
 }
 //==================================================== POLL for HSM STATUS =================================================
 // Polls HSM and sets state even if keyboard is not setup in HSM
-// 
-//hsmStatus= armedAway, armingAway, armedHome, armingHome, armedNight, armingNight, disarmed, allDisarmed
-//hsmAlert = intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
 
 def getStatus(status) {
     status = location.hsmStatus
-//    state.alertST = location.hsmAlert 
-//    if (!state.alertST){state.alertST = "none"}
- //   if (state.alertST != "none"){
-//        if(device.currentValue("HSMAlert")!= state.alertST){
-//        sendEvent(name: "HSMAlert", value: state.alertST)
-//        logging ("${device} : HSMAlert  Status:${state.alertST}","info")    
-//        }
-//    }
+   logging ("${device} : Polling HSMStatus:${status} Our state:${state.Command}","debug") 
     
-   logging ("${device} : Polling HSMStatus:${status} Our state:${state.Command}","debug")  
-    if (status == "armedAway"){  
+    if (status == "armedAway" | status == "armingAway" ){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad", value: "armed away")
             logging ("${device} : Polled HSM ${status} switching now","info")
@@ -740,17 +754,8 @@ def getStatus(status) {
         }
      return
     }
-    if (status == "armingAway"){ 
-        if (state.Command != "away"){
-          sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-          state.Command = "away"
-          SendState()
-        }
-      return 
-    }
     
-    if (status == "armedHome"){
+    if (status == "armedHome" | status == "armingHome"){
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home")
             logging ("${device} : Polled HSM ${status} switching now","info")
@@ -759,17 +764,8 @@ def getStatus(status) {
         }
         return
        }
-    if (status == "armingHome"){ 
-        if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "home"
-            SendState()
-        }
-        return
-       }  
     
-    if (status == "armedNight"){
+    if (status == "armedNight" | status == "armingNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad", value: "armed night")
             logging ("${device} : Polled HSM ${status} switching now","info")
@@ -779,17 +775,8 @@ def getStatus(status) {
         return
        }
 
-    if (status == "armingNight"){
-        if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "night"
-            SendState()
-        }
-        return
-       } 
     
-    if (status == "disarmed"){
+    if (status == "disarmed" | status == "allDisarmed"){
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad", value: "disarmed")
             logging ("${device} : Polled HSM ${status} switching now","info")
@@ -798,15 +785,7 @@ def getStatus(status) {
         }
         return
     }
-    if (status == "allDisarmed"){
-        if (state.Command != "off"){
-            sendEvent(name: "securityKeypad", value: "all disarmed")
-            logging ("${device} : Polled HSM ${status} switching now","info")
-            state.Command = "off"
-            SendState()
-        }
-        return
-    } 
+
     logging ("${device} : Polled HSM ${status} <- (Unknown HSM state) Our state:${state.Command}","warn")
 }
 
@@ -819,6 +798,13 @@ state.PIN = "NA"
 
 
 def siren(cmd){
+    
+        if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
+        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
+        sendEvent(name: "status", value: "Inuse")
+        return
+        }
+
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
   if (AlarmTone == "KEYCLICK"){soundCode(1)}
@@ -835,6 +821,13 @@ def siren(cmd){
   logging ("${device} : Siren ${AlarmTone} ON", "warn")  
 }
 def strobe(cmd){
+    
+    if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
+        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
+        sendEvent(name: "status", value: "Inuse")
+        return
+        }  
+    
   logging ("${device} : Panic Strobe ON","info")  
   sendEvent(name: "strobe", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on")
@@ -854,19 +847,20 @@ def off(cmd){
   runIn(2, getStatus) // Reset the state to HSM 
 }
 
+//if (state.Command == "armingHome"){   sendIrisCmd (0x05)}// Arming ON
+//if (state.Command == "armingNight"){  sendIrisCmd (0x07)}// Arming Part
+//if (state.Command == "alarmingHome"){ sendIrisCmd (0x06)}// alarming ON
+//if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming Part
 
-
-
-//soundName - STRING
-//status - ENUM ["playing", "stopped"]
 
 def playSound(cmd){
     
-    if (state.Command == "Entry" | state.Command == "delay"){
-        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","info")
+    if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
+        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
         sendEvent(name: "status", value: "Inuse")
         return
-        }         
+        }
+
                  
   sound = "none" 
   if (cmd ==1){ sound = "KEYCLICK"}
@@ -888,8 +882,7 @@ def playSound(cmd){
   sendEvent(name: "status", value: "playing")  
     
     if (cmd == 10){ 
-         SendState()
-         logging ("${device} : Sending Door Chime","info")
+         beep()
          pauseExecution(2000)
          sendEvent(name: "status", value: "stopped")
          device.deleteCurrentState("soundName") 
@@ -918,21 +911,27 @@ cluster = 0x00C0
 attributeId = 0x020
 dataType = DataType.ENUM8
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, cmdI, [destEndpoint :0x02]))    
-    if (cmdI == 0x01){status= "OFF"}
-    if (cmdI == 0x02){status= "ON"}
-    if (cmdI == 0x03){status= "PARTIAL"}
-    if (cmdI == 0x04){status= "PANIC"}
-    if (cmdI == 0x05){status= "Arming"}
-    if (cmdI == 0x06){status= "Alarming"}
-    if (cmdI == 0x07){status= "Partial Arming"}
-    if (cmdI == 0x08){status= "Partial Alarming"}
-    logging ("${device} : Sending KeyPad command [${status}]","info")
+logging ("${device} : Sending KeyPad command [${state.Command}]","info")
 } 
 
 def stop(){
     soundCode(0x00)
     off()
 }
+
+def beep(){
+    if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
+        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
+        sendEvent(name: "status", value: "Inuse")
+        return
+        }
+
+    
+    
+    SendState()
+    logging ("${device} : Sending Door Chime/ Beep","info")
+}    
+
 def soundCodeOff(cmd){soundCode(0x00)}
 def soundCode(cmd){
 value = 0x00
@@ -966,7 +965,13 @@ sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, 
 //return
 //}
 
-
+def shock(){
+sendEvent(name: "shock", value: "detected")    
+logging ("${device} : Shock Detected","info")
+ pauseExecution(6000)
+logging ("${device} : Shock Clear","info")    
+sendEvent(name: "shock", value: "clear")    
+}
 
 
 def tamper(){
@@ -1079,7 +1084,13 @@ def checkPresence() {
 
 				sendEvent(name: "presence", value: "not present")
 				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
-
+                if(detectBadBat){
+                 if(state.batteryOkay == false){
+                  logging( "${device} : Auto Bat detection. was low now not present. set 0% ")
+	              sendEvent(name: "batteryVoltage", value: 0, unit: "V")
+     	          sendEvent(name: "battery", value:0, unit: "%")   
+                 }
+                }    
 			} else {
 			logging("${device} : Presence : Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.","info")
 			}
@@ -1172,9 +1183,8 @@ def processMap(Map map) {
           if (irsCMD == "P") {irsCMD1= "PANIC"}
           if (irsCMD == "#") {irsCMD1= "POUND"}
           if (irsCMD == "*") {irsCMD1= "STAR"}
-           if ( irsCMD == nextirsCMD){logging("${device} : Action :IRIS:[${irsCMD1}] ${PinEnclosed} ${status}", "debug")} 
-          else{ logging("${device} : Action :IRIS:[${irsCMD1}] Next command in qwery [${nextirsCMD}] ${status}", "debug")}
-	 }    
+           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "debug")} 
+
     }     
          
 
@@ -1510,9 +1520,15 @@ def processMap(Map map) {
         }   
       soundCode(13)
       logging("${device} : Action :[PIN] Pin:${asciiPin} Size:${pinSize} [Invalid PIN] State:${state.Command}","warn")
-      if(tamperPIN){tamper()}
+      if(tamperPIN){
+      tamper()
+      state.PinName = "Tamper"
+      }
+      else {// if not using tamper use shock alarm
+          shock()
+      state.PinName = "Shock"
+      } 
       state.validPIN = false
-      state.PinName = "TAMPER"
       state.PIN     = asciiPin 
       sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}]")// May be needed by other aps.
       sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}]")
@@ -1539,60 +1555,7 @@ if (keyRec == "30"){press(10)}
         
     } else if (map.clusterId == "00F0") {
       // AlertMe General Cluster 
-      /*
-StopPolling 0xFD
-Lifesign    0xFB
-   const u8 LIFESIGN_HAS_VOLTAGE = 0x01;
-   const u8 LIFESIGN_HAS_TEMPERATURE = 0x02;
-   const u8 LIFESIGN_HAS_SWITCH_STATUS = 0x04;
-   const u8 LIFESIGN_HAS_LQI = 0x08;
-   const u8 LIFESIGN_HAS_RSSI = 0x10;
-   const u8 SWITCH_MASK_TAMPER_BUTTON = 0x02;
-   const u8 SWITCH_MASK_MAIN_SENSOR = 0x01;
-   const u8 SWITCH_STATE_TAMPER_BUTTON = 0x02;
-   const u8 SWITCH_STATE_MAIN_SENSOR = 0x01;
-   u8 statusFlags;
-   u32 msTimer;
-   u16 psuVoltage;
-   u16 temperature;
-   i8 rssi;
-   u8 lqi;
-   u8 switchMask;
-   u8 switchState;
 
-ModeChange  0xFA
-   const u8 MODE_NORMAL = 0x00;
-   const u8 MODE_RANGE_TEST = 0x01;
-   const u8 MODE_TEST = 0x02;
-   const u8 MODE_SEEKING = 0x03;
-   const u8 MODE_IDLE = 0x04;
-   const u8 MODE_QUIESCENT = 0x05;
-   const u8 FLAG_CLEAR_HNF = 0x01;
-   const u8 FLAG_SET_HNF = 0x01;
-   u8 mode;
-   u8 flags;
-
-FaultReport 0x01
-   const u16 FAULT_NOFAULT = 0;
-   const u16 FAULT_EMBER_STACK_STARTUP = 1;
-   const u16 FAULT_WRONG_HARDWARE = 2;
-   const u16 FAULT_WRONG_HARDWARE_REVISION = 3;
-   const u16 FAULT_TOKEN_AREA_INVALID = 4;
-   const u16 FAULT_NO_BOOTLOADER = 5;
-   const u16 FAULT_NO_SERIAL_OUTPUT = 6;
-   const u16 FAULT_EMBER_MFGLIB_STARTUP = 7;
-   const u16 FAULT_FLASH_FAILED = 8;
-   const u16 FAULT_MCP23008_FAILED = 9;
-   const u16 FAULT_VERY_LOW_BATTERY = 10;
-   const u16 FAULT_FAILED_TO_FORM_NETWORK = 11;
-   const u16 FAULT_CHILD_DEVICE_LOST = 12;
-
-   u16 manufId;
-   u16 modelId;
-   u16 faultId;
-}
-
-      */ 
       if (map.command == "FB") { 
     // if bit 0 battery voltage // bit 5 and 6 reversed
     // if bit 1 temp // bit 7 and 8 reversed
@@ -1661,13 +1624,13 @@ FaultReport 0x01
              state.batteryOkay = true
              }
             
-         if (batteryPercentage < 21) {
+         if (batteryPercentage < 20) {
              logging("${device} : Battery LOW : $batteryPercentage%", "debug")
              sendEvent(name: "batteryState", value: "low")
-             state.batteryOkay = true
+             state.batteryOkay = false
          }
   
-	 if (batteryPercentage < 5) {
+	 if (batteryPercentage < 10) {
             logging("${device} : Battery BAD: $batteryPercentage%", "debug") 
 	    state.batteryOkay = false
 	    sendEvent(name: "batteryState", value: "exhausted")
@@ -1706,7 +1669,7 @@ FaultReport 0x01
 	} else if (receivedData[1] == "00") {
           // This is the ranging report received when the device reboots.
 	  // After rebooting a refresh is required to bring back remote control.
-       logging("${device} : >>>--reboot--<<< We crashed it. Or is this normal? ","error")// We need to know its rebooted in case of crash.
+       logging("${device} : >>>--reboot--<<< Keypad is rebooting ","error")// We need to know its rebooted in case of crash.
        refresh()
 
 	} else {
@@ -1767,9 +1730,9 @@ FaultReport 0x01
 	return null
 }
 
-
+// this did not work on the keypad.
 void sendZigbeeCommands(List<String> cmds) {
-    // All hub commands go through here for immediate transmission and to avoid some method() weirdness.
+
     logging( "${device} : Send Zigbee Cmd :${cmds}","trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
