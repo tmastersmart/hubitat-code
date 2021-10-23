@@ -1,7 +1,8 @@
 /*Iris v1 Senior Care Pendant
+Hubitat Driver
 =============================
 
-Corrects mission options in built in driver.
+Corrects mising options in built in driver. Which converts it into a keyfob
 
 
  
