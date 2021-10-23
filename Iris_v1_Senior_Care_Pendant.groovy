@@ -10,16 +10,28 @@ Corrects mission options in built in driver.
 
 Add 2 devices to your dashboard for the pendant a FOB and a ALARM
 
-Pressing the HELP button turns on the alarm, The pendant is then notified help is comming and flashes red.
+Pressing the HELP button turns on the alarm, The pendant is then notified help is coming and flashes red.
 You need to have rules to notify you of the alarm.
-You then turn off the alarm from the dashboard and the pendant is notified help is comming and flashes green.
+You then turn off the alarm from the dashboard and the pendant is notified help is coming and flashes green.
 After a set delay it then clears for next use.
 
 =============================================================================================================
-v1.1 10/22/2021  First release
+v1.2 10/22/2021 typos
+v1.1 10/22/2021 First release
 
 reset:
 HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
+
+Tested on 2012-09-20
+
+
+"Iris Care monitored "aging adults," and let owners receive notifications when a loved one fell or 
+when they system detected abnormal use. Such as you didnt open the door and get the mail or no motion. 
+This was a 2nd level pay service above free you paid $9.99 + $4.99 for care. It was later all moved
+to the free service on iris v2 after a few months.
+The Care Pendant would call for help notify you it had called and notify you help was coming.
+
+This drver duplicates the care service on Hubitat.
 
 
 
@@ -35,7 +47,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 
 def clientVersion() {
-    TheVersion="1.1"
+    TheVersion="1.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -53,9 +65,9 @@ metadata {
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "SignalStrength"
-		capability "HoldableButton"
+//		capability "HoldableButton"
 		capability "PushableButton"
-		capability "ReleasableButton"
+//		capability "ReleasableButton"
         capability "Tone" 
         capability "Alarm"
         
@@ -71,19 +83,11 @@ metadata {
 		attribute "mode", "string"
         attribute "care","string"
 
-		fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:"00C0", manufacturer: "Iris/AlertMe", model:"KEY800", deviceJoinName: "Iris v1 Senior Care Pendant"
+		fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:"00C0", manufacturer: "Iris/AlertMe", model:"Care Pendant Device", deviceJoinName: "Iris v1 Senior Care Pendant"
 		
 	}
 
 }
-//fingerprint model:"Care Pendant Device", manufacturer:"AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:""
-//fingerprint model:"Care Pendant Device", manufacturer:"Iris/AlertMe", profileId:"C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:""
-
-
-
-//KEY800 care pendent fingerprint
-//endpointId: 02
-//model: Care Pendant Device
 //firmware: 2012-09-20
 //manufacturer: AlertMe
 
@@ -91,10 +95,10 @@ metadata {
 
 preferences {
 	
-	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
+	input name: "infoLogging",  type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
-	input("delayTime",  "number", title: "Notify Timeout", description: "How many seconds to flash HELP COMMING",defaultValue: 10,required: true)
+	input("delayTime",  "number", title: "Notify Timeout", description: "How many seconds to flash HELP Coming",defaultValue: 35,required: true)
 
 }
 
@@ -116,7 +120,7 @@ updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
 
     
-//    state.message = ""
+    state.icon = "<img src='data:image/jpeg;base64,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'>"
 	state.batteryOkay = true
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
@@ -300,7 +304,7 @@ def on(){
 
 def off(){
   logging("${device} : Alarm set OFF delay:${delayTime}", "info")    
-  state.Command = "HelpComming"  
+  state.Command = "HelpComing"  
   sendIrisCmd (4)
   sendEvent(name: "care", value: "Help Coming", isStateChange: true) 
   sendEvent(name: "alarm", value: "off")
@@ -332,7 +336,7 @@ def siren(cmd){
   logging("${device} : Care Help button pressed. Notified:${state.Command} ", "warn")    
 }
 
-def notifyHelpComming(){
+def notifyHelpComing(){
 
   state.Command = "helpCalled" 
   sendIrisCmd (3)//called
@@ -523,13 +527,13 @@ HELP_COMING = 0x04;
       cmd4 = receivedData[3]// HELP_NEEDED = 0x01
         // [20, 00, 30, 01]         
         if (cmd4 == "02") {
-           notifyHelpComming()
+           notifyHelpComing()
            return 
         }
            
 		if (cmd4 == "01") {
            siren()// Turn on the alarm flags
-           runIn(3,notifyHelpComming)
+           runIn(3,notifyHelpComing)
            return
             } 
            
