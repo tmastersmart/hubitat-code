@@ -33,7 +33,7 @@ The Care Pendant would call for help notify you it had called and notify you hel
 
 This drver duplicates the care service on Hubitat.
 
-
+https://github.com/tmastersmart/hubitat-code
 
 
  * based on alertme UK code from  
