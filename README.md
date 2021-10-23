@@ -2,6 +2,8 @@
 
  iris v1 keyboard driver for hubitat
  
+ iris v1 senior care pendant driver for hubitat
+ 
  iris v1 repeator driver for hubitat
  
  iris v1 smartplug driver for hubitat with alarm and strobe support
