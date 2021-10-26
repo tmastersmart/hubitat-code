@@ -15,6 +15,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.5   10/26/2021 Error in cron on driver change.
   v4.4   10/22/2021 Added Beep cmd. Tamper or shock alarm for bad pin.
                     Arming overides chime rewritten. Automatic dead bat detection
   v4.3   10/21/2021 Arming and Entry have priority over chime. Timeout timmer for chime
@@ -176,7 +177,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.4"
+    TheVersion="4.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -272,7 +273,7 @@ def initialize() {
 updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
 
-state.message = "Enable [${device}] in HSM (iris suports 4-11 digit pins)"
+state.message = "Enable [${device}] in HSM"
 state.waiting = 0 // Out of state timer
 state.delay = 10  // hub will set this     
 state.batteryOkay = true
@@ -340,15 +341,18 @@ def configure() {
 	device.updateSetting("debugLogging",[value:"true",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	// Schedule our ranging report.
-	int checkEveryHours = 10 // Request a ranging report and refresh every x hours.						
+	int checkEveryHours = 12 
+    // Request a ranging report and refresh every x hours.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)
     // At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
 	// Schedule the presence check.
-	int checkEveryMinutes = 50 // Check presence timestamp every 6 minutes.						
+	int checkEveryMinutes = 1																					
+    // Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)// At X seconds past the minute, every checkEveryMinutes minutes.
+	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
+    // At X seconds past the minute, every checkEveryMinutes minutes.
 	// Configuration complete.
 	logging("${device} : Configured", "info")
 	// Run a ranging report and then switch to normal operating mode.
