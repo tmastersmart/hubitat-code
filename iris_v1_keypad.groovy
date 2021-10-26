@@ -177,7 +177,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.5"
+    TheVersion="4.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -348,7 +348,7 @@ def configure() {
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)
     // At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
 	// Schedule the presence check.
-	int checkEveryMinutes = 1																					
+	int checkEveryMinutes = 6																					
     // Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
