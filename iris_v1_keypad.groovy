@@ -3,6 +3,7 @@ Hubitat Iris v1 KeyPad driver
 Supports keypad disarm arm functions 
 Works with Lock Code Manager (4-15 digit Pin size supported)
 Works with HSM 
+ 
 
 
   _____ _____  _____  _____        __    _  __                          _ 
@@ -15,6 +16,14 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.6   10/27/2021 added armingIn event, 
+                    Logging changed to match standard digital/physical
+                    Arming routine changed, No longer waits for HSM to start.
+                    Rewrite of arming/entry/disarm routine. Less log clutter
+                    Direct HSM arming can be disabled.
+                    Fingerprint updated. Testing to see if detection will work
+                    Would arm if you cancled arming. fixed
+                    Arming delays now set direct by HSM.
   v4.5   10/26/2021 Error in cron on driver change.
   v4.4   10/22/2021 Added Beep cmd. Tamper or shock alarm for bad pin.
                     Arming overides chime rewritten. Automatic dead bat detection
@@ -70,6 +79,8 @@ Enter PIN and press OFF
 Arming
 Can be set to require PIN or not
 ActionButtons can be remaped.
+HSM is armed direct can be disabled in setup.
+
 
 Alarm
 Siren = plays tone set
@@ -177,7 +188,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.5.1"
+    TheVersion="4.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -187,6 +198,8 @@ def clientVersion() {
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 //import hubitat.zigbee
 import hubitat.helper.HexUtils
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 metadata {
 
@@ -213,8 +226,11 @@ command "normalMode"
 command "rangingMode"
 command "entry" 
 command "quietMode"
-command "SendState"        
+command "SendState"
+command "getStatus"
+        
 
+attribute "armingIn", "NUMBER"
 attribute "batteryState", "string"
 attribute "lastCodeName", "string"
 attribute "lastCodePIN", "string"        
@@ -232,7 +248,7 @@ attribute "code5", "string"
 attribute "code5n", "string"		
 attribute "lockCodes", "string"		
 
-fingerprint profileId: "C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02",outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
+fingerprint profileId:"C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02",outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 	}
 }
 
@@ -247,7 +263,7 @@ preferences {
 	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN (off use shock)", defaultValue: true
     input name: "requirePIN",  type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
     input name: "detectBadBat",  type: "bool", title: "Automatic dead battery detection", defaultValue: true, required: true
-
+    
     input name: "OnSet",   type: "enum", title: "ON Button", description: "Customize ON Button", options: ["Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
     input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
     input name: "PoundSet",type: "enum", title: "# Button", description: "Customize Pound Button",  options: ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Home",required: true 
@@ -259,12 +275,17 @@ preferences {
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
 
+    input name: "DirectHSMcmd",  type: "bool", title: "Send direct HSM cmd", description:"Send the local hub HSM cmd or do nothing (debug)", defaultValue: true, required: true
+
   
 
 }
 
 
-def installed(){logging("${device} : Paired!", "info")}
+def installed(){
+logging("${device} : Paired!", "info")
+configure()
+}
 
  
 def initialize() {
@@ -272,17 +293,25 @@ def initialize() {
 // Testing is this needed? Because its not set right by default   
 updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
 updateDataValue("outClusters", "00C0")
-
+    
+state.delayExit = 30
+state.armNightDelay = 30
+state.armHomeDelay = 30
+state.delayEntry = 30  
+    
 state.message = "Enable [${device}] in HSM"
 state.waiting = 0 // Out of state timer
-state.delay = 10  // hub will set this     
+state.delay = 10  // hub sends this on every arm
+
 state.batteryOkay = true
+state.Panic = false
+state.validPIN = false
+    
 state.operatingMode = "normal"
 state.presenceUpdated = 0
 state.rangingPulses = 0
 state.Command = "unknown"
-state.Panic = false
-state.validPIN = false
+
 state.PinName = "none"
 state.PIN = "none"
 state.icon ="<img src='data:image/jpeg;base64,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'>"
@@ -304,12 +333,12 @@ state.remove("uptime")
 state.remove("logo")
 state.remove("irisKeyPad")
 state.remove("iriscmd")
-state.remove("pushed")
-state.remove("state.reportToDev")
+state.remove("alertST")
+state.remove("reportToDev")
 state.remove("iriscmd")
 state.remove("alertST")
 state.remove("test")
-state.remove("testing")
+state.remove("waitForGetInfo")
     
 removeDataValue("image")
 device.deleteCurrentState("alarm")    
@@ -508,15 +537,20 @@ def getCodes(){
         logging("${device} : lockCode Database ${codeStore}", "info")          
  }
 
-// Not needed Just in case something sends the cmd
-def setEntryDelay(cmd){
-    state.delay =cmd
-    logging("${device} : setEntryDelay ${cmd}", "info")
-    }
-def setExitDelay(cmd){	
-    state.delay =cmd
-    logging("${device} : setExitDelay ${cmd}", "info")
+// using state.delayExit 
+void setExitDelay(Map delays){
+    logging("${device} : setExitDelay ${delays}", "debug")
+    state.delayExit = (delays?.awayDelay ?: 0).toInteger()
+    state.armNightDelay = (delays?.nightDelay ?: 0).toInteger()
+    state.armHomeDelay = (delays?.homeDelay ?: 0).toInteger()
 }
+def setEntryDelay(cmd){
+    state.delayEntry =cmd
+    logging("${device} : setEntryDelay ${cmd}", "debug")
+    }
+// reserved later use
+def setExitDelay(cmd){return}
+
 def setCodeLength(cmd){
     logging("${device} : setCodeLength ${cmd} ignored set to 15", "info")
 }
@@ -538,35 +572,27 @@ def cancelAlert(){
 
 // For calling delayed arming.
 def setAway(){
+if (state.Command == "off"){
+    logging ("${device} : Switched to off while arming. Abort","warn")
+    return}    
 state.Command = "away"
 SendState()
 }
 def setHome(){
+if (state.Command == "off"){
+    logging ("${device} : Switched to off while arming. Abort","warn")
+    return}     
 state.Command = "home"
 SendState()
 }
 def setNight(){
+if (state.Command == "off"){
+    logging ("${device} : Switched to off while arming. Abort","warn")
+    return}     
 state.Command = "night"
 SendState()
 }
 
-def setNA(){
-if (state.Command == "armingNight"){ 
-    state.Command ="alarmingNight"
-    SendState()
-    sendEvent(name: "alarm", value: "on")
-    logging ("${device} : Alarm on ","info")    
- }        
-}
-
-def setAA(){
-if (state.Command == "armingHome"){ 
-    state.Command ="alarmingHome"    
-    SendState()
-    sendEvent(name: "alarm", value: "on")
-    logging ("${device} : Alarm on ","info")      
- }
-}
 
 
 
@@ -574,59 +600,73 @@ if (state.Command == "armingHome"){
 // Incomming command from HSM Including a delay
 
 def armAway(cmd){
+    state.received = true
+    if (state.Command == "armingAway" | state.command == "away" ){
+    logging ("${device} : Ignored HSM CMD [ArmAWAY] State:${state.Command}","info")
+    return
+    }
+ 
     if (!cmd){cmd =3 }
     state.delay =cmd
     logging ("${device} : Received CMD >> [ArmAWAY] Delay:${cmd}  Our State:${state.Command} ", "info")
-        if (state.Command != "away"){
-            sendEvent(name: "securityKeypad", value: "armed away")
-            logging ("${device} : Switching to HSM ArmAWAY","info")
-            state.Command = "armingHome"// The keypad has no away tones
-            SendState()
-            runIn(cmd,setAway)
-            return
-        }
-    logging ("${device} : Ignored HSM CMD Already in that state","info")
+    sendEvent(name: "securityKeypad", value: "armed away", type: "digital",descriptionText: "${device} was armed away [digital]")
+    logging ("${device} : was armed away [digital]","info")
+    state.Command = "armingHome"// The keypad has no away tones
+    SendState()
+    runIn(cmd,setAway)
 }
+
 def armHome(cmd){
+    state.received = true
+    if (state.Command == "armingHome" | state.Command == "home"){
+    logging ("${device} : Ignored HSM CMD [ArmHOME] State:${state.Command}","info")
+    return
+    }
+
     if (!cmd){cmd =3 }
     state.delay =cmd
     logging ("${device} : Received CMD >> [ArmHOME] delay:${cmd}  Our State:${state.Command} ", "info")
-        if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armed home")
-            logging ("${device} : Switching to HSM ArmHOME","info")
-            state.Command = "armingHome"
-            SendState()
-            runIn(cmd,setHome)
-            return
-        }
-    logging ("${device} : Ignored HSM CMD Already in that state","info")
+    sendEvent(name: "securityKeypad", value: "armed home", type: "digital",descriptionText: "${device} was armed home [digital]")
+    logging ("${device} : was armed home [digital]","info")
+    state.Command = "armingHome"
+    SendState()
+    runIn(cmd,setHome)
+    return
 }
 def armNight(cmd){
+    state.received = true
+    if (state.Command == "armingNight" | state.Command == "night"){
+        logging ("${device} : Ignored HSM CMD [ArmNight] State:${state.Command}","info")
+        return
+    }
+
     if (!cmd){cmd =3 }
     state.delay =cmd
     logging ("${device} : Received CMD >> [ArmNight] delay:${state.delay}  Our State:${state.Command} ", "info")
-        if (state.Command != "night"){
-            sendEvent(name: "securityKeypad", value: "armed night")
-            logging ("${device} : Switching to HSM ArmNIGHT","info")
-            state.Command = "armingNight"
-            SendState()
-            runIn(cmd,setNight)
-            return
-        }
-    logging ("${device} : Ignored HSM CMD Already in that state","info")
+    sendEvent(name: "securityKeypad", value: "armed night", type: "digital",descriptionText: "${device} was armed night [digital]")
+    logging ("${device} : was armed night [digital]","info")
+    state.Command = "armingNight"
+    SendState()
+    runIn(cmd,setNight)
 }
 
-// HUB says DISARM so everything off (Accept Repeats)
+// HUB says DISARM
 def disarm(cmd) { 
-    state.alertST = location.hsmAlert 
-    logging ("${device} : Received CMD >> [Disarm]  Our State:${state.Command} ", "info")
-    sendEvent(name: "securityKeypad", value: "disarmed")
+    state.received = true
     sendEvent(name: "alarm", value: "off") 
     sendEvent(name: "siren", value: "off")  
     sendEvent(name: "strobe", value: "off") 
-    sendEvent(name: "alarm", value: "off")
     sendEvent(name: "panic",  value: "off") 
-    logging ("${device} : Switching to HSM disarmed","info")
+    
+    
+    if (state.Command == "off" ){ // stop repeated off commands
+        logging ("${device} : Ignored HSM CMD [disarm] State:${state.Command} [digital]","info")
+        return
+    }    
+    
+
+    sendEvent(name: "securityKeypad", value: "disarmed", type: "digital",descriptionText: "${device} was disarmed [digital]")
+    logging ("${device} : was disarmed [digital] Our State:${state.Command}","info")
     state.Command = "off"
     SendState()
 }
@@ -639,37 +679,60 @@ def softOFF(){
   getStatus() // Are we armed or not Reset state
 }
 // =========================================ENTRY from HSM====================== 
+def setNA(){// Alarm Part
+    state.Command ="alarmingNight"
+    SendState() 
+    sendEvent(name: "alarm", value: "on")
+    logging ("${device} : Alarm on ","info")    
+}
+
+def setAA(){// Alarm ON 
+    state.Command ="alarmingAway"    
+    SendState()
+    sendEvent(name: "alarm", value: "on")
+    logging ("${device} : Alarm on ","info")      
+}
 
 def entry(cmd){ 
     //hsmAlert = intrusion,intrusion-home,intrusion-night,smoke,water,rule,cancel,arming
-    state.alertST = location.hsmAlert
+//    state.alertST = location.hsmAlert
     
 // delay holds back the keypad from resetting its state
 // here it will control how many times it Polls.     
 // 10 sec delay in = 10 poll delay (1 poll 2to4 sec)
-
+//cmd=30
     if (cmd){ // a delay has been included
-    if (cmd < 3){instantEntry()} // to short a delay trashes our tones   
+     if (cmd < 3){
+     instantEntry()
+     return
+    }
     state.delay = cmd 
-    logging ("${device} : Received >> Entry delay:${cmd}  ","warn")
-    
+    logging ("${device} : ENTRY in progress delay:${cmd} state:${state.Command} ","warn")
+    if (state.Command == "off"){state.Command == "away"}// Sync falure pick one.
+        
     if (state.Command == "night"){
-    state.Command = "armingNight"    
-    SendState()
-    runIn(cmd+1,setNA) // Night ALARM
-    }else{
-    state.Command = "armingHome"     
-    SendState() 
-    runIn(cmd+1,setAA)// ALARM
-      } 
-    runIn(120,softOFF)   
+        state.Command = "armingNight"
+        SendState()
+        runIn(cmd+1,setNA) // Night ALARM
+    }
+    if (state.Command == "home"){ 
+        state.Command = "armingHome"
+        SendState()
+        runIn(cmd+1,setAA)// ALARM
+    }
+    if (state.Command == "away"){ 
+        state.Command = "armingAway"
+        SendState()
+        runIn(cmd+1,setAA)// ALARM
+    }
+    runIn(120,softOFF) // Times out the alarm to save bat. 2 min  
     }// end delay     
 
     else { instantEntry()}
 }    
         
 def instantEntry(){    
-    logging ("${device} : Received >> Entry Alarm INSTANT  ","warn")    
+    logging ("${device} : Entry in Progress INSTANT  ","warn")    
     if (state.Command == "night"){
         state.Command = "armingNight"
         setNA()
@@ -682,22 +745,82 @@ def instantEntry(){
     state.delay = 10
     runIn(60,softOFF) 
  }
+/*=============================================================================================
 
-// My arming commands 
+ sendEvent(name:"armingIn", value: value,data:[armMode:getArmText(armRequest),armCmd:getArmCmd(armRequest)], isStateChange:true)
+        case "00": return "disarm"
+        case "01": return "armHome"
+        case "02": return "armNight" 
+        case "03": return "armAway"
+
+ input name: "DirectHSMcmd",  type: "bool", title: "Send direct HSM cmd", defaultValue: true, required: true
+
+, type: "physical", type: "digital"
+*/
+// My arming commands======================================================================
+
+private MakeLockCode(cmd){
+// Lock code is for hub aps to read.
+def isInitiator = true    
+def lockCode = JsonOutput.toJson(["${state.pinN}":["name":"${state.PinName}", "code":"${state.PIN}", "isInitiator":"${isInitiator}"]] )
+logging ("${device} : lockCode:${lockCode}]","trace")
+}
+
+
 private MyarmAway() {
-	logging ("${device} : Sending armAWAY by [${state.PinName}]","info")
-    sendEvent(name: "securityKeypad",value: "armed away",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
-	sendLocationEvent (name: "hsmSetArm", value: "armAway")
+    if (!state.delayExit){state.delayExit =30 }
+    cmd = state.delayExit 
+    MakeLockCode()
+    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "physical",descriptionText: "${device} was armed away [physical]")
+    sendEvent(name:"armingIn", value: state.delay,data:[armMode:armAway,armCmd:03], isStateChange:true)
+    if (DirectHSMcmd == true){
+    sendLocationEvent (name: "hsmSetArm", value: "armAway")  
+    logging ("${device} : Sending hsmSetArm:armAWAY","info")
+    }
+    state.received = false
+    logging ("${device} : was armed away [physical] by [${state.PinName}] Delay:${cmd}","info")
+    state.Command = "armingAway"
+    state.armingMode = arming
+    SendState()
+    runIn(cmd,setAway)
+   
 }
 private MyarmHome() {
-	logging ("${device} : Sending armHome by [${state.PinName}]","info")
-	sendEvent(name: "securityKeypad",value: "armed home",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
-	sendLocationEvent (name: "hsmSetArm", value: "armHome")
+    if (!state.armHomeDelay){state.armHomeDelay =30 }
+    cmd = state.armHomeDelay 
+    MakeLockCode()
+	sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "physical",descriptionText: "${device} was armed home [physical]")
+    sendEvent(name:"armingIn", value: state.delay,data:[armMode:armHome,armCmd:01], isStateChange:true)
+    if (DirectHSMcmd == true){
+        sendLocationEvent (name: "hsmSetArm", value: "armHome")
+        logging ("${device} : Sending hsmSetArm:armHome","info")
+    }
+    state.received = false
+    logging ("${device} : was armed home [physical] by [${state.PinName}] Delay:${cmd}","info")
+    state.Command = "armingHome"
+    state.armingMode = arming
+    SendState()
+    runIn(cmd,setHome)
+  
+    
 }
 private MyarmNight() {
-	logging ("${device} : Sending armNight by [${state.PinName}]","info")
-	sendEvent(name: "securityKeypad",value: "armed night",data: /{"-1":{"name":"not required","code":"0000","isInitiator":true}}/)
-	sendLocationEvent (name: "hsmSetArm", value: "armNight")
+    if (!state.armNightDelay){state.armNightDelay =30 }
+    cmd = state.armNightDelay  
+    MakeLockCode()
+	sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "physical",descriptionText: "${device} was armed night [physical]")
+    sendEvent(name:"armingIn", value: state.delay,data:[armMode:armNight,armCmd:02], isStateChange:true)
+    if (DirectHSMcmd == true){
+    sendLocationEvent (name: "hsmSetArm", value: "armNight")
+    logging ("${device} : Sending hsmSetArm:armNight","info")
+    }
+    state.received =false
+    logging ("${device} : was armed night [physical] by [${state.PinName}]  Delay:${cmd}","info")
+    state.Command = "armingNight"
+    state.armingMode = arming
+    SendState()
+    runIn(cmd,setNight)
+    
 }
 
 def panic() {
@@ -716,13 +839,21 @@ private MyDisarm() {
         logging ("${device} : Untrapped ERROR Disarm with NO PIN.", "warn")
         return
     } 
-	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "Disarmed by ${state.PinName}", displayed: true,data: /{"-1":{"name":"${state.PinName}","code":"${state.PIN}","isInitiator":true}}/)
-    logging ("${device} : Sent Disarmed by [${state.PinName}]", "info")
+    MakeLockCode()
+	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "${device} was disarmed [physical]", displayed: true,data: lockCode, type: "physical")
+    
     if (state.Comand == "panic") {
         logging ("${device} : Panic cancled by [${state.PinName}]","info")
         sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
      }
+    
+    if (DirectHSMcmd == true){
 	sendLocationEvent (name: "hsmSetArm", value: "disarm")
+    logging ("${device} : Sending hsmSetArm:disarm", "info")    
+    } 
+    logging ("${device} : was disarmed [physical] by [${state.PinName}]","info")
+    
+    sendEvent(name:"armingIn", value: 0,data:[armMode:disarm,armCmd:00], isStateChange:true)
     sendEvent(name: "alarm", value: "off") 
     state.Command = "off"
     SendState()
@@ -731,17 +862,24 @@ private MyDisarm() {
 }
 def SendState(cmd){
 // Iris KeyPad states not HSM
-// Iris only has 2 armed states ON and PART    
+// Iris only has 2 armed states  
 if (state.Command == "off")  {        sendIrisCmd (0x01)}// OFF
-if (state.Command == "home") {        sendIrisCmd (0x02)}// ON 
-if (state.Command == "away") {        sendIrisCmd (0x02)}// ON 
-if (state.Command == "night"){        sendIrisCmd (0x03)}// Part  
 if (state.Command == "panic"){        sendIrisCmd (0x04)}// Panic 
-if (state.Command == "armingHome"){   sendIrisCmd (0x05)}// Arming ON
-if (state.Command == "armingNight"){  sendIrisCmd (0x07)}// Arming Part
-if (state.Command == "alarmingHome"){ sendIrisCmd (0x06)}// alarming ON
-if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming Part
+// Away uses ON   
+if (state.Command == "away") {        sendIrisCmd (0x02)}// ON 
+if (state.Command == "armingAway"){   sendIrisCmd (0x05)}// Arming ON 
+if (state.Command == "alarmingAway"){ sendIrisCmd (0x06)}// alarming ON
+// Home uses Part  
+if (state.Command == "home") {        sendIrisCmd (0x03)}// P 
+if (state.Command == "armingHome"){   sendIrisCmd (0x07)}// Arming P
+if (state.Command == "alarmingHome"){ sendIrisCmd (0x08)}// alarming P
+// Night uses Part   
+if (state.Command == "night"){        sendIrisCmd (0x03)}// P      
+if (state.Command == "armingNight"){  sendIrisCmd (0x07)}// Arming P    
+if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming P
 }
+
+
 //==================================================== POLL for HSM STATUS =================================================
 // Polls HSM and sets state even if keyboard is not setup in HSM
 
@@ -1153,8 +1291,8 @@ def processMap(Map map) {
 // KeyPad does not know its state (running armming or alarming)                           
      if (map.command == "00" ) {
          state.waiting ++
-         if (state.waiting == 5 | state.waiting==10 | state.waiting==20){logging ("${device} : KeyPad Requesting state","info")} //Min logging   
-         logging ("${device} : KeyPad Requesting state  Poll:${state.waiting} of ${state.delay}","debug") // Log all
+         if (state.waiting == 5 | state.waiting==10 | state.waiting==20){logging ("${device} : KeyPad Polling for state Poll:${state.waiting} of ${state.delay}","info")} //Min logging
+         else {logging ("${device} : KeyPad Polling for state  Poll:${state.waiting} of ${state.delay}","debug")}
          if (state.waiting > state.delay){ // Correct lost state but wait out the delay
            getStatus(status) 
            SendState()
@@ -1187,7 +1325,7 @@ def processMap(Map map) {
           if (irsCMD == "P") {irsCMD1= "PANIC"}
           if (irsCMD == "#") {irsCMD1= "POUND"}
           if (irsCMD == "*") {irsCMD1= "STAR"}
-           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "debug")} 
+           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "trace")} 
 
     }     
          
@@ -1211,23 +1349,25 @@ def processMap(Map map) {
 // ====================================ON =====================================         
 //    OnSet = Arm Home,Arm Away
       if (keyRec == "41"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed ON] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released ON] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed ON] ${OnSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released ON] ${OnSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
           if (OnSet == "Arm Away"){
-           if (state.Command =="away"){
-               logging("${device} : Button ON ${OnSet} (But sent and Verified)","debug")
-               return }
+           if (state.Command =="away" | state.Command =="armingAway" ){
+            if (state.received == false && DirectHSMcmd == true){
+            MyarmAway() // send it again We got no reply
+            return
+            }
+           logging("${device} : Action [ON] Ignored already sent:${OnSet} state${state.Command}","debug")    
+           return
+           }
              
-              if (requirePIN){
-               if (state.validPIN == true){
-               logging("${device} : Button ON ${OnSet} Valid PIN:${state.validPIN}","info")           
-               MyarmAway()
-               return
-               }
-              }
-              else{
-              logging("${device} : Button ON ${OnSet} Valid PIN:${state.validPIN}","info")     
+          if (requirePIN){
+           if (state.validPIN == true){
+           MyarmAway()
+           return
+            }
+          } else{
               state.PinName = "Not Required"  
               MyarmAway()
               return
@@ -1236,71 +1376,83 @@ def processMap(Map map) {
           }
           
            if (OnSet == "Arm Home"){
-           if (state.Command =="home"){ 
-             logging("${device} : Button ON ${OnSet} (But sent and Verified)","debug")
+           if (state.Command =="home" | state.Command =="armingHome" ){ 
+            if (state.received == false && DirectHSMcmd == true){
+            MyarmHome() // send it again We got no reply
+            return
+            }
+              logging("${device} : Action [ON] Ignored already sent:${OnSet} state${state.Command}","debug")    
              return }
              
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button ON ${OnSet} Valid PIN:${state.validPIN}","info")           
                MyarmHome()
                return
                }
               }
               else
               state.PinName = "Not Required"
-              logging("${device} : Button ON ${OnSet} Valid PIN:${state.validPIN}","info") 
               MyarmHome()
               return
               } 
+          logging("${device} : Valid PIN:${state.validPIN} Ignoring","warn")   
+          if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
+          return   
           }
 //=============================================PARTIAL================================	 
 //    PartSet =Arm Night,Arm Home         
      if (keyRec == "4E"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed PARTIAL] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released PARTIAL] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
           if (PartSet =="Arm Night"){          
-		  if (state.Command =="night"){
-          logging("${device} : Button PARTIAL ${PartSet} (But sent and Verified)","debug")  
+		  if (state.Command =="night" | state.Command =="armingNight" ){
+               if (state.received == false && DirectHSMcmd == true){
+            MyarmNight() // send it again We got no reply
+            return
+            }
+         
+          logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return 
           }
             
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button PARTIAL ${PartSet} Valid PIN:${state.validPIN}","info")          
                MyarmNight()
                return
                }
               }
               else{
               state.PinName = "Not Required"
-              logging("${device} : Button PARTIAL ${PartSet} Valid PIN:${state.validPIN}","info")
               MyarmNight()
               return
               } 
          }
           if (PartSet =="Arm Home"){          
-		  if (state.Command =="home"){
-          logging("${device} : Button PARTIAL ${PartSet} (But sent and Verified)","debug")  
+		  if (state.Command =="home" | state.Command =="armingHome" ){
+              
+             if (state.received == false && DirectHSMcmd == true){
+            MyarmAway() // send it again We got no reply
+            return
+            }  
+          logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return }
             
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button PARTIAL ${PartSet} Valid PIN:${state.validPIN}","info")          
                MyarmAway()
                return
                }
               }
               else{
               state.PinName = "Not Required"
-              logging("${device} : Button PARTIAL ${PartSet} Valid PIN:${state.validPIN}","info")     
               MyarmAway()
               return
               } 
          }   
-         
-         
+      logging("${device} : Valid PIN:${state.validPIN} Ignoring","warn")   
+      if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
+      return   
 	 }          
 
 //=============================================OFF==============================        
@@ -1311,17 +1463,15 @@ def processMap(Map map) {
               if(device.currentValue("panic")== "on"){state.Command == "panic"}// Fix being out of sync  
                
             if (state.Command == "off"){
-             logging("${device} : Button OFF (already disarmed Skipping)","debug")
+             logging("${device} : Action [OFF] Ignored already sent state${state.Command}","debug")  
              return
              }
-               
-               
-            logging("${device} : Button OFF Valid PIN:${state.validPIN} State:${state.Command}","info")
             MyDisarm()
             return
          }// end valid PIN
              
-         logging("${device} : Button OFF Valid PIN:${state.validPIN} Ignoring","info")
+         logging("${device} : Valid PIN:${state.validPIN} Ignoring","info")
+         if (PinEnclosed  =="22" ){soundCode(13)} // beep once     
          return  
 	 }         
          
@@ -1331,70 +1481,76 @@ def processMap(Map map) {
  //     StarSet =Disabled,Arm Night,Arm Home,Arm Away
          
      if (keyRec == "2A"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed STAR] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released STAR] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+      if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+      if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
       if (StarSet == "Arm Home"){
-		 if (state.Command =="home"){
-         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
+		 if (state.Command =="home" | state.Command =="armingHome" ){
+          if (state.received == false && DirectHSMcmd == true){
+          MyarmHome() 
+          return
+          }
+         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
          
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")          
                MyarmHome()
                return
                }
-              }
-              else{
-              logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")     
+              }else{
               state.PinName = "Not Required"    
               MyarmHome()
               return
               }    
          }
        if (StarSet == "Arm Night"){
-		 if (state.Command =="night"){
-         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
+		 if (state.Command =="night"| state.Command =="armingNight" ){
+             if (state.received == false && DirectHSMcmd == true){
+            MyarmNight() // send it again We got no reply
+            return
+            } 
+             
+         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
          
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")           
                MyarmNight()
                return
                }
               }
               else{
-              logging("${device} : Button * ${StarSet}  ${state.validPIN}","info")     
               state.PinName = "Not Required"    
               MyarmNight()
               return
               }    
          } 
         if (StarSet == "Arm Away"){
-		 if (state.Command =="away"){
-         logging("${device} : Button * ${StarSet} (But sent and Verified) state${state.Command}","debug")
+		 if (state.Command =="away" | state.Command =="armingAway" ){
+              if (state.received == false && DirectHSMcmd == true){
+            MyarmAway() // send it again We got no reply
+            return
+            }
+         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
          
               if (requirePIN){
-              
                if (state.validPIN == true){
-               logging("${device} : Button * ${StarSet} ${state.validPIN}","info")          
                MyarmAway()
                return
                }
               }
               else{
-              logging("${device} : Button * ${StarSet} ${state.validPIN}","info")    
               state.PinName = "Not Required"    
               MyarmAway()
               return
               }    
          }     
      
-     logging("${device} : Button Star ${StarSet}","debug")
-     if (PinEnclosed  =="22" ){   soundCode(13)}    
+     // disabled
+     logging("${device} :${StarSet} Valid PIN:${state.validPIN} Ignoring","info")   
+     if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
      return
      }        
         
@@ -1405,69 +1561,76 @@ def processMap(Map map) {
          
      if (keyRec == "23"){
          
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed # POUND] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released # POUND] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
     
       if (PoundSet == "Arm Home"){
-		 if (state.Command =="home"){
-         logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
+		 if (state.Command =="home" | state.Command =="armingHome" ){
+              if (state.received == false && DirectHSMcmd == true){
+            MyarmHome() // send it again We got no reply
+            return
+            }
+         logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
          return 
          }
 
          if (requirePIN){
            if (state.validPIN == true){
-           logging("${device} : Button # ${PoundSet} Valid PIN:${state.validPIN}","info")          
            MyarmHome()
            return
            }
          }
               else{
               state.PinName = "Not Required"
-              logging("${device} : Button # ${PoundSet} Valid PIN:${state.validPIN}","info")       
               MyarmHome()
               return
               }    
          }
        if (PoundSet == "Arm Night"){
-		 if (state.Command =="night"){
-         logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
-         return }
+		 if (state.Command =="night" | state.Command =="armingNight" ){
+              if (state.received == false && DirectHSMcmd == true){
+            MyarmNight() // send it again We got no reply
+            return
+            }
+         logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
+         return
+         }
          
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button # ${PoundSet}","info")          
                MyarmNight()
                return
                }
               }
               else{
-              logging("${device} : Button # ${PoundSet}","info")    
               state.PinName = "Not Required"    
               MyarmNight()
               return
               }   
          } 
         if (PoundSet == "Arm Away"){
-		 if (state.Command =="away"){
-         logging("${device} : Button # (But sent and Verified) state${state.Command}","debug")
-         return }
-         
+		 if (state.Command =="away" | state.Command =="armingAway"  ){
+              if (state.received == false && DirectHSMcmd == true){
+            MyarmAway() // send it again We got no reply
+            return
+            }
+       logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
+         return 
+         }
               if (requirePIN){
                if (state.validPIN == true){
-               logging("${device} : Button # ${PoundSet}","info")          
                MyarmAway()
                return
                }
               }
               else{
-              logging("${device} : Button # ${PoundSet}","info")    
               state.PinName = "Not Required"    
               MyarmAway()
               return
               }   
          }     
      
-     logging("${device} : Button # ${PoundSet}","debug")
+     logging("${device} : ${PoundSet} Valid PIN:${state.validPIN} Ignoring","info")   
      if (PinEnclosed  =="22" ){   soundCode(13)}     
      return
      } 
@@ -1485,32 +1648,39 @@ def processMap(Map map) {
         state.validPIN = false
         state.PinName = "NA"
         state.PIN     = "NA"
+        state.pinN    = 0 
         asciiPin = "NA"
         end = size -1 
          asciiPin = receivedData[4..end].collect{ (char)Integer.parseInt(it, 16) }.join()
       if (device.currentValue("code1") == asciiPin){
           name = device.currentValue("code1n")
-          state.validPIN = true    
+          state.validPIN = true 
+          state.pinN = 1
 	   }	     
       if (device.currentValue("code2") == asciiPin){
           name = device.currentValue("code2n")
       	  state.validPIN = true
+          state.pinN = 2
       }
       if (device.currentValue("code3") == asciiPin){
           name = device.currentValue("code3n")
           state.validPIN = true
+          state.pinN = 3
       }
 	  if (device.currentValue("code4") == asciiPin){
           name = device.currentValue("code4n")
           state.validPIN = true
+          state.pinN = 4
       }
       if (device.currentValue("code5") == asciiPin){
           name = device.currentValue("code5n")
           state.validPIN = true
+          state.pinN = 5
       }  
       if (secure == asciiPin){
           name ="master"
           state.validPIN = true
+          state.pinN = 100
       }  
 
         if (state.validPIN == true){
