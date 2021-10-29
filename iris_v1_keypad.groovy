@@ -16,6 +16,8 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v4.8   10/29/2021 No longer sending HSM arming commands. HSM now reads the keyboard state.
+                    error in panic cancel fixed
   v4.7   10/28/2021 Logging for HSM SYNC. Verifies proper operation in log.
                     Disarmed during Entry did not always stop alarm fixed
                     Syntax error causing arm away to arm 2 times.
@@ -193,7 +195,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.7"
+    TheVersion="4.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -279,7 +281,7 @@ preferences {
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
 
-    input name: "DirectHSMcmd",  type: "bool", title: "Send direct HSM cmd", description:"Send the local hub HSM arm cmd", defaultValue: true, required: true
+//    input name: "DirectHSMcmd",  type: "bool", title: "Send direct HSM cmd", description:"Send the local hub HSM arm cmd", defaultValue: true, required: true
 
 }
 
@@ -566,16 +568,7 @@ def setCodeLength(cmd){
 //subscribe (location, "hsmStatus", statusHandler)
 //subscribe (location, "hsmAlerts", alertHandler)
 
-def cancelAlert(){
-    defaultLockCode()
-    MakeLockCode()
-	logging ("${device} : Sending CancelAlerts by [${state.PinName}]","info")
-    sendEvent(name: "securityKeypad",value: "Cancel Alerts",data: lockCode, type: "physical", descriptionText: "${device} was Cancled [physical]")
-	sendLocationEvent (name: "hsmSetArm", value: "CancelAlerts")
-    state.Command = "cancel"
-//    pauseExecution(6000)
 
-}
 
 // For calling delayed arming.
 def setAway(){
@@ -603,15 +596,15 @@ SendState()
  runIn(20,getSoftStatus)    
 }
 
-
+// not sure what this log it
+void setPartialFunction(cmd){
+logging ("${device} : HSM sent >> ${cmd}","warn")
+}
 
 
 // ===========================================HSM RECEIVED =======================================
 // Incomming command from HSM Including a delay
-void setPartialFunction(cmd){
-logging ("${device} : HSM sent >> ${cmd}","warn")
 
-}
 
 def armAway(cmd){
     state.received = true
@@ -811,14 +804,14 @@ private MyarmAway() {
     if (!state.delayExit){state.delayExit =30 }
     cmd = state.delayExit 
     MakeLockCode()
-    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "physical",descriptionText: "${device} was armed away [physical]")
-    sendEvent(name:"armingIn", value: cmd,data:[armMode:armAway,armCmd:03], isStateChange:true)
-    if (DirectHSMcmd == true){
-    sendLocationEvent (name: "hsmSetArm", value: "armAway")  
-    logging ("${device} : Sending hsmSetArm:armAWAY","info")
-    }
+    data = [armMode:"armed away",armCmd:"armAway"]
+    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "physical",descriptionText: "[physical] away")
+    sendEvent(name:"armingIn", value: cmd,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd
 
-    
+//    if (DirectHSMcmd == true){
+//    sendLocationEvent (name: "hsmSetArm", value: "armAway")  
+//    logging ("${device} : Sending hsmSetArm:armAWAY","info")
+//    }
     state.received = false
     logging ("${device} : was armed away [physical] by [${state.PinName}] Delay:${cmd}","info")
     state.Command = "armingAway"
@@ -828,14 +821,17 @@ private MyarmAway() {
 }
 private MyarmHome() {
     if (!state.armHomeDelay){state.armHomeDelay =30 }
+
     cmd = state.armHomeDelay 
     MakeLockCode()
-	sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "physical",descriptionText: "${device} was armed home [physical]")
-    sendEvent(name:"armingIn", value: cmd,data:[armMode:armHome,armCmd:01], isStateChange:true)
-    if (DirectHSMcmd == true){
-        sendLocationEvent (name: "hsmSetArm", value: "armHome")
-        logging ("${device} : Sending hsmSetArm:armHome","info")
-    }
+    data = [armMode:"armed home",armCmd:"armHome"]
+	sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "physical",descriptionText: "[physical] home")
+    sendEvent(name:"armingIn", value: cmd,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
+
+//    if (DirectHSMcmd == true){
+//        sendLocationEvent (name: "hsmSetArm", value: "armHome")
+//        logging ("${device} : Sending hsmSetArm:armHome","info")
+//   }
 
     state.received = false
     logging ("${device} : was armed home [physical] by [${state.PinName}] Delay:${cmd}","info")
@@ -847,16 +843,17 @@ private MyarmHome() {
 }
 private MyarmNight() {
     if (!state.armNightDelay){state.armNightDelay =30 }
+
     cmd = state.armNightDelay  
     MakeLockCode()
-	sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "physical",descriptionText: "${device} was armed night [physical]")
-    sendEvent(name:"armingIn", value: cmd,data:[armMode:armNight,armCmd:02], isStateChange:true)
-    if (DirectHSMcmd == true){
-    sendLocationEvent (name: "hsmSetArm", value: "armNight")
-    logging ("${device} : Sending hsmSetArm:armNight","info")
-    }
+    data = [armMode:"armed night",armCmd:"armNight"]
+	sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "physical",descriptionText: "[physical] night")
+    sendEvent(name:"armingIn", value: cmd,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
 
-    
+//    if (DirectHSMcmd == true){
+//    sendLocationEvent (name: "hsmSetArm", value: "armNight")
+//    logging ("${device} : Sending hsmSetArm:armNight","info")
+//    }
     state.received =false
     logging ("${device} : was armed night [physical] by [${state.PinName}]  Delay:${cmd}","info")
     state.Command = "armingNight"
@@ -875,32 +872,36 @@ def panic() {
     // has to be long or it will restart.
 }
 
+private cancelAlert(){
+	logging ("${device} : Sending CancelAlerts by [${state.PinName}]","info")
+    data = [armMode:"cancel alerts",armCmd:"CancelAlerts"]
+	sendEvent(name: "securityKeypad",value: "cancel alerts",data: lockCode, type: "physical",descriptionText: "[physical] ${lockCode}")
+    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
+}
 
-private MyDisarm() {
+private MyDisarm(cmd) {
     if (state.validPIN == false){
         logging ("${device} : Untrapped ERROR Disarm with NO PIN.", "warn")
         return
     } 
-    MakeLockCode()
-	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "${device} was disarmed [physical]", data: lockCode, type: "physical")
-    
-    if (state.Comand == "panic") {
+
+    if (state.Command == "panic") {
         logging ("${device} : Panic cancled by [${state.PinName}]","info")
         sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
      }
     
-    if (DirectHSMcmd == true){
-	sendLocationEvent (name: "hsmSetArm", value: "disarm")
-    logging ("${device} : Sending hsmSetArm:disarm", "info")    
-    } 
+    MakeLockCode()
 
-    logging ("${device} : was disarmed [physical] by [${state.PinName}]","info")
-    
-    sendEvent(name:"armingIn", value: 0,data:[armMode:disarm,armCmd:00], isStateChange:true)
+    if (state.Command == "off") {cancelAlert()}// if OFF may be trying to cancel a alert
+    logging ("${device} : was disarmed [physical] by [${state.PinName}] state:${state.Command}","info")
+    data = [armMode:"disarmed",armCmd:"disarm"]
+	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "[physical] disarmed", data: lockCode, type: "physical")
+    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
     sendEvent(name: "alarm", value: "off") 
     state.Command = "off"
     SendState()
-     runIn(15,getSoftStatus)
+    runIn(15,getSoftStatus)
+    
 
 }
 def SendState(cmd){
@@ -1107,7 +1108,7 @@ cluster = 0x00C0
 attributeId = 0x020
 dataType = DataType.ENUM8
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, cmdI, [destEndpoint :0x02]))    
-logging ("${device} : Sending KeyPad command [${state.Command}]","info")
+logging ("${device} : KeyPad set to [${state.Command}]","info")
 } 
 
 def stop(){
@@ -1176,7 +1177,7 @@ logging ("${device} : Tamper Clear","info")
 sendEvent(name: "tamper", value: "clear")
 }
 
-def press(buttonNumber){
+def push (buttonNumber){
    logging("${device} : Button ${buttonNumber}","info")
    sendEvent(name: "pushed", value: buttonNumber, isStateChange: true) 
 }
@@ -1405,7 +1406,7 @@ def processMap(Map map) {
         if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released ON AWAY] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
         if (state.Command =="away" | state.Command =="armingAway" ){
-          if (state.received == false && DirectHSMcmd == true){
+          if (state.received == false ){
             MyarmAway() // send it again We got no reply
             return
             }
@@ -1436,7 +1437,7 @@ def processMap(Map map) {
 
           if (PartSet =="Arm Night"){          
 		  if (state.Command =="night" | state.Command =="armingNight" ){
-               if (state.received == false && DirectHSMcmd == true){
+               if (state.received == false){
             MyarmNight() // send it again We got no reply
             return
             }
@@ -1459,8 +1460,7 @@ def processMap(Map map) {
          }
           if (PartSet =="Arm Home"){          
 		  if (state.Command =="home" | state.Command =="armingHome" ){
-              
-             if (state.received == false && DirectHSMcmd == true){
+            if (state.received == false ){
             MyarmAway() // send it again We got no reply
             return
             }  
@@ -1479,7 +1479,7 @@ def processMap(Map map) {
               return
               } 
          }   
-      logging("${device} : Valid PIN:${state.validPIN} Ignoring","warn")   
+      logging("${device} : Invalid PIN Ignoring","warn")   
       if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
       return   
 	 }          
@@ -1488,18 +1488,17 @@ def processMap(Map map) {
          if (keyRec == "48"){
           if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed OFF] Valid PIN:${state.validPIN} State:${state.Command}","info")}
           if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released OFF] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
-           if (state.validPIN == true){
-              if(device.currentValue("panic")== "on"){state.Command == "panic"}// Fix being out of sync  
-               
-            if (state.Command == "off"){
+          if (device.currentValue("panic")== "on"){state.Command == "panic"}// Fix being out of sync 
+            if (state.validPIN == true){              
+             if (state.Command == "off" && PinEnclosed  =="23"){
              logging("${device} : Action [OFF] Ignored already sent state${state.Command}","debug")  
              return
              }
             MyDisarm()
             return
-         }// end valid PIN
+         }
              
-         logging("${device} : Valid PIN:${state.validPIN} Ignoring","info")
+         logging("${device} : Invalid PIN Ignoring","warn")
          if (PinEnclosed  =="22" ){soundCode(13)} // beep once     
          return  
 	 }         
@@ -1515,7 +1514,7 @@ def processMap(Map map) {
 
       if (StarSet == "Arm Home"){
 		 if (state.Command =="home" | state.Command =="armingHome" ){
-          if (state.received == false && DirectHSMcmd == true){
+          if (state.received == false ){
           MyarmHome() 
           return
           }
@@ -1535,7 +1534,7 @@ def processMap(Map map) {
          }
        if (StarSet == "Arm Night"){
 		 if (state.Command =="night"| state.Command =="armingNight" ){
-             if (state.received == false && DirectHSMcmd == true){
+             if (state.received == false ){
             MyarmNight() // send it again We got no reply
             return
             } 
@@ -1557,7 +1556,7 @@ def processMap(Map map) {
          } 
         if (StarSet == "Arm Away"){
 		 if (state.Command =="away" | state.Command =="armingAway" ){
-              if (state.received == false && DirectHSMcmd == true){
+              if (state.received == false ){
             MyarmAway() // send it again We got no reply
             return
             }
@@ -1595,7 +1594,7 @@ def processMap(Map map) {
     
       if (PoundSet == "Arm Home"){
 		 if (state.Command =="home" | state.Command =="armingHome" ){
-              if (state.received == false && DirectHSMcmd == true){
+              if (state.received == false ){
             MyarmHome() // send it again We got no reply
             return
             }
@@ -1617,7 +1616,7 @@ def processMap(Map map) {
          }
        if (PoundSet == "Arm Night"){
 		 if (state.Command =="night" | state.Command =="armingNight" ){
-              if (state.received == false && DirectHSMcmd == true){
+              if (state.received == false ){
             MyarmNight() // send it again We got no reply
             return
             }
@@ -1639,7 +1638,7 @@ def processMap(Map map) {
          } 
         if (PoundSet == "Arm Away"){
 		 if (state.Command =="away" | state.Command =="armingAway"  ){
-              if (state.received == false && DirectHSMcmd == true){
+              if (state.received == false ){
             MyarmAway() // send it again We got no reply
             return
             }
@@ -1741,16 +1740,16 @@ def processMap(Map map) {
 
 // Keypad button matrix 
      
-if (keyRec == "31"){press(1)}
-if (keyRec == "32"){press(2)}
-if (keyRec == "33"){press(3)}
-if (keyRec == "34"){press(4)}
-if (keyRec == "35"){press(5)}
-if (keyRec == "36"){press(6)}
-if (keyRec == "37"){press(7)}
-if (keyRec == "38"){press(8)}
-if (keyRec == "39"){press(9)}
-if (keyRec == "30"){press(10)}
+if (keyRec == "31"){push(1)}
+if (keyRec == "32"){push(2)}
+if (keyRec == "33"){push(3)}
+if (keyRec == "34"){push(4)}
+if (keyRec == "35"){push(5)}
+if (keyRec == "36"){push(6)}
+if (keyRec == "37"){push(7)}
+if (keyRec == "38"){push(8)}
+if (keyRec == "39"){push(9)}
+if (keyRec == "30"){push(10)}
 
      }// end of 0A
 
