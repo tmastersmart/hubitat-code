@@ -16,6 +16,7 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v5.0   11/25/2021 Bug in arm home was armingaway
   v4.9   11/09/2021 Silent arming options.  min bat voltage adjustments.
                     Door chime still walking over entry chime. New fix.
                     Upgrade lockdata fileds in hsm arming to match keypad arming.
@@ -198,7 +199,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="4.9"
+    TheVersion="5.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -1466,7 +1467,7 @@ def processMap(Map map) {
           if (PartSet =="Arm Home"){          
 		  if (state.Command =="home" | state.Command =="armingHome" ){
             if (state.received == false ){
-            MyarmAway() // send it again We got no reply
+            MyarmHome() // send it again We got no reply
             return
             }  
           logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
@@ -1474,13 +1475,13 @@ def processMap(Map map) {
             
               if (requirePIN){
                if (state.validPIN == true){
-               MyarmAway()
+               MyarmHome()
                return
                }
               }
               else{
               defaultLockCode()
-              MyarmAway()
+              MyarmHome()
               return
               } 
          }   
