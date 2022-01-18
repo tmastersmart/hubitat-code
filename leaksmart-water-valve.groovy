@@ -17,8 +17,10 @@
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
 
 tested on firmware 
-113B-03E8-0000001D false mains flag sent
+113B-03E8-0000001D false mains flag sent (detect mains by voltage)
 113B-03E8-00000019 valid mains flag 
+
+
 
 
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
@@ -29,6 +31,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    2.9   01/17/2022   Slight changes to mains detect to fix false mains flags.
     2.8   10/14/2021   Added back switch/contact and Water sensor Wet= Open Dry=Closed
                        Notifier APP has no valve option this fixes it
     2.7   10/05/2021   Updates to match my others drivers version no system
@@ -52,11 +55,8 @@ The device may require a power cycled before a reset. Removing AC adapter and ba
 Notes:
 False mains flags seen on v1 valves but v2.1 works. If the bat starts discharging then the mains report
 will be considered false and ignored until it reports battery or you change the batteries. 
-Pressing reset will reset the detection. 
 
-Orgional smartthings code included capability "Switch" and capability "Contact Sensor"
-due to a defect in the rules engine that did not have valve support, this is unneeded on hubitat
-but you may comment them back in if needed. 
+
 
 
 Post comments here
@@ -211,9 +211,10 @@ def parse(String description) {
 		
             // watch for battery discharging to detect mains error
 	    // Mains,Battery,DC,Unknown
-
+// Changed should never be under 6 if good ac power
 		def testVoltage = (state.lastBatteryVoltage - 0.2)
-            if (batteryVoltage < testVoltage){
+
+		if (batteryVoltage < 6 ){
                 if (state.supplyPresent){
                     log.info "${device} : discharging detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v" 
                     state.supplyPresent = false
@@ -223,7 +224,8 @@ def parse(String description) {
             }
             // this valve does not go up unless bat is changed
 	    // we assume Mains and if it discharges its not. 
-            if (batteryVoltage > testVoltage){
+            // if 6v it is on mains or full battery		
+            if (batteryVoltage > 5.99){
                 if(!state.supplyPresent){
                     log.info "${device} : Battery change detected Last:${state.lastBatteryVoltage}v < Current:${batteryVoltage}v" 
                     state.supplyPresent = true
@@ -240,8 +242,8 @@ def parse(String description) {
         if (evt.name == "powerSource"){
             def val4 = evt.value
 		if (val4=="mains"){
-		  if (device.data.firmwareMT == "113B-03E8-0000001D"){log.info "${device}: Received powerSource mains ????"}
-		  if (state.badSupplyFlag){log.info "${device}: Bat discharging but reports mains! ignored."}
+		  if (device.data.firmwareMT == "113B-03E8-0000001D"){log.info "${device}: This model reports false mains flag.."}
+		  if (state.badSupplyFlag){log.info "${device}: Bat discharging"}
 		  if (!state.badSupplyFlag){
                   state.supplyPresent = true
                   result << createEvent(name: "powerSource", value: "mains")
