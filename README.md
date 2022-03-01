@@ -1,6 +1,8 @@
 # hubitat-code
 
- iris v1 keyboard driver for hubitat
+ iris v1 keypad driver for hubitat
+ 
+ iris v2 / v3 Keypad Driver for hubitat
  
  iris v1 senior care pendant driver for hubitat
  
