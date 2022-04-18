@@ -1,8 +1,10 @@
 /* Iris v1 KeyPad Driver
 Hubitat Iris v1 KeyPad driver 
-Supports keypad disarm arm functions 
+Supports keypad disarm arm functions (all modes)
 Works with Lock Code Manager (4-15 digit Pin size supported)
 Works with HSM 
+Plays chime codes and alarm strobe
+Button Controller support to map coomands to buttons 1-0
  
 
 
@@ -16,6 +18,10 @@ Works with HSM
                                                   |___/|_|   
 
 =================================================================================================
+  v5.5   04/18/2022 Fine Tunning disarm during entry. Chimes countdown sometimes didnt stop.
+                    Hide PINS from the info log for security
+  v5.4   04/12/2022 More adj to alkaline batt lasting longer than expected.
+  v5.3   03/12/2022 Battery routine and log adjustments.
   v5.2   02/22/2022 Added new firmware detect
   v5.1   01/18/2022 Minor cosmetic changes
   v5.0   11/25/2021 Bug in arm home was armingaway
@@ -161,7 +167,7 @@ Built by Everspring Industry Co Ltd Smart Keypad TSA04
 
 I wrote this for my keyboards you are welcome to use it.
 ================================================================================================
-Tested on Firmware 2013-06-28 and 2012-12-11 Only known versions
+Tested on Firmware 2013-06-28 and 2012-12-11 Only 3 known firmware versions exist
 
 https://github.com/tmastersmart/hubitat-code
 
@@ -201,7 +207,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="5.2"
+    TheVersion="5.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -443,10 +449,11 @@ def setCode(code,pinCode,userCode){
         if (device.currentValue("code3") == pinCode){saveit = false} 
         if (device.currentValue("code4") == pinCode){saveit = false}        
         if (device.currentValue("code5") == pinCode){saveit = false}        
-            logging( "${device} : ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","info")        
+          logging( "${device} : ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","debug")
+          logging( "${device} : ADD code#${code} PIN:XXXX User:${userCode}","info") 
         if (saveit){    
-          logging( "${device} : Saving ...${save}...","info")        
-   
+          logging( "${device} : Saving ...${save}...","debug")        
+          logging( "${device} : Saving User:${userCode}","info")
 	      sendEvent(name: "${save}", value: pinCode)
 	      sendEvent(name: "${save}n",value: userCode)
     
@@ -488,8 +495,8 @@ def deleteCode(code) {
     thecode = device.currentValue("${save}")
     thename = device.currentValue("${save}n")
     
-    logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","info")    
-    
+    logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","debug")    
+    logging ("${device} : deleteCode  #${code}   code:XXXX name:${thename}","info") 
     
 	if (code < 6) {
      device.deleteCurrentState("${save}")    
@@ -556,8 +563,9 @@ def getCodes(){
 
     codeStore = "${codeStore}}"
     sendEvent(name: "lockCodes",value: codeStore)
-             
-        logging("${device} : lockCode Database ${codeStore}", "info")          
+    // Dont show codes in normal log for security
+    logging("${device} : lockCode Database ${codeStore}", "trace")          
+    logging("${device} : lockCode Database Update", "info")
  }
 
 // using state.delayExit 
@@ -588,9 +596,12 @@ def setCodeLength(cmd){
 
 
 // For calling delayed arming.
+// if disarmed during countdown dont arm. 
 def setAway(){
 if (state.Command == "off"){
     logging ("${device} : Disarmed while arming. Abort","warn")
+    SendState()
+    runIn(1,getSoftStatus)
     return}    
 state.Command = "away"
 SendState()
@@ -599,6 +610,8 @@ SendState()
 def setHome(){
 if (state.Command == "off"){
     logging ("${device} : Disarmed while arming. Abort","warn")
+    SendState()
+    runIn(1,getSoftStatus)
     return}     
 state.Command = "home"
 SendState()
@@ -607,6 +620,8 @@ SendState()
 def setNight(){
 if (state.Command == "off"){
     logging ("${device} : Disarmed while arming. Abort","warn")
+    SendState()
+    runIn(1,getSoftStatus)
     return}     
 state.Command = "night"
 SendState()
@@ -1126,7 +1141,7 @@ def beep(){
 
    status = location.hsmStatus
    if (status != "disarmed" ){
-        logging ("${device} : Unable to Play door Chimes. ${status} overides entry chime.","warn")
+        logging ("${device} : ${status} overides entry chime. Ignored","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }
@@ -1769,43 +1784,35 @@ if (keyRec == "30"){push(10)}
     } else if (map.clusterId == "00F0") {
       // AlertMe General Cluster 
 
-      if (map.command == "FB") { 
-    // if bit 0 battery voltage // bit 5 and 6 reversed
-    // if bit 1 temp // bit 7 and 8 reversed
-    // if bit 8 lqi // LQI = 10 (lqi * 100.0) / 255.0
-    
-       batRec = receivedData[0]// [19] This sould be set with bat data but doesnt follow standard
-      tempRec = receivedData[1]// does not folow alertme standard 1 2 3 are actualy running a timmer up and down
-    switchRec = receivedData[4]
-       lqiRec = receivedData[8]// 
-      //if (lqiRec){ lqi = receivedData[10]}
+      if (map.command == "FB") {
+      // FB Only sends bat data on the keypad no temp. 
+      // lqiRec = receivedData[8] //if (lqiRec){ lqi = receivedData[10]}
+          
       def batteryVoltageHex = "undefined"
       BigDecimal batteryVoltage = 0
-      inspect = receivedData[1..3].reverse().join()
-      inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter Counts up or down
       batteryVoltageHex = receivedData[5..6].reverse().join()
-//      if (tempRec){
-//          temp  = receivedData[7..8].reverse().join()
-//          temp = zigbee.convertHexToInt(temp)
-//      }
-      if (batteryVoltageHex == "FFFF") {return}
-//      if (batRec){ 
+      if (batteryVoltageHex == "FFFF") {return} // Sometimes no bat data is sent
+          
+//   batRec = receivedData[0]  This sould be set to [19] but ignoring
+//   if (batRec){ 
      batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
      batteryVoltage = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
-     logging("${device} Raw Battery  Bat:${batRec} ${batteryVoltage}", "trace")    
+//   logging( "${device} : Raw Battery  flag:${batRec} Bat:${batteryVoltage}","trace")     
+  
  
 // I base this on Battery discharge curves(may need adjustments)
 // Normal batteries slowely discharge others have a sudden drop          
-// Iris source code says 2.1 is min voltage   
+// Iris source code says 2.1 is min voltage  
+// testing shows working at 2.25 v 
 		BigDecimal batteryVoltageScaleMin = 2.10
-		BigDecimal batteryVoltageScaleMax = 3.00	    
+		BigDecimal batteryVoltageScaleMax = (1.50 * 2)	    
 	    
 	    if (BatType == "NiCad"){ // < 1.2x2=2.2 drops out fast
-		batteryVoltageScaleMin = 2.19
-		batteryVoltageScaleMax = 3.00	    
+		batteryVoltageScaleMin = 2.20
+		batteryVoltageScaleMax = (1.50 * 2)	    
 	    } 
         if (BatType == "NiMH"){ // < 1.2x2=2.2 drops out fast
-		batteryVoltageScaleMin = 2.19
+		batteryVoltageScaleMin = 2.20
 		batteryVoltageScaleMax = (1.35 * 2)	    
 	    }    
 
@@ -1825,24 +1832,24 @@ if (keyRec == "30"){push(10)}
 
         
         if (state.lastBattery != batteryVoltage){
-	 logging( "${device} : Battery : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)","info")
-	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+    	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
      	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
          
          
-         if (batteryPercentage > 20) {  
+         if (batteryPercentage > 19) {  
              sendEvent(name: "batteryState", value: "ok")
+             logging( "${device} : Battery : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)","info")
              state.batteryOkay = true
              }
             
-         if (batteryPercentage < 20) {
-             logging("${device} : Battery LOW : $batteryPercentage%", "debug")
+         if (batteryPercentage < 10) {
+             logging("${device} : Battery LOW : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)", "warn")
              sendEvent(name: "batteryState", value: "low")
              state.batteryOkay = false
          }
   
-	 if (batteryPercentage < 10) {
-            logging("${device} : Battery BAD: $batteryPercentage%", "debug") 
+	 if (batteryPercentage < 5) {
+            logging("${device} : Battery BAD : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)", "warn") 
 	    state.batteryOkay = false
 	    sendEvent(name: "batteryState", value: "exhausted")
 	}
@@ -1860,6 +1867,10 @@ if (keyRec == "30"){push(10)}
 } else if (map.clusterId == "00F6") {
  // Discovery cluster. 
   if (map.command == "FD") {
+   // ranging code based on alertme UK code from  
+   // https://github.com/birdslikewires/hubitat  
+   // Since this is working Im not modifying it.  
+   //   
    // Ranging is our jam, Hubitat deals with joining on our behalf.
    def lqiRangingHex = "undefined"
    int lqiRanging = 0
