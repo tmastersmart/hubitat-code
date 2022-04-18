@@ -5,6 +5,12 @@ Driver supports model# 1112-S and model# 3405-L iris keypads
 
 supports both the v2 and v2 keypads in one driver.
 
+<<<<<<<<<<<<<<<<
+not for release This is a beta test BUGS exist
+I have decided not to have v2 and v3 in the same driver many problems.
+This is delayed until later.....
+
+
 
 
 Improvments over default drivers.
