@@ -12,6 +12,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
                                                                             |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
+   04/23/2022 v2.9  Added mains detection 
    10/19/2021 v2.8  Ranging bug fixes
    10/15/2021 v2.7  Operating state logging changed.
    10/05/2021 v2.6  Icon added
@@ -54,7 +55,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="2.8"
+    TheVersion="2.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -75,6 +76,7 @@ metadata {
 		capability "SignalStrength"
 		capability "Switch" 
         capability "Alarm"
+        capability "Power Source"
 
 
 		//command "lockedMode"
@@ -131,6 +133,7 @@ def initialize() {
 	sendEvent(name: "switch", value: "?")
 	sendEvent(name: "siren", value: "?")
 	sendEvent(name: "strobe", value: "?")
+    sendEvent(name: "powerSource", value: "unknown", isStateChange: true)
 
  
 	sendEvent(name: "uptime", value: 0, unit: "s", isStateChange: false)
@@ -347,43 +350,35 @@ void refresh() {
 	// The Smart Plug becomes remote controllable after joining once it has received confirmation of the power control operating mode.
 	// It also expects the Hub to check in with this occasionally, otherwise remote control is eventually dropped.
 	// Whenever a refresh happens (which is at least hourly using rangeAndRefresh() for outlets) we send the nudge.
-
 	logging("${device} : Refreshing", "info")
-
 	def cmds = new ArrayList<String>()
 	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}")    // version information request
 	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}")    // power control operating mode nudge
 	sendZigbeeCommands(cmds)
+    checkPresence()
+    
 
 }
 
 
 def rangeAndRefresh() {
-
 	// This toggles ranging mode to update the device's LQI value.
-
 	int returnToModeSeconds = 3			// We use 3 seconds for outlets, 6 seconds for battery devices, which respond a little more slowly.
-
 	rangingMode()
 	runIn(returnToModeSeconds, "${state.operatingMode}Mode")
-
 }
 
 
 def updatePresence() {
-
 	long millisNow = new Date().time
 	state.presenceUpdated = millisNow
-
 }
 
 
 def checkPresence() {
-
+//    logging("${device} : check Presence ${state.presenceUpdated} mins", "debug")
 	// Check how long ago the presence state was updated.
-
 	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
-
 	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
 	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
 
@@ -403,6 +398,8 @@ def checkPresence() {
 			if (hubUptime > uptimeAllowanceMinutes * 60) {
 
 				sendEvent(name: "presence", value: "not present")
+                sendEvent(name: "powerSource", value: "battery", isStateChange: true)
+                sendEvent(name: "VoltageWithUnit", value: 0, unit: "V") 
 				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
 
 			} else {
@@ -414,6 +411,7 @@ def checkPresence() {
 		} else {
 
 			sendEvent(name: "presence", value: "present")
+            sendEvent(name: "powerSource", value: "mains", isStateChange: true)
 			logging("${device} : Presence : Last presence report ${secondsElapsed} seconds ago.", "debug")
 
 		}
@@ -430,9 +428,9 @@ def checkPresence() {
 
 
 def parse(String description) {
-	// Primary parse routine.
+// Primary parse routine.
 //	logging("${device} :Parse Data: ${description}", "trace")
-        clientVersion()
+    clientVersion()
 	updatePresence()
         Map descriptionMap = zigbee.parseDescriptionAsMap(description)
 	if (descriptionMap) {
@@ -528,23 +526,16 @@ Internal notes: Building Cluster map
 		          logging("${device} : Switch : OFF ${state.power} Watts", "info")	   
 		   }    
        }
-	// Operating modes seen are 6 and 7 (doesnt relate to power on state as on UK models)		    
+	// Operating modes are not the same as UK (we never get the power on states)
+     state.operatingModeCode = OPERATING_MODE
+     // States seen so far on USA version
 
-	       state.operatingModeCode = OPERATING_MODE
-           // States seen so far on USA version
-           // 7 if on
-           // 6 if off
+     // 06 relay:00 
+     // 07 relay on
+     // 0E relay off (powered up in off?)
            
-	       if (OPERATING_MODE == "06"){
-		       logging("${device} Operating Mode 6 relay:${RELAY_STATE} ", "debug")
-	               return
-	       }
-	       if (OPERATING_MODE == "07"){
-		       logging("${device} Operating Mode 7 relay:${RELAY_STATE} ", "debug")
-	               return
-	       }
-	       logging("${device} Operating Mode :${OPERATING_MODE} relay:${RELAY_STATE} ", "debug")
-	
+       logging("${device} : Operating Mode :${OPERATING_MODE} relay:${RELAY_STATE} ", "debug")
+
 	       
 	       
       }// end map 80
@@ -636,27 +627,21 @@ else if (map.clusterId == "00EF") {
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 	        inspect = receivedData[1..3].reverse().join()
-                inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
-		batteryVoltageHex = receivedData[5..6].reverse().join()
+            inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
+		    batteryVoltageHex = receivedData[5..6].reverse().join()
 	        temperatureValue  = receivedData[7..8].reverse().join()
- 
-	
-	
-	
+
 //		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
-                batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+         batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-	        logging("${device} : Counter ${inspect2} Volts:${batteryVoltage} Temp${temperatureValue}", "debug")         
-//  		logging("${device} : Internal Voltage: ${batteryVoltage}", "debug")
-//		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V") 
-//       sendEvent(name: "battery", value: 100, unit: "%")
+        logging("${device} : Volts:${batteryVoltage}", "debug") 
+    
         sendEvent(name: "VoltageWithUnit", value: batteryVoltage, unit: "V") 
 
         
         // Temp sensor data does not make sence. Just for testing
         // what i get is 7780 /16 = -8 deg 
         // I dont think this has a temp sensor 
-    logging("${device} : Bat Volt Temp [00F0]  MAP:${map.data}", "trace")	     
         // Report the temperature in celsius.
 //		def temperatureValue = "undefined"
 //		temperatureValue = receivedData[7..8].reverse().join()
@@ -664,7 +649,7 @@ else if (map.clusterId == "00EF") {
 //		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) /16 
 //		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "info")
 //		sendEvent(name: "temperature", value: temperatureCelsius, unit: "C")
- 
+ logging("${device} : BatVoltTemp cluster [00F0]  MAP:${map.data}", "trace")	
     
     
     
