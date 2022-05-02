@@ -12,7 +12,11 @@ Centrica Connected home Limited Wireless Smartplug SP11
                                                                             |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
+   05/02/2022 v3.1  Init mode cleanup 
+   04/28/2022 v3.0  Added Un Schedule
    04/23/2022 v2.9  Added mains detection 
+                    Wattage events only created if diffrent than last reading
+                    stoped recording voltage to many events
    10/19/2021 v2.8  Ranging bug fixes
    10/15/2021 v2.7  Operating state logging changed.
    10/05/2021 v2.6  Icon added
@@ -55,7 +59,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="2.9"
+    TheVersion="3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -83,6 +87,7 @@ metadata {
 		command "normalMode"
 		command "rangingMode"
 		command "quietMode"
+        command "unschedule" 
 
 
 		attribute "strobe", "string"
@@ -92,6 +97,7 @@ metadata {
 		attribute "power", "string"
 		attribute "uptime", "string"
 		attribute "uptimeReadable", "string"
+        attribute "PowerRestore", "string"
 
 		fingerprint profileId: "C216", inClusters: "00F0,00EF,00EE", outClusters: "", manufacturer: "AlertMe", model: "SmartPlug2.5", deviceJoinName: "Iris SmartPlug v2.5"
 		
@@ -125,14 +131,14 @@ def initialize() {
 
 	sendEvent(name: "energy", value: 0, unit: "kWh", isStateChange: false)
     sendEvent(name: "alarmcmd", value: "0")
-	sendEvent(name: "operatingMode", value:"initialize")
+//	sendEvent(name: "operatingMode", value:"initialize")
 
 	sendEvent(name: "power", value: 0, unit: "W", isStateChange: false)
 
 	sendEvent(name: "presence", value: "not present")
-	sendEvent(name: "switch", value: "?")
-	sendEvent(name: "siren", value: "?")
-	sendEvent(name: "strobe", value: "?")
+//	sendEvent(name: "switch", value: "?")
+//	sendEvent(name: "siren", value: "?")
+//	sendEvent(name: "strobe", value: "?")
     sendEvent(name: "powerSource", value: "unknown", isStateChange: true)
 
  
@@ -156,6 +162,7 @@ state.remove("operation")
 
     device.deleteCurrentState("alarm")
     device.deleteCurrentState("alarmcmd")
+    device.deleteCurrentState("VoltageWithUnit")
 
 
 	// Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
@@ -491,14 +498,15 @@ Internal notes: Building Cluster map
 //   0x00EE     (238) Power Control Cluster
 // Relay actuation and power state messages.
     } else if (map.clusterId == "00EE") {
-       //OPERATING_MODE     = 01
-       //RELAY_STATE        = 02
-       //RELAY_STATUS_RQST  = 03
+       //OPERATING_MODE     = 0
+       //RELAY_STATE        = 1
+       //RELAY_STATUS_RQST  = 2
        
        if (map.command == "80") { //RELAY_STATUS_REPORT= 80
-       OPERATING_MODE  = receivedData[0]
-       RELAY_STATE     = receivedData[1]
-      
+       state.operatingModeCode  = receivedData[0]
+               RELAY_STATE      = receivedData[1]
+//               RELAY_STATUS_RQST= receivedData[2]
+           
        if (RELAY_STATE == "01") {
 	       if (device.currentValue("switch") != "on"){// Reduce events only change if dif 
                if(state.alarmcmd == 1){
@@ -526,16 +534,19 @@ Internal notes: Building Cluster map
 		          logging("${device} : Switch : OFF ${state.power} Watts", "info")	   
 		   }    
        }
-	// Operating modes are not the same as UK (we never get the power on states)
-     state.operatingModeCode = OPERATING_MODE
-     // States seen so far on USA version
-
-     // 06 relay:00 
-     // 07 relay on
-     // 0E relay off (powered up in off?)
-           
-       logging("${device} : Operating Mode :${OPERATING_MODE} relay:${RELAY_STATE} ", "debug")
-
+	// Operating modes are not the same as UK version
+    // States seen so far on USA version
+    // 06 relay:00 
+    // 07 relay on
+    // 0E relay off (powered up in off mode)
+       if (state.operatingModeCode == "0E"){
+           sendEvent(name: "PowerRestore", value: "in off") 
+           logging("${device} : Operating Mode :${state.operatingModeCode} Powered up in OFF mode", "debug")
+       }
+           else{
+           sendEvent(name: "PowerRestore", value: "NA")     
+           logging("${device} : Operating Mode :${state.operatingModeCode} relay:${RELAY_STATE} ", "debug")
+           }
 	       
 	       
       }// end map 80
@@ -559,50 +570,42 @@ else if (map.clusterId == "00EF") {
 			def powerValueHex = "undefined"
 			int powerValue = 0
 
-			// These power readings are so frequent that we only log them in debug or trace.
+// These power readings are so frequent that we need to slow them down
 			powerValueHex = receivedData[0..1].reverse().join()
-			logging("${device} : Current Power: ${powerValue} Watts :HEX ${powerValueHex}", "trace")
 			powerValue = zigbee.convertHexToInt(powerValueHex)
-			logging("${device} : Current Power: ${powerValue} Watts", "debug") // This has to be debug way to many reports
-//          state.power = powerValue
-			sendEvent(name: "power", value: powerValue, unit: "W")
-
+// We need to only save on change....Read the value first            
+            powerLast = device.currentValue("power")
+            logging("${device} : Power: now:${powerValue}W Last:${powerLast}W", "trace")
+            if ( powerLast < powerValue){
+             logging("${device} : Current Power: ${powerValue} Watts", "info")  //change this to debug if to many reports          
+			 sendEvent(name: "power", value: powerValue, unit: "W")
+            }
+            
 
 		} else if (map.command == "82") {
-
 			// Command 82 returns energy summary in watt-hours with an uptime counter.
-
 			// Energy
-
 			String energyValueHex = "undefined"
 			energyValueHex = receivedData[0..3].reverse().join()
 //			logging("${device} : energy byte flipped : ${energyValueHex}", "trace")
-
 			BigInteger energyValue = new BigInteger(energyValueHex, 16)
 			logging("${device} : energy counter reports : ${energyValue} hex:${energyValueHex}", "trace")
-
 			BigDecimal energyValueDecimal = BigDecimal.valueOf(energyValue / 3600 / 1000)
-			energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
-
+   		energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
 			logging("${device} : Total Energy Usage: ${energyValueDecimal} kWh", "debug")
-
 			sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh")
 
-			// Uptime
-
+            // Uptime
 			String uptimeValueHex = "undefined"
 			uptimeValueHex = receivedData[4..8].reverse().join()
 //			logging("${device} : uptime byte flipped : ${uptimeValueHex}", "trace")
-
 			BigInteger uptimeValue = new BigInteger(uptimeValueHex, 16)
 			logging("${device} : uptime counter reports : ${uptimeValue} Hex:${uptimeValueHex} ", "trace")
 
 			def newDhmsUptime = []
 			newDhmsUptime = millisToDhms(uptimeValue * 1000)
 			String uptimeReadable = "${newDhmsUptime[3]}d ${newDhmsUptime[2]}h ${newDhmsUptime[1]}m"
-
 			logging("${device} : Uptime : ${uptimeReadable}", "debug")
-
 			sendEvent(name: "uptime", value: uptimeValue, unit: "s")
 			sendEvent(name: "uptimeReadable", value: uptimeReadable)
 
@@ -626,6 +629,7 @@ else if (map.clusterId == "00EF") {
         // record voltage for testing as batteryVoltageWithUnit
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
+
 	        inspect = receivedData[1..3].reverse().join()
             inspect2 = zigbee.convertHexToInt(inspect) // Unknown Counter
 		    batteryVoltageHex = receivedData[5..6].reverse().join()
@@ -634,10 +638,13 @@ else if (map.clusterId == "00EF") {
 //		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
          batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-        logging("${device} : Volts:${batteryVoltage}", "debug") 
     
-        sendEvent(name: "VoltageWithUnit", value: batteryVoltage, unit: "V") 
-
+//      batteryLast = device.currentValue("VoltageWithUnit")
+        logging("${device} : Volts:${batteryVoltage} ", "trace") 
+//      if ( batteryLast == batteryVoltage ){return} this doesnt work why?
+//      sendEvent(name: "VoltageWithUnit", value: batteryVoltage, unit: "V")   
+//      VoltageWithUnit : 12.811  Never changes
+         
         
         // Temp sensor data does not make sence. Just for testing
         // what i get is 7780 /16 = -8 deg 
