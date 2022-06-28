@@ -1,8 +1,11 @@
 /*
 Lock Button Monitor
-Checks for locked by external button and links this to routines
+Checks for locked by external button and links to button press
 Hubitat HSM armed by external lock button.
 Schlage and Vale locks.
+
+Uses to detect external door lock and switch to away mode or arm HSM
+For hubitat
 
 
 Installation Notes:
@@ -10,6 +13,11 @@ Create a Virtual button. set buttons to 6
 
 set lock and button in app
 
+This works for one door only at this time.
+If you need more than one door you will have
+to save more than one copy of this code and change its name.
+
+============================================================
 Here is the key to the button push. Monitor with your rules
 
 Button 1 = Locked by keypad button
@@ -21,17 +29,26 @@ Button 6 = Lock brand not setup
 
 =============================================================
 
-
+ 06/28/2022  v1.1  working version. One lock only
  06/27/2022  v1.0  Testing version.....
 
 
 */
+
 def setVersion(){
-    state.version = "1.0.0"
+    state.name = "Lock Button Monitor ${app.lock}"
+    state.version ="1.1"
+//    updateLabel("Lock Button Monitor ${app.lock}")
+
+//    updateLabel(state.name)
+    def appLabel = app.getLabel()
+//    removeSetting(switchMode)
+//    log.debug "app label is ${appLabel}"
+
 }
 
 definition(
-    name: "Lock Button monitor",
+    name: "Lock Button Monitor V1",
     namespace: "tmaster",
     author: "tmaster",
     description: "Triggers when outside button locks the door",
@@ -76,8 +93,9 @@ def switchMode = [
     required:			true
 ]
 preferences {
-	page(name: "mainPage", title: "<b>Lock Button Monitor:</b>", install: true, uninstall: true) {
+    page(name: "mainPage", title: "<b>${app.label} [${state.name}]:</b>", install: true, uninstall: true) {
 		section("") {
+            input name
 			input lock
 
 		}
@@ -85,7 +103,7 @@ preferences {
 
 			input virtuaButton
 		}
-       section ("version ${state.version}") {
+       section ("version ${state.version} by Tmaster ") {
 //            input switchMode
 //			input enableLogging
 		}
@@ -93,14 +111,15 @@ preferences {
 }
 
 def installed() {
-	log.debug "Lock monitor: Installed with settings: ${settings}"
+	log.debug "Lock monitor${state.version} Installed:${settings}"
 	initialize()
 }
 
 def updated() {
-	log.debug "Lock monitor: Updated with settings: ${settings}"
+    log.debug "Lock monitor${state.version} Updated:${settings}"
 	unsubscribe()
 	initialize()
+    state.lock = lock
 }
 
 def initialize() {
@@ -123,7 +142,7 @@ return
 }
 
 def unlockHandler(evt) {
-
+setVersion()
    if (evt.descriptionText.contains('unlocked by thumb turn')){
    log.info ("Lock monitor: unlocked by thumb turn")
    virtuaButton.push(3)
@@ -169,7 +188,7 @@ log.warn ("Lock monitor: event passed loop: ${evt.descriptionText}")
 
 
 def lockHandler(evt) {
-	log.debug ("Lock monitor: Lock event: ${evt.descriptionText}")
+	setVersion()
 
     if (evt.descriptionText.contains('locked by keypad')){
     log.info ("Lock monitor: Locked by Keypad")
