@@ -1,4 +1,9 @@
 /*
+Lock Button Monitor
+Checks for locked by external button and links this to routines
+Hubitat HSM armed by external lock button.
+
+
 Installation Notes:
 Create a Virtual button. set buttons to 6
 
