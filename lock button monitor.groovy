@@ -2,6 +2,7 @@
 Lock Button Monitor
 Checks for locked by external button and links this to routines
 Hubitat HSM armed by external lock button.
+Schlage and Vale locks.
 
 
 Installation Notes:
