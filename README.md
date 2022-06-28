@@ -20,3 +20,5 @@ Expermental todki td-ZW101  driver for hubitat
 
 http presence sensor adjustable for hubitat. Set chron
 
+lock button monitor (watches for external keypad lock and presses a button)
+
