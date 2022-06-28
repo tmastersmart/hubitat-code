@@ -18,6 +18,9 @@ Button Controller support to map coomands to buttons 1-0
                                                   |___/|_|   
 
 =================================================================================================
+  v5.7   06/28/2022 Stop runaway countdown if disarmed by app during entry.
+                    Added more events to logs
+  v5.6   04/28/2022 Added command to unschedule pausing cron for debuging.
   v5.5   04/18/2022 Fine Tunning disarm during entry. Chimes countdown sometimes didnt stop.
                     Hide PINS from the info log for security
   v5.4   04/12/2022 More adj to alkaline batt lasting longer than expected.
@@ -176,7 +179,7 @@ Post your comments here.
 http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
 
 * To Reset Device:
- *    Insert battery and then press "ON" button device 5 times within the first 10 seconds.
+ *    Insert two batteries side-by-side at one end or the other and then press "ON" button device 5 times (8 times?) within the first 10 seconds.
  * 
  * The keypad is responsible for;
  *   1. Driving its LEDs according to its state
@@ -207,7 +210,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="5.5"
+    TheVersion="5.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -247,6 +250,7 @@ command "entry"
 command "quietMode"
 command "SendState"
 command "getStatus"
+command "unschedule"        
         
 
 attribute "armingIn", "NUMBER"
@@ -346,7 +350,7 @@ sendEvent(name: "presence", value: "present", isStateChange: false)
 sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
 sendEvent(name: "maxCodes", value:5)
 sendEvent(name: "codeLength", value:15)
-sendEvent(name: "securityKeypad", value: "Fetching")
+//sendEvent(name: "securityKeypad", value: "Fetching")
 sendEvent(name: "tamper", value: "clear")
 //sendEvent(name: "switch", value: "off")
 sendEvent(name: "status", value: "ok")    
@@ -708,8 +712,9 @@ def disarm(cmd) {
     sendEvent(name: "panic",  value: "off") 
     
     
+ // More work needed here its possible in entry for disarm not to work first time?
     if (state.Command == "off" ){ // stop repeated off commands
-        logging ("${device} : Ignored HSM CMD [disarm] State:${state.Command} [digital]","info")
+        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
         return
     }    
     MakeLockCodeIN()
@@ -733,6 +738,8 @@ def softOFF(){
 def setNA(){// Alarm Part
     if (state.Command == "off"){
     logging ("${device} : Disarmed during Entry. Abort","warn")
+    SendState()
+    runIn(1,getSoftStatus)    
     return} 
     
     state.Command ="alarmingNight"
@@ -745,6 +752,8 @@ def setNA(){// Alarm Part
 def setAA(){// Alarm ON 
     if (state.Command == "off"){
     logging ("${device} : Disarmed during Entry. Abort","warn")
+    SendState()
+    runIn(1,getSoftStatus)   
     return} 
     
     state.Command ="alarmingAway"    
@@ -756,6 +765,9 @@ def setAA(){// Alarm ON
 //=========================================ENTRY====================================================
 def entry(cmd){ 
     if (cmd >5){ state.delay =cmd} 
+    // create a entry event.
+    sendEvent(name: "securityKeypad",value: "Entry",data: lockCode, type: "digital",descriptionText: "${device} Entry ${state.delay} ")
+
 // no longer using the input here using the set delay
     if (state.delayEntry < 3){
      instantEntry()
@@ -952,6 +964,7 @@ def getSoftStatus(status){
 // logging routine for debuging HSM status
 //  HSM Sync status HSM:home <> state:armingHome  
    status = location.hsmStatus
+   sendEvent(name: "securityKeypad",value: "HSM Mode",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
     if (status == "armedAway" ) {test = "away"}    
     if (status == "armedHome" ) {test = "home"}
     if (status == "armedNight") {test = "night"}
@@ -962,6 +975,7 @@ def getSoftStatus(status){
 
 def getStatus(status) {
    status = location.hsmStatus
+   sendEvent(name: "securityKeypad",value: "HSM Mode",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
    MakeLockCodeIN() 
    logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
     
@@ -977,7 +991,7 @@ def getStatus(status) {
     
     if (status == "armedHome" | status == "armingHome"){
         if (state.Command != "home"){
-            sendEvent(name: "securityKeypad", value: "armed home")
+            sendEvent(name: "securityKeypad", value: "armed home",data: lockCode, type: "digital",descriptionText: "${device} was armed home [digital]")
             logging ("${device} : Polled HSM ${status} switching now","info")
             state.Command = "home"
             SendState()
@@ -1022,7 +1036,7 @@ if (state.Command == "armingNight" | state.Command == "armingHome"| state.Comman
         runIn(10,siren(cmd))
         return
         }
-
+sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
   if (AlarmTone == "KEYCLICK"){soundCode(1)}
@@ -1055,6 +1069,8 @@ def strobe(cmd){
 def both(cmd){siren(cmd)}
 
 def off(cmd){
+    
+  sendEvent(name: "securityKeypad",value: "siren OFF",data: lockCode, type: "digital",descriptionText: "${device} alarm siren OFF ${status}")  
   logging ("${device} : OFF siren/strobe","info")
   sendEvent(name: "siren", value: "off")  
   sendEvent(name: "strobe", value: "off") 
@@ -1368,13 +1384,24 @@ def processMap(Map map) {
          logging ("${device} : Error KeyPad Replied with CMD:[${mode1} ${mode2}] ","warn")
      }
      
-// KeyPad does not know its state (running armming or alarming)                           
+// KeyPad does not know its state (also armming or alarming)                           
      if (map.command == "00" ) {
          state.waiting ++
-         if (state.waiting == 5 | state.waiting==10 | state.waiting==15| state.waiting==20| state.waiting==25){logging ("${device} : KeyPad Polling for state Poll:${state.waiting} of ${state.delay}","info")} //Min logging
-//         else {logging ("${device} : KeyPad Polling for state  Poll:${state.waiting} of ${state.delay}","debug")}
-         if (state.waiting > state.delay){ // Correct lost state but wait out the delay
-           getStatus(status) 
+         state.waitingTo = state.delay
+         if (state.delay > 22){ state.waitingTo = 22} // limit a runaway wait
+         if (state.waiting == 3 | state.waiting==5 | state.waiting==10| state.waiting==15| state.waiting==22){logging ("${device} : KeyPad Polling for state Poll:${state.waiting} of ${state.waitingTo}","info")} 
+//       Atempting to stop runaway countdown on entry abort.
+         if (state.Command == "off"){
+           if (state.waiting > 3){ // We should be off so why are we still pollin
+           logging ("${device} : Polling while set to [OFF] Corecting state.","warn") 
+           getStatus(status)// verify our state from HSM
+           SendState()// Reset the state
+              
+           } 
+         }    
+             
+         if (state.waiting > state.waitingTo){ // Correct lost state after a delay
+             getStatus(status) 
            SendState()
          }  
      }  
@@ -1915,11 +1942,13 @@ if (keyRec == "30"){push(10)}
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
         reportFirm = "unknown"
-      if(deviceFirmware == "2012-12-11" ){reportFirm = "Ok"}
-      if(deviceFirmware == "2013-06-28" ){reportFirm = "Ok"}
-      if(deviceFirmware == "2012-06-08" ){reportFirm = "Ok"}
+      if(deviceFirmware == "2012-06-08" ){reportFirm = "v1 Ok"}
+      if(deviceFirmware == "2012-12-11" ){reportFirm = "v2 Ok"}
+      if(deviceFirmware == "2013-06-28" ){reportFirm = "v3 Ok"}
       
 	if(reportFirm == "unknown"){state.reportToDev="Report Unknown firmware [${deviceFirmware}] " }
+    else{state.remove("reportToDev")}
+      
 	// Sometimes the model name contains spaces.
 	if (versionInfoBlockCount == 2) {
 	deviceModel = versionInfoBlocks[0]
