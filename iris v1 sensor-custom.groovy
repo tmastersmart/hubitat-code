@@ -1,5 +1,7 @@
 /* Iris v1 contact sensor-custom
 
+iris v1 contact sensor for hubitat
+
 Support for batteries going dead at 30% If not present
 forces bat reading to 0 so bat mon can detect.
 
