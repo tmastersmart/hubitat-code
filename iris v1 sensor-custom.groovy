@@ -23,6 +23,8 @@ Since the tamper and contact only reports on events It will stay as you force it
 until the next event.  Great if using on a custom operation.
 
 
+Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
+
 
     07-27-2022  Detect dead batt. new force options. Uninstall option
     05/29/2022  Removed init routine was causing problems.
