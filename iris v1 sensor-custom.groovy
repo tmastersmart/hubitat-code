@@ -91,11 +91,11 @@ metadata {
 	command "checkPresence"
 	command "normalMode"
 	command "rangingMode"
-        command "ForceClosed"
-        command "ForceOpen"
-        command "ClearTamper"
-        command "unschedule"
-        command "uninstall"
+    command "ForceClosed"
+    command "ForceOpen"
+    command "ClearTamper"
+    command "unschedule"
+    command "uninstall"
 	command "quietMode"
 
 	attribute "batteryState", "string"
@@ -116,7 +116,8 @@ preferences {
 	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
-	input("tempAdj",  "number", title: "Adjust Temp", description: "adjust the temp by this much",defaultValue: 0,required: false)
+	input("tempAdj", "number", title: "Adjust Temp F", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
+	input("batAdj",  "number", title: "Adjust Bat %", description: "Adjust the Bat% by adding or subtracting this amount in % ",defaultValue: 0,required: false)
 
 }
 
@@ -518,6 +519,10 @@ def processMap(Map map) {
 			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
+            
+            if (batAdj > 0){batteryPercentage= batteryPercentage + batAdj }
+            if (batAdj < 0){batteryPercentage= batteryPercentage - batAdj }  
+            
             sendEvent(name: "battery", value:batteryPercentage, unit: "%")
             state.battery = batteryPercentage
 			if (batteryPercentage > 10) {
