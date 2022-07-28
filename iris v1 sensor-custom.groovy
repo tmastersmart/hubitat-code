@@ -69,36 +69,34 @@ import hubitat.helper.HexUtils
 
 metadata {
 
-	definition (name: "Iris v1 Contact Sensor-custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+	definition (name: "Iris v1 Contact Sensor-custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy") {
 
-		capability "Battery"
-
-
-		capability "Configuration"
-        capability "Contact Sensor"
-		capability "Initialize"
-		capability "MotionSensor"
-		capability "PresenceSensor"
-		capability "Refresh"
-		capability "Sensor"
-		capability "SignalStrength"
-		capability "TamperAlert"
-		capability "TemperatureMeasurement"
+	capability "Battery"
+	capability "Configuration"
+	capability "Contact Sensor"
+	capability "Initialize"
+	capability "MotionSensor"
+	capability "PresenceSensor"
+	capability "Refresh"
+	capability "Sensor"
+	capability "SignalStrength"
+	capability "TamperAlert"
+	capability "TemperatureMeasurement"
 
 
-		command "checkPresence"
-		command "normalMode"
-		command "rangingMode"
+	command "checkPresence"
+	command "normalMode"
+	command "rangingMode"
         command "ForceClosed"
         command "ForceOpen"
         command "ClearTamper"
         command "unschedule"
         command "uninstall"
-		command "quietMode"
+	command "quietMode"
 
-		attribute "batteryState", "string"
-		attribute "batteryVoltage", "string"
-		attribute "mode", "string"
+	attribute "batteryState", "string"
+	attribute "batteryVoltage", "string"
+	attribute "mode", "string"
         attribute "operation","string"
 
 
@@ -125,12 +123,12 @@ def installed() {
 
 def uninstall() {
 	unschedule()
-state.remove("rangingPulses")
-state.remove("operatingMode")
-state.remove("batteryOkay")
-state.remove("presenceUpdated")    
-state.remove("version")
-state.remove("battery")
+	state.remove("rangingPulses")
+	state.remove("operatingMode")
+	state.remove("batteryOkay")
+	state.remove("presenceUpdated")    
+	state.remove("version")
+	state.remove("battery")
 
     
 removeDataValue("battery")
