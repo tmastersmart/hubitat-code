@@ -10,6 +10,8 @@
  
  iris v1 smartplug driver for hubitat with alarm and strobe support
  
+ iris v1 sensor custom for Hubitat. Ads extra options. Presence better battery support
+ 
 Hubitat Everspring Utilitech Water Sensor  driver
 
 observer ip driver for hubitat
