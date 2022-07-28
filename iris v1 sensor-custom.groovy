@@ -116,7 +116,8 @@ preferences {
 	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
-	
+	input("tempAdj",  "number", title: "Adjust Temp", description: "adjust the temp by this much",defaultValue: 0,required: false)
+
 }
 
 
@@ -542,11 +543,11 @@ def processMap(Map map) {
 // Report the temperature 
 		def temperatureValue = "undefined"
 		temperatureValue = receivedData[7..8].reverse().join()
-//		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "trace")
 		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
-//      fixed from UK code use F
-        temperatureF = (temperatureCelsius * 9/5) + 32
-//		logging("${device} : Temperature C:${temperatureCelsius} F:${temperatureF}", "trace")
+        temperatureF = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
+        if (tempAdj > 0){temperatureF= temperatureF + tempAdj }
+        if (tempAdj < 0){temperatureF= temperatureF - tempAdj }    
+        
         logging("${device} : Temp:${temperatureF} Battery :${state.battery}% ${batteryVoltage}V", "info")
 		sendEvent(name: "temperature", value: temperatureF, unit: "F")
 
