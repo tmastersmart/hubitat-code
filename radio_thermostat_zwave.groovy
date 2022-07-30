@@ -44,7 +44,7 @@ def clientVersion() {
 
 metadata {
 
-	definition (name: "Radio Thermostat Zwave", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
+	definition (name: "Radio Thermostat Zwave", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/radio_thermostat_zwave.groovy") {
 		capability "Actuator"
 		capability "Configuration"
 		capability "Polling"
