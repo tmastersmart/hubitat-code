@@ -2,6 +2,7 @@
 Hubitat Driver
 CARE PRESENCE BEEP TONE FLASH
 =============================
+https://github.com/tmastersmart/hubitat-code
 
 Corrects mising options in built in driver. 
 This is the only driver that supports the care FOB the way it was orginaly designed to work.
@@ -16,19 +17,7 @@ You have to create rules to monitor the alarm state and notify you of the alarm.
 You then turn off the alarm from the dashboard switch and the pendant is notified help is coming and flashes green.
 After a set delay it then clears for next use.
 
-
-
-=============================================================================================================
-v1.3 10/23/2021 Switch addded to be compatable with Dashboard. Added Keyfob mode with Long flash reply
-v1.2 10/22/2021 typos
-v1.1 10/22/2021 First release
-
-reset:
-HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
-
-Tested on 2012-09-20
-
-
+================================================================================================================
 "Iris Care monitored "aging adults," and let owners receive notifications when a loved one fell or 
 when they system detected abnormal use. Such as you didnt open the door and get the mail or no motion. 
 This was a 2nd level pay service above free you paid $9.99 + $4.99 for care. It was later all moved
@@ -37,7 +26,19 @@ The Care Pendant would call for help notify you it had called and notify you hel
 
 This drver duplicates the care service on Hubitat.
 
-https://github.com/tmastersmart/hubitat-code
+=============================================================================================================
+
+v1.4 07/29/2022 Minor updates in notes and icon
+v1.3 10/23/2021 Switch addded to be compatable with Dashboard. Added Keyfob mode with Long flash reply
+v1.2 10/22/2021 typos
+v1.1 10/22/2021 First release
+
+reset:
+HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
+
+
+
+
 
 
  * based on alertme UK code from  
@@ -51,7 +52,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 
 def clientVersion() {
-    TheVersion="1.3"
+    TheVersion="1.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
