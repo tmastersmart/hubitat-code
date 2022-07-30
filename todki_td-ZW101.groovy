@@ -7,9 +7,11 @@
  
  WARNING this is not working it is a code in process  
  if you make changes and get it working please note the changes..
- port to hubitat is in process.
-  
- I had to stop working on this.......Will get back on it soon 
+ 
+ A port to hubitat was in process but I had to stop working on it
+ because My device died so this is a (dead project) now. 
+ Perhaps you can use it,,,
+ 
   
 V Beta test 
  
