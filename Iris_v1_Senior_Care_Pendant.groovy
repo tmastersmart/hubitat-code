@@ -4,18 +4,19 @@ CARE PRESENCE BEEP TONE FLASH
 =============================
 
 Corrects mising options in built in driver. 
+This is the only driver that supports the care FOB the way it was orginaly designed to work.
+A lot of work was needed to debug all of this and reverse the formats which are similar to the KeyPad.
 
+This driver simulates the IRIS pay Care Tier which the Senior Care Pendant was for.
 
- 
-
- This driver simulates the IRIS pay Care Tier which the Senior Care Pendant was for.
-
-Add 2 devices to your dashboard for the pendant a FOB and a Switch
+Add 2 devices to your dashboard for the pendant a keyfob and a alarm Switch
 
 Pressing the HELP button turns on the alarm, The pendant is then notified help is coming and flashes red.
-You need to have rules to notify you of the alarm.
-You then turn off the alarm from the dashboard and the pendant is notified help is coming and flashes green.
+You have to create rules to monitor the alarm state and notify you of the alarm.
+You then turn off the alarm from the dashboard switch and the pendant is notified help is coming and flashes green.
 After a set delay it then clears for next use.
+
+
 
 =============================================================================================================
 v1.3 10/23/2021 Switch addded to be compatable with Dashboard. Added Keyfob mode with Long flash reply
