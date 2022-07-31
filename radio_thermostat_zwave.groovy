@@ -9,7 +9,8 @@ CT-30e
 Polling only works on C wire mode.
 
 
-
+ v3.3   07/30/2022 Improvements and debuging code.
+                   
  v3.1   07/30/2022 Total rewrite of event storage and Parsing.
  v3.0   07/29/2022 Release - Major fixes and log conversion
 
@@ -35,7 +36,7 @@ https://github.com/MarioHudds/hubitat/blob/master/Enhanced%20Z-Wave%20Thermostat
  */
 
 def clientVersion() {
-    TheVersion="3.1"
+    TheVersion="3.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -52,16 +53,17 @@ metadata {
 		capability "Sensor"
 		capability "Refresh"
         capability "Battery"
-        capability "PowerSource"
+//      capability "PowerSource"
         capability "Thermostat"
         capability "TemperatureMeasurement"
         capability "ThermostatMode"
         capability "ThermostatFanMode"
-        capability "ThermostatSetpoint"
+//      capability "ThermostatSetpoint"
         capability "ThermostatCoolingSetpoint"
         capability "ThermostatHeatingSetpoint"
         capability "ThermostatOperatingState"
         capability "RelativeHumidityMeasurement"
+
         
         
         
@@ -71,13 +73,15 @@ metadata {
         
         
 		attribute "thermostatFanState", "string"
-
-//		command "switchMode"
-//		command "switchFanMode"
+        attribute "SetCool", "string"
+        attribute "SetHeat", "string"
+        
+		command "switchMode"
+		command "switchFanMode"
         command "unschedule"
         command "ReSetClock"
         command "uninstall"
-//        command "quickSetHeat"
+//        command "updated"
 
         
 
@@ -93,15 +97,23 @@ metadata {
 	}
 }
 preferences {
+    
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
     input name: "cwire", type: "bool", title: "Are you using C Wire", description: "If using C Wire changes polling and bat reports", defaultValue: true
-    input name: "polling", type: "number", title: "Polling", description: "Mins between poll", defaultValue: 15,required: true
-
     
+    input(  "polling", "number", title: "Polling", description: "Mins between poll. Must config after changing", defaultValue: 15,required: true)
 
 }
+
+def installed(){
+logging("${device} : Radio Thermostat Paired!", "info")
+configure()
+}
+
+
+
 def uninstall() {
   
 	unschedule()
@@ -128,25 +140,20 @@ def uninstall() {
     state.remove("version")    
     state.remove("supportedModes")
 
-  
-removeDataValue("temperature")
+removeDataValue("thermostatSetpoint")
+removeDataValue("SetCool")
+removeDataValue("SetHeat")    
+    
 logging("${device} : Uninstalled", "info")   
 }
 
 def configure() {
     unschedule()
+    updateDataValue("brand", "Radio Thermostat")
     logging("${device} : Configure Driver v${state.version}", "info")
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"true",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
-    
-    // Poll the device every x min
-    if (polling <=10){ polling = 15}
-    
-	int checkEveryMinutes = polling			
-	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
-    logging("${device} :Setting Chron for poll ${randomSixty} 0/${checkEveryMinutes} * * * ? *", "info")
 	updated()
     delayBetween([
 		zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
@@ -156,7 +163,14 @@ def configure() {
 
 
 def updated() {
-	loggingStatus()
+    // Poll the device every x min
+    
+	int checkEveryMinutes = polling		
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
+    logging("${device} :Setting Chron for poll ${randomSixty} 0/${checkEveryMinutes} * * * ? *", "info")
+
+    loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(3500,traceLogOff)
 	refresh()
@@ -179,7 +193,9 @@ def poll() {
     }
     clientVersion()
     logging("${device} : Poll Driver v${state.version}", "info")
+    //zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
 	delayBetween([
+        
 		zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
@@ -255,29 +271,28 @@ def parse(String description)
 // Event Generation
 def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointReport cmd)
 {
-    
+// java.lang.NumberFormatException: null on line 272 (method parse)   
     def cmdScale = cmd.scale == 1 ? "F" : "C"
 	def map = [:]
 	map.value = convertTemperatureIfNeeded(cmd.scaledValue, cmdScale, cmd.precision)
+    map.name = "unknown"
     logging("${device} :Event Generation - ${cmd.setpointType} ${map.value}", "trace")
 	map.unit = getTemperatureScale()
 	map.displayed = false
 	switch (cmd.setpointType) {
 		case 1:
 			map.name = "heatingSetpoint"
-        logging("${device} : ${map.name} ${map.value}", "info")
-        sendEvent(name:"heatingSetpoint", value: map.value,unit: cmdScale,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break;
 		case 2:
 			map.name = "coolingSetpoint"
-        logging("${device} : ${map.name} ${map.value}", "info")
-        sendEvent(name:"coolingSetpoint", value: map.value,unit: cmdScale,descriptionText:"Driver ${state.version}", isStateChange:true)
 			break;
 		default:
         logging("${device} : error Unknown ${map.value}", "info")
-//        sendEvent(name:"coolingSetpoint", value: map.value,unit: cmdScale,data: "Driver ${state.version}", isStateChange:true)
 			return [:]
 	}
+    logging("${device} : ${map.name} ${map.value} ${cmdScale}", "info")
+    sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"Driver ${state.version}", isStateChange:true)    
+    
 	// So we can respond with same format
 	state.size = cmd.size
 	state.scale = cmd.scale
@@ -299,7 +314,7 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport 
 		map.unit = "%"
 		map.name = "humidity"
 	}
-    logging("${device} : ${map.name} ${map.value}${map.unit}", "info")
+    logging("${device} : ${map.name} ${map.value} ${map.unit}", "info")
     sendEvent(name:map.name ,value:map.value ,unit: map.unit, descriptionText:"Driver ${state.version}", isStateChange: true)
 
 	map
@@ -309,41 +324,28 @@ def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOpera
 {
 	def map = [:]
     map.name = "thermostatOperatingState"
+    map.value = "unknown"
 	switch (cmd.operatingState) {
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_IDLE:
 			map.value = "idle"
-                logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_HEATING:
 			map.value = "heating"
-                logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name:"operatingState", value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_COOLING:
 			map.value = "cooling"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_FAN_ONLY:
 			map.value = "fan only"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_HEAT:
 			map.value = "pending heat"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_COOL:
 			map.value = "pending cool"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_VENT_ECONOMIZER:
 			map.value = "vent economizer"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-         sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 	}
 	
@@ -353,22 +355,18 @@ def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOpera
 }
 
 def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateReport cmd) {
-	def map = [name: "thermostatFanState", unit: ""]
+	def map = [:]
+    map.name = "thermostatFanState"    
+    map.value = "unknown"
 	switch (cmd.fanOperatingState) {
 		case 0:
 			map.value = "idle"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case 1:
 			map.value = "running"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case 2:
 			map.value = "running high"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 	}
     logging("${device} : ${map.name} - ${map.value} ", "info")
@@ -379,31 +377,22 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateRep
 def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd) {
 	def map = [:]
     map.name = "thermostatMode"
+    map.value = "unknown"
 	switch (cmd.mode) {
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_OFF:
 			map.value = "off"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_HEAT:
 			map.value = "heat"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_AUXILIARY_HEAT:
 			map.value = "emergency heat"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_COOL:
 			map.value = "cool"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_AUTO:
 			map.value = "auto"
-            logging("${device} : ${map.name} - ${map.value} ", "info")
-            sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
 			break
 	}
 	
@@ -416,28 +405,20 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport cmd) {
 	def map = [:]
     map.name = "thermostatFanMode"
+    map.value = "unknown"
 	switch (cmd.fanMode) {
 		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_AUTO_LOW:
 			map.value = "fanAuto"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
- 
 			break
 		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_LOW:
 			map.value = "fanOn"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
- 
 			break
 		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_CIRCULATION:
 			map.value = "fanCirculate"
-             logging("${device} : ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
- 
 			break
 	}
 	
-        logging("${device} : ${map.name} - ${map.value} ", "info")
+    logging("${device} : ${map.name} - ${map.value} ", "info")
     sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
  
 	map.displayed = false
@@ -453,7 +434,12 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
 	if(cmd.auto) { supportedModes += "auto " }
 
 	state.supportedModes = supportedModes
-    logging("${device} : supportedModes- ${supportedModes}", "debug")
+    logging("${device} : supportedModes [${supportedModes}]", "info")
+    sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: "Driver ${state.version}", isStateChange:true)
+
+//    supportedModes- off heat cool    
+//    supportedThermostatModes : [off, heat, cool, auto, emergency heat]
+    
 }
 
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
@@ -463,16 +449,33 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSuppo
 	if(cmd.circulation) { supportedFanModes += "fanCirculate " }
 
 	state.supportedFanModes = supportedFanModes
-    logging("${device} : supportedFanModes- ${supportedFanModes}", "debug")
+    logging("${device} : supportedFanModes [${supportedFanModes}]", "info")
+    sendEvent(name: "supportedFanModes", value: "[${supportedFanModes}]",descriptionText: "Driver ${state.version}", isStateChange:true)
+// not getting any results back on this one
+    
 }
 
+// these are untrapped log them...
 def zwaveEvent(hubitat.zwave.commands.basicv1.BasicReport cmd) {
-    logging("${device} : received- ${cmd}", "debug")
+    logging("${device} : Received basicv1.BasicReport ${cmd}", "debug")
+}
+def zwaveEvent(hubitat.zwave.Command cmd) {
+    logging("${device} : Received Command ${cmd}", "debug")
 }
 
-def zwaveEvent(hubitat.zwave.Command cmd) {
-    logging("${device} : received Unexpected- ${cmd}", "warn")
+// Newer v5 format see what we get and log it.
+def zwaveEvent(hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd){
+    logging("${device} : Received Command ${cmd}", "debug")
 }
+
+void zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
+    logging("${device} : Received Command ${cmd}", "debug")
+    device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
+    device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
+    device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
+}
+
+
 
 
 def quickSetHeat(degrees) {
@@ -498,8 +501,8 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     } else {
     	convertedDegrees = degrees
     }
-    logging("${device} : Set Heat Setpoint ${convertedDegrees} ${locationScale}", "info")
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
+    logging("${device} : Set Heat Setpoint --- ${convertedDegrees} ${locationScale} ---", "info")
+    sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format()
@@ -529,8 +532,8 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     } else {
     	convertedDegrees = degrees
     }
-    logging("${device} : Set Cool Setpoint ${convertedDegrees} ${locationScale}", "info")
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
+    logging("${device} : Set Cool Setpoint --- ${convertedDegrees} ${locationScale} ---", "info")
+    sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p,  scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format()
@@ -556,6 +559,7 @@ def switchMode() {
 		}
 	}
 	state.lastTriedMode = nextMode
+    logging("${device} : Mode switch to ${nextMode}", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: modeMap[nextMode]).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -585,7 +589,6 @@ def switchFanMode() {
 		nextMode = next(nextMode)
 	}
 	switchToFanMode(nextMode)
-    logging("${device} : Fan Mode ${nextMode}", "info")
 }
 
 def switchToFanMode(nextMode) {
@@ -602,7 +605,7 @@ def switchToFanMode(nextMode) {
 	} else {
 		logging("${device} : No Fan Mode ${nextMode}", "warn")
 	}
-    logging("${device} : Fan Mode ${nextMode}", "info")
+    logging("${device} : Fan Mode switch to ${nextMode}", "info")
 	if(returnCommand) state.lastTriedFanMode = nextMode
 	returnCommand
 }
@@ -733,8 +736,8 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
     } else {
         map.descriptionText = "battery is ok"
         logging("${device} : Battery ${cmd.batteryLevel} C wire:${cwire}", "info")
-        sendEvent(name:map.name ,value:map.value ,unit: map.unit, data:"Driver ${state.version}", isStateChange: true)
 
+       sendEvent(name: map.name, value: map.value,unit: map.unit, descriptionText: "Driver ${state.version}", isStateChange:true)
     }
     map
 }
@@ -770,7 +773,7 @@ private setClock() {
         def nowCal = Calendar.getInstance(location.timeZone) // get current location timezone
         state.LastTimeSet = "${nowCal.getTime().format("EEE MMM dd yyyy HH:mm:ss z", location.timeZone)}"
         logging("${device} : Setting clock ${state.LastTimeSet}", "info")
-        sendEvent(name: "SetClock", value: "setting clock to ${state.LastTimeSet}", displayed: true, isStateChange: true)
+        sendEvent(name: "SetClock", value: state.LastTimeSet, descriptionText: "Driver ${state.version}",displayed: true, isStateChange:true)
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: nowCal.get(Calendar.DAY_OF_WEEK)).format()
     } else "delay 87"
 }
@@ -778,7 +781,7 @@ private setClock() {
 
 
 void loggingStatus() {
-	log.info "${device} : Logging : ${infoLogging == true}"
+	log.info  "${device} : Info  Logging : ${infoLogging == true}"
 	log.debug "${device} : Debug Logging : ${debugLogging == true}"
 	log.trace "${device} : Trace Logging : ${traceLogging == true}"
 }
