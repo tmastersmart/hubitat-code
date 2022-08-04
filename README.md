@@ -12,6 +12,8 @@
  
  iris v1 sensor driver for Hubitat. Ads extra options. Presence better battery support
  
+ iris radio thermostat Driver for hubitat (Radio Thermostat Zwave)
+ 
 Radio Thermostat Zwave Hubitat driver. CT-101 CT30e 
  
 Hubitat Everspring Utilitech Water Sensor  driver
