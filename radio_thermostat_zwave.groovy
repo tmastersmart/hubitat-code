@@ -81,25 +81,38 @@ Code cleanup and restructuring.
 Major sections of forked code not needed on hubitat were removed.
 
 ======================================================================================================
-Forked from a port on Hubitat
-https://community.hubitat.com/t/port-enhanced-z-wave-thermostat-ct-100-w-humidity-and-time-update/4743
-(has many errors and doesnt work)
+Copyright [2022] [tmaster winnfreenet.com]
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=======================================================================================================
 
 
-Orginal Forked from a old smartthings driver Apache License, Version 2.0
-https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-device-handler-honeywell-gocontrol-ct-linear-trane-mco-remotec/7284/
+
+Some code used from several diffrent versions here
+
+hubitat port http://www.apache.org/licenses/LICENSE-2.0
 https://github.com/MarioHudds/hubitat/blob/master/Enhanced%20Z-Wave%20Thermostat
+https://community.hubitat.com/t/port-enhanced-z-wave-thermostat-ct-100-w-humidity-and-time-update/4743
 
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
- *
+
+Modified version here 
+https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/ct100-thermostat-custom.src/ct100-thermostat-custom.groovy
+
+Modified version here
+https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/ct100-thermostat.src/ct100-thermostat.groovy
+
+Orginal old smartthings driver http://www.apache.org/licenses/LICENSE-2.0
+https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-device-handler-honeywell-gocontrol-ct-linear-trane-mco-remotec/7284/
  */
 import groovy.json.JsonOutput
 def clientVersion() {
