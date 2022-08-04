@@ -120,7 +120,7 @@ https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetype
 Orginal old smartthings driver http://www.apache.org/licenses/LICENSE-2.0
 https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-device-handler-honeywell-gocontrol-ct-linear-trane-mco-remotec/7284/
  */
-import groovy.json.JsonOutput
+//import groovy.json.JsonOutput
 def clientVersion() {
     TheVersion="4.8"
  if (state.version != TheVersion){ 
