@@ -122,11 +122,12 @@ Orginal old smartthings driver http://www.apache.org/licenses/LICENSE-2.0
 https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-device-handler-honeywell-gocontrol-ct-linear-trane-mco-remotec/7284/
  */
 //import groovy.json.JsonOutput
+
 def clientVersion() {
-    TheVersion="5.1"
+    TheVersion="5.1.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
-     configure() 
+     configure() // Forces config on updates
  }
 }
 
@@ -150,16 +151,17 @@ metadata {
         capability "ThermostatHeatingSetpoint"
         capability "ThermostatOperatingState"
         capability "RelativeHumidityMeasurement"
+        
         attribute "thermostatFanState", "string"
-//attribute "supportedFanModes", "string"
+        attribute "SetClock", "string"
         attribute "SetCool", "string"
         attribute "SetHeat", "string"
+        
 //		command "switchMode"
 //		command "switchFanMode"
         command "unschedule"
-        command "ReSetClock"
         command "uninstall"
-//        command "updated"
+        command "setClock"
 		fingerprint deviceId: "0x08"
 		fingerprint inClusters: "0x43,0x40,0x44,0x31"
         
@@ -267,6 +269,12 @@ logging("${device} : Uninstalled", "info")
 
 def configure() {
     unschedule()
+    
+    // no longer used
+    state.remove("lastClockSet") 
+    state.remove("supportedFanModes")
+    state.remove("supportedModes")
+    
     logging("${device} : Configure Driver v${state.version}", "info")
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
@@ -282,7 +290,7 @@ def configure() {
         zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off
         zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is diff
         getBattery(), 
-        setClock(), 
+//        setClock(), 
 	], 2300)
 }
 
@@ -300,7 +308,9 @@ def updated() {
     
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
-    logging("${device} :Setting Chron for poll ${randomSixty} 0/${checkEveryMinutes} * * * ? *", "info")
+    schedule("${randomSixty} 0 12 * * ? *", setTheClock)
+
+    logging("${device} :Setting Chrons ${randomSixty} 0/${checkEveryMinutes} * * * ? * - ${randomSixty} 0 12 * * ? *  ", "info")
 
     loggingStatus()
 	runIn(3600,debugLogOff)
@@ -324,29 +334,26 @@ def refresh() {
     poll()
 }
 def poll() {
-
- 
     clientVersion()
     logging("${device} : Poll E=Event# v${state.version}", "info")
-    //zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
-    //zwave.batteryV1.batteryGet().format(),
-    //zwave.commands.versionv2.VersionReport
-    //        zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
-//      zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),
-    
+//zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
+//zwave.batteryV1.batteryGet().format(),
+//zwave.commands.versionv2.VersionReport
+//zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
+//zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),
 	delayBetween([
-		zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
+		zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
         zwave.multiInstanceV1.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV2.sensorMultilevelGet()).format(), // CT-100/101 Humidity
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
 		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
-        zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery
-        zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is temp diff
+        zwave.configurationV2.configurationGet(parameterNumber: 9).format(),// is fast recovery
+        zwave.configurationV2.configurationGet(parameterNumber: 8).format(),// is temp diff
         zwave.configurationV2.configurationGet(parameterNumber: 4).format(),// get cwire
 		getBattery(), 
-        setClock() 
+//        setClock(), // moved to chron
 	], 2300)
 }
 //        "TempReport":		[ Param: 1, Size: 1, Default: 2, Min: 0, Max: 4, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
@@ -383,13 +390,13 @@ def parse(String description)
 // 0x85:1  Association
 // 0x86:1  Version
 // 0x98:1  Security
-   //def zwcmd = zwave.parse(description, [0x42:2, 0x43:2, 0x31: 2, 0x60: 3])
+   //def zwcmd = zwave.parse(description, [0x42:2, 0x43:2, 0x31: 2, 0x60: 3]) old code
    CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1]   
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
     logging("${device} : Raw [${description}]", "trace")
-//    if (!result) {return null}
-//    logging("${device} : Parse ${map}", "info")
+    if (map == null) {return null}
 	def result = [map]
+    if (!result) {return null}
     logging("${device} : Parse ${result}", "debug")
   
     if (map) { 
@@ -459,17 +466,14 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 	state.scale = cmd.scale
 	state.precision = cmd.precision
 }
-// E2 has been null null null
+// E2 
 def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport cmd)
 {
 	logging("${device} : received E2 ${cmd}", "debug")
     def map = [:]
     map.displayed = true
     map.isStateChange = true
-    if (cmd.sensorType == 0) {//E2 precision:0, scale:3, sensorType:0, sensorValue:[], size:0, scaledSensorValue:null)
-        logging("${device} : E2 Empty no data", "info") // ct30 known to do this 
-        return
-    }
+    if (cmd.sensorType == 0) {return }  // ct30 (fixed in rev1)
 	if (cmd.sensorType == 1) {
 		map.value = convertTemperatureIfNeeded(cmd.scaledSensorValue, cmd.scale == 1 ? "F" : "C", cmd.precision)
 		map.unit = getTemperatureScale()
@@ -618,7 +622,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
     }        
         
 
-	state.supportedModes = supportedModes
+//	state.supportedModes = supportedModes
     logging("${device} : E7 supportedModes [${supportedModes}]", "info")
     sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: supportedModes, isStateChange:true)
 
@@ -634,7 +638,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSuppo
 	if(cmd.low) { supportedFanModes += "fanOn," }
 	if(cmd.circulation) { supportedFanModes += "fanCirculate " } // not used
 
-	state.supportedFanModes = supportedModes
+//	state.supportedFanModes = supportedModes
     logging("${device} : E8 supportedFanModes[${supportedFanModes}]", "info")
     sendEvent(name: "supportedFanModes", value: "[${supportedModes}]",descriptionText: supportedModes, isStateChange:true)
 
@@ -819,22 +823,21 @@ def getDataByName(String name) {
 }
 
 
-
-def setThermostatMode(String value) {
-	delayBetween([
-		zwave.thermostatModeV2.thermostatModeSet(mode: modeMap[value]).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
-}
-
-
-
-def setThermostatFanMode(String value) {
-	delayBetween([
-		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: fanModeMap[value]).format(),
-		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], standardDelay)
-}
+// what is this for (To be removed )
+//def setThermostatMode(String value) {
+//    logging("${device} :Set setThermostatMode ---------", "info")
+//	delayBetween([
+//		zwave.thermostatModeV2.thermostatModeSet(mode: modeMap[value]).format(),
+//		zwave.thermostatModeV2.thermostatModeGet().format()
+//	], standardDelay)
+//}
+//def setThermostatFanMode(String value) {
+//    logging("${device} :Set setThermostatFanMode ---------", "info")
+//	delayBetween([
+///		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: fanModeMap[value]).format(),
+//		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
+//	], standardDelay)
+//}
 
 // -------------------------------------mode setting ------------------
 //   "onlyMode" ["off", "heatonly","coolonly"] 
@@ -987,26 +990,22 @@ private getBattery() {
 		zwave.batteryV1.batteryGet().format()
     } else "delay 87"
 }
-private ReSetClock(){
-    state.lastClockSet = 1500
-    setClock()
+
+def setTheClock(){
+//logging("${device} : Chron Seting the clock", "debug")   
+setClock()
 }
-
-
 // Auto set clock code (improved)
 // Day is not visiable in ct101 but is on ct30
 private setClock() {
-
-    def nowTime = new Date().time
-	def ageInMinutes = state.lastClockSet ? (nowTime - state.lastClockSet)/60000 : 1440
-
-    if (ageInMinutes >= 60) { // once a hr
-		state.lastClockSet = nowTime
+//	def ageInMinutes = state.lastClockSet ? (nowTime - state.lastClockSet)/60000 : 1440
+//    if (ageInMinutes >= 60) { // once a hr
+//		state.lastClockSet = nowTime
+        def nowTime = new Date().time
         def nowCal = Calendar.getInstance(location.timeZone) // get current location timezone
         state.LastTimeSet = "${nowCal.getTime().format("EEE MMM dd yyyy HH:mm:ss z", location.timeZone)}"
         setDay(nowCal.get(Calendar.DAY_OF_WEEK)) // gives us weekday name
         theTime ="${weekday} ${nowCal.get(Calendar.HOUR_OF_DAY)}:${nowCal.get(Calendar.MINUTE)}"
-
         weekdayZ = nowCal.get(Calendar.DAY_OF_WEEK) -1 // Gives us zwave weekday
         if (weekdayZ <1){weekdayZ = 7} // rotate to sat
         logging("${device} : Adjusting clock ${theTime} 24hr", "info")
@@ -1016,7 +1015,6 @@ private setClock() {
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: weekdayZ).format(),
         zwave.clockV1.clockGet().format()
 	], standardDelay)
-    } else "delay 87"
 }
 
 void setDay(day){
@@ -1044,33 +1042,34 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
     if (setclock == true) {logging("${device} : E16 Receiving clock ${weekday} ${cmd.hour}:${cmd.minute} 24hr (out of sync)", "warn")}
 }
 
-// is this needed
-def getModeMap() { 
-    [
-	"off": 0,
-	"heat": 1,
-	"cool": 2,
-	"auto": 3,
-	"emergency heat": 4
-]
-}
 
-def getFanModeMap() {
-    [
-    "auto": 0,
-    "on": 1,
-    "circulate": 6
-        ]
-}
-def modes() {
-	[
-        "off",
-        "heat",
-        "cool",
-       "auto",
-       "emergency heat"
-    ]
-}
+// need to get rid of this.
+//def getModeMap() { 
+//    [
+//	"off": 0,
+//	"heat": 1,
+//	"cool": 2,
+//	"auto": 3,
+//	"emergency heat": 4
+//]
+//}
+
+//def getFanModeMap() {
+//   [
+//   "auto": 0,
+//   "on": 1,
+//   "circulate": 6
+//        ]
+//}
+//def modes() {
+//	[
+//        "off",
+//        "heat",
+//        "cool",
+//       "auto",
+//       "emergency heat"
+//    ]
+//}
 
 
 void loggingStatus() {
