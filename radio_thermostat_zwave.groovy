@@ -3,8 +3,8 @@ Hubitat driver for radio thermostat & Iris Thermostat
 Radio Thermostat Company of America (RTC)
 
 Supports
-poll schedule, humidity,heat or cool only,C-wire,Diff,Recovery mode,Mans detection
-
+poll chron, time set chron,humidity,heat or cool only,C-wire,Diff,Recovery mode,Mans detection
+setpoint restore from state memory. 
 ______          _ _         _____ _                                   _        _   
 | ___ \        | (_)       |_   _| |                                 | |      | |  
 | |_/ /__ _  __| |_  ___     | | | |__   ___ _ __ _ __ ___   ___  ___| |_ __ _| |_ 
@@ -13,11 +13,27 @@ ______          _ _         _____ _                                   _        _
 \_| \_\__,_|\__,_|_|\___/    \_/ |_| |_|\___|_|  |_| |_| |_|\___/|___/\__\__,_|\__|
                                                                                   
 
+Auto Correct can reset a thermostats setpoint from the last one sent. Correcting missed setpoint commans
+or restoring from a local manual change.
 
-tested on:
-CT-101 Iris version
-CT-30e rev1
-CT-30e
+Polling chron eleminates the need to use rouines to refreash the thermostat as some models just dont report
+temp and setpoints to the hub unless polled.
+
+Heating Colling only supports using the thermostat only for heaters  or ac units. Prevents the blocked mode
+commans and removes blocked modes from the options in scripts.
+
+Driver was written to fix the many problems with internal drivers not supporting fully the ct101
+and the ct30 thermostats. The ct30 thermostats have bugs that need special programming.
+
+Tested on.... 
+USNAP Module RTZW-01 n
+fingerprint mfr:0098 prod:6501 model:000C ct101 Iris version
+fingerprint mfr:0098 prod:1E12 model:015C ct30e rev v1 C-wire report    
+fingerprint mfr:0098 prod:0001 model:001E ct30e  Displays REMOTE CONTROL box when paired - No c-wire report  
+
+If you have version that identifies as UNKNOWN please send me your fingerprint and the version on the thermostat. 
+If your version has a version # that doesnt match the fingerprints bellow please send me your fingerprint and version.
+
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
@@ -28,65 +44,21 @@ ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
  v3.0   07/29/2022 Release - Major fixes and log conversion
  -----             Missing numbers are beta working local versions never released.
 ===================================================================================================
+Notes
 
-Paring info:
-Bring hub to thermostat or thermostat to hub connect 24 volts AC between C and RC. (AC ONLY). 
+
+Paring. Bring hub to thermostat or thermostat to hub connect 24 volts AC between C and RC. (AC ONLY). 
 Be sure you get paired in c-wire mode.
 
-
-
-Totaly rewritten modern logging system. Its now easer to see what your thermostat has done in the past.
-Events numbers added to log to detect what routines are throwing errors.
-
-
-New chron to pull the temp and settings from some thermostats that will go to sleep.No need for routines.
-
-Notes
 CT101 will work in battery mode or c-wire mode. However I havent done much testing in battery mode.
 
 Models with the Radio Thermostat Z-Wave USNAP Module RTZW-01 Require C-Wire or they will go to sleep
 never to rewake. Some will take commands in sleep some wont. c-wire is required.
-Do not even atempt to use battery mode.
+Do not even atempt to use battery mode. 
 
-Errors:
-Everynow and then it throws a mfg id error. still working on this.
-its been moved to config so it doesnt run on refreash
+Some models report C-Wire status some dont. 
 
-
-Supports humidity 
-
-Total new rewrite of clock code.
-
-Added new settings pulled from thermostat. 
-
-Setting for HEAT or COOLING only.
-
-
-: humidity 35 %
-: Temp Diff Heat:4  Cool:4
-: Fast recovery :economy 
-: thermostatOperatingState - idle 
-: thermostatFanMode - fanAuto 
-: thermostatMode - cool 
-: Set Points Match 80.0 = coolingSetpoint 80.0
-: coolingSetpoint 80 F
-: heatingSetpoint 65 F
-: temperature 80.5 F
-: C-Wire :TRUE PowerSouce :mains
-
-
-
-
-
-
-Figured out from trial and error RTC formats to add other features.
-
-Looked how commans were sent and received on many diffrent drivers from other brands.
-
-Code cleanup and restructuring. 
-
-Major sections of forked code not needed on hubitat were removed.
-
+There are many diffrent versions of the ct30 some with bad firmware and some that dont support all commands.
 ======================================================================================================
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -105,23 +77,18 @@ limitations under the License.
 
 
 
-Some code used from several diffrent versions here
-
-hubitat port http://www.apache.org/licenses/LICENSE-2.0
-https://github.com/MarioHudds/hubitat/blob/master/Enhanced%20Z-Wave%20Thermostat
-https://community.hubitat.com/t/port-enhanced-z-wave-thermostat-ct-100-w-humidity-and-time-update/4743
 
 
-Modified version here 
-https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/ct100-thermostat-custom.src/ct100-thermostat-custom.groovy
+May use some open source code (Apache License, Version 2.0) from many drivers. 
 
-Modified version here
+Orginal driver:
 https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/ct100-thermostat.src/ct100-thermostat.groovy
 
-Orginal old smartthings driver http://www.apache.org/licenses/LICENSE-2.0
-https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-device-handler-honeywell-gocontrol-ct-linear-trane-mco-remotec/7284/
- */
-//import groovy.json.JsonOutput
+These all apear to be forked from the orginal above.
+https://github.com/MarioHudds/hubitat/blob/master/Enhanced%20Z-Wave%20Thermostat
+https://community.hubitat.com/t/port-enhanced-z-wave-thermostat-ct-100-w-humidity-and-time-update/4743
+https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/ct100-thermostat-custom.src/ct100-thermostat-custom.groovy
+*/
 
 def clientVersion() {
     TheVersion="5.1.3"
