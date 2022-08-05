@@ -21,12 +21,12 @@ CT-30e
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.1   08/05/2022 Changes to manufacturerSpecificGet. Heat or Cool Only working
  v4.8   08/04/2022 First major release out of beta working code.
- -----             internal updates never released. Version # used localy.
  v3.3   07/30/2022 Improvements and debuging code.      
  v3.1   07/30/2022 Total rewrite of event storage and Parsing.
  v3.0   07/29/2022 Release - Major fixes and log conversion
-
+ -----             Missing numbers are beta working local versions never released.
 ===================================================================================================
 
 Paring info:
@@ -49,7 +49,8 @@ never to rewake. Some will take commands in sleep some wont. c-wire is required.
 Do not even atempt to use battery mode.
 
 Errors:
-Everynow and then it throews a mfg id error. still working on this.
+Everynow and then it throws a mfg id error. still working on this.
+its been moved to config so it doesnt run on refreash
 
 
 Supports humidity 
@@ -122,7 +123,7 @@ https://community.smartthings.com/t/release-enhanced-z-wave-plus-thermostat-devi
  */
 //import groovy.json.JsonOutput
 def clientVersion() {
-    TheVersion="4.8"
+    TheVersion="5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -204,7 +205,8 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
-//    input name: "heatonly", type: "bool", title: "Heat Only", description: "Heating only disable cool", defaultValue: false
+    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
+    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 3,required: true)
     input(  "polling", "number", title: "Polling", description: "Mins between poll. Must config after changing", defaultValue: 15,required: true)
 
 }
@@ -270,14 +272,17 @@ def configure() {
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	updated()
-
+    state.cwire =0 
     delayBetween([
+        zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),// fingerprint
 		zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
-        zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format(),
+        zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format(), 
         zwave.configurationV2.configurationSet(parameterNumber: 4, size: 1, configurationValue: [2]).format(), // cwire enabled
         zwave.configurationV2.configurationGet(parameterNumber: 4).format(), // is cwire 1=true 2=false
         zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off
-        zwave.configurationV2.configurationGet(parameterNumber: 8).format() // is diff
+        zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is diff
+        getBattery(), 
+        setClock(), 
 	], 2300)
 }
 
@@ -289,6 +294,8 @@ def updated() {
     if (polling <10) {polling=15}
     if (polling >59) {polling=45}
     
+  
+    
 	int checkEveryMinutes = polling	
     
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -298,9 +305,11 @@ def updated() {
     loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(3500,traceLogOff)
+    
     delayBetween([
     zwave.thermostatModeV2.thermostatModeGet().format(),// get mode
-    zwave.sensorMultilevelV3.sensorMultilevelGet().format() // current temperature    
+    zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature 
+    setClock()     
     ], 2300)    
 //	refresh()
 
@@ -322,11 +331,12 @@ def poll() {
     //zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
     //zwave.batteryV1.batteryGet().format(),
     //zwave.commands.versionv2.VersionReport
+    //        zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
+//      zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),
+    
 	delayBetween([
-        zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
-        zwave.configurationV2.configurationGet(parameterNumber: 4).format(),// get cwire
-        zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),
 		zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature
+        zwave.multiInstanceV1.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV2.sensorMultilevelGet()).format(), // CT-100/101 Humidity
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
@@ -334,25 +344,11 @@ def poll() {
 		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
         zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery
         zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is temp diff
-		getBattery(), // CUSTOMIZATION
-        setClock(), // CUSTOMIZATION
-        zwave.multiInstanceV1.multiInstanceCmdEncap(instance: 2).encapsulate(zwave.sensorMultilevelV2.sensorMultilevelGet()).format(), // CT-100/101 Customization for Humidity
+        zwave.configurationV2.configurationGet(parameterNumber: 4).format(),// get cwire
+		getBattery(), 
+        setClock() 
 	], 2300)
 }
-//    Newer sample code To replace above
-//    List<hubitat.zwave.Command> cmds=[]
-//    cmds.add(zwave.batteryV1.batteryGet())
-//    cmds.add(zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType: 1, scale: configParam2==0?0:1))
-//    cmds.add(zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType: 5, scale: 0))
-//    cmds.add(zwave.thermostatFanModeV3.thermostatFanModeGet())
-//    cmds.add(zwave.thermostatFanStateV1.thermostatFanStateGet())
-//    cmds.add(zwave.thermostatModeV2.thermostatModeGet())
-//    cmds.add(zwave.thermostatOperatingStateV1.thermostatOperatingStateGet())
-//    cmds.add(zwave.thermostatSetpointV2.thermostatSetpointGet(setpointType: 1))
-//    cmds.add(zwave.thermostatSetpointV2.thermostatSetpointGet(setpointType: 2))
-//    sendToDevice(cmds)
-
-
 //        "TempReport":		[ Param: 1, Size: 1, Default: 2, Min: 0, Max: 4, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
 //        "UtilityLock": 	[ Param: 3, Size: 1, Default: 0, Full: 2, Partial: 1, Disabled: 0 ],
 //        "CWire": 			[ Param: 4, Size: 1, Default: 2, Enabled: 1, Disabled: 2 ],
@@ -371,19 +367,6 @@ def poll() {
 //    zwave.configurationV2.configurationSet(parameterNumber: 9, size: 1, configurationValue: 1) // fast recovery 1 on 0 off
 //    zwave.configurationV2.configurationGet(parameterNumber: 9).format() // is fast recovery on ? 1on 0 off
 
-
-
-
-
-
-//
-
-
-
-
-
-
-
 def parse(String description)
 {
 // 0x31:3  Sensor Multilevel <--
@@ -401,7 +384,7 @@ def parse(String description)
 // 0x86:1  Version
 // 0x98:1  Security
    //def zwcmd = zwave.parse(description, [0x42:2, 0x43:2, 0x31: 2, 0x60: 3])
-   CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1,]   
+   CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1]   
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
     logging("${device} : Raw [${description}]", "trace")
 //    if (!result) {return null}
@@ -419,7 +402,7 @@ def parse(String description)
 
 // Event Generation
 // event E1
-// Termostat cooling setpoints -------------------------------------------------------
+// Termostat setpoints -------------------------------------------------------
 def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointReport cmd)
 {
     logging("${device} : received E1 ${cmd}", "debug")
@@ -434,13 +417,11 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 	switch (cmd.setpointType) {
 		case 1:
 			map.name = "heatingSetpoint"
-//         tempCheck = device.currentValue("SetHeat")
            tempCheck = state.SetHeat
 			break;
 		case 2:
         if(heatonly == true){return}
 			map.name = "coolingSetpoint"
-//           tempCheck = device.currentValue("SetCool")
            tempCheck = state.SetCool
 //           tempCheck = "77.0"
 			break;
@@ -454,10 +435,22 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
     sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"Driver ${state.version}", isStateChange:true)    
     }
     tempCheck2 = map.value.toDouble() 
-    if(tempCheck){
-     if(tempCheck == tempCheck2){ logging("${device} : Set Points Match ${tempCheck} = ${map.name} ${tempCheck2}", "info")}
+    if(tempCheck){ // needed in case of no last setpoints set
+     if(tempCheck == tempCheck2){
+      logging("${device} : E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "info")
+//      state.error = 0 
+      }
      if(tempCheck != tempCheck2){
-      logging("${device} : Set Point:${tempCheck} does not match ${map.name} ${tempCheck2} <<---", "warn") 
+         logging("${device} : E1 ${map.name} Last Point does not match Last${tempCheck}<>Currect${tempCheck2} Errors:${state.error} <<---", "warn") 
+      state.error = state.error +1
+         
+         if (state.error >= autocorrectNum) {
+           if (autocorrect == true){ // Set in config. optional
+                 setCoolingSetpoint(state.SetCool)
+                 setHeatingSetpoint(state.SetHeat)
+                 state.error = 0
+           }    
+         }   
       }
    }// end if not null
 
@@ -591,7 +584,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_LOW:
 			map.value = "fanOn"
 			break
-		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_CIRCULATION:
+		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_CIRCULATION:// Dont thinmk rT supports this
 			map.value = "fanCirculate"
 			break
 	}
@@ -693,7 +686,7 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
     map.type  = hubitat.helper.HexUtils.integerToHexString(cmd.productTypeId, 2)
     logging("${device} : E11 fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
    
-   state.remove("fingerprint")
+//   state.remove("fingerprint")
    state.model ="unknown"
     
     if (map.type=="1E12" | map.type=="1E10" | map.type=="0000" | map.type=="0001"){
@@ -709,15 +702,20 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
       state.model ="CT101"
       if (map.model=="000B") {state.model ="CT101 iris"}
    }
-    if (state.model =="unknown"){state.fingerprint = "Report fingerprint [${map.mfr}-${map.type}-${map.model}]"}  
-       else {
-          updateDataValue("model", state.model)
-          updateDataValue("brand", "Radio Thermostat")
-          updateDataValue("manufacturer", map.mfr) 
-          updateDataValue("deviceId", map.model)
-          updateDataValue("deviceType", map.type)
-       }   
-    logging("${device} : fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
+    logging("${device} : E11 fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
+    if (!getDataValue("manufacturer")) {updateDataValue("manufacturer", map.mfr)}
+    if (!getDataValue("brand")){        updateDataValue("brand", "Radio Thermostat")}
+    
+    if (state.model =="unknown"){
+        state.fingerprint = "Report fingerprint [${map.mfr}-${map.type}-${map.model}]"
+        return
+    }  
+       
+    if (!getDataValue("model")){        updateDataValue("model", state.model)}
+    if (!getDataValue("deviceId")){     updateDataValue("deviceId", map.model)}
+    if (!getDataValue("deviceType")){   updateDataValue("deviceType", map.type)}
+        
+    
 }
 
 
@@ -740,7 +738,10 @@ def setHeatingSetpoint(degrees, delay = 30000) {
 }
 
 def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
-
+    if(onlyMode == "coolonly"){
+       coolOnly()
+       return
+    } 
 	def deviceScale = state.scale ?: 1
 	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
@@ -754,14 +755,14 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     } else {
     	convertedDegrees = degrees
     }
-    logging("${device} : Set Heat Setpoint --- ${convertedDegrees} ${locationScale} ---", "info")
-    sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
-    
-    
-    
     state.SetHeat = convertedDegrees
-    logging("${device} :thermostatSetpointV1.thermostatSetpointSet (heat type=1) scale: ${deviceScale}, precision: ${p},  scaledValue: ${convertedDegrees}", "trace")
+    logging("${device} : Set Heat Setpoint ${convertedDegrees} ${locationScale} ---  Reset Last to ${state.SetHeat}", "info")
+    sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} Driver ${state.version}", isStateChange:true)
+    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} Driver ${state.version}", isStateChange:true)
+    
+     
+    
+    logging("${device} : Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format()
@@ -778,10 +779,9 @@ def setCoolingSetpoint(degrees, delay = 30000) {
 }
 
 def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
-    if(heatonly == true){
+    if(onlyMode == "heatonly"){
        heatingOnly()
-       return
-    } 
+    }
 	def deviceScale = state.scale ?: 1
 	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
@@ -795,13 +795,14 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     } else {
     	convertedDegrees = degrees
     }
-    logging("${device} : Set Cool Setpoint --- ${convertedDegrees} ${locationScale} ---", "info")
-    sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Driver ${state.version}", isStateChange:true)
+    state.SetCool = convertedDegrees
+    logging("${device} : Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
+    sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} Driver ${state.version}", isStateChange:true)
+    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} Driver ${state.version}", isStateChange:true)
 
     
-    state.SetCool = convertedDegrees
-    logging("${device} :thermostatSetpointV1.thermostatSetpointSet (cool type=2) scale: ${deviceScale}, precision: ${p},  scaledValue: ${convertedDegrees}", "trace")
+    
+    logging("${device} :Set (cool type=2) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
 
     
 	delayBetween([
@@ -965,16 +966,13 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
 
     map.value = cmd.batteryLevel
     test = cmd.batteryLevel
-    
-    if (test < 10) {
-//        map.descriptionText = "battery is low!"
-        logging("${device} : E15 battery low! ${test}%", "info")
-        sendEvent(name: map.name, value: test,unit: map.unit, descriptionText: "Driver ${state.version}", isStateChange:true)
-    } else {
-//        map.descriptionText = "battery is ok"
-        logging("${device} : E15 Battery ok ${test}% ", "info")
-       sendEvent(name: map.name, value: test,unit: map.unit, descriptionText: "Driver ${state.version}", isStateChange:true)
-    }
+    if (state.cwire == 1){extra="Mains power"}
+    if (state.cwire == 2){extra="Battery power"}
+    if (state.cwire == 0){extra="Unknown power"} 
+                    
+    logging("${device} : E15 battery ${test}% ${extra}", "info")
+    sendEvent(name: map.name, value: test,unit: map.unit, descriptionText: "${extra} Driver ${state.version}", isStateChange:true)
+
     map
 }
 
@@ -982,10 +980,10 @@ private getBattery() {
 	def nowTime = new Date().time
 	def ageInMinutes = state.lastBatteryGet ? (nowTime - state.lastBatteryGet)/60000 : 1440
 //    log.debug "Battery report age: ${ageInMinutes} minutes"
-    if (ageInMinutes >400){ logging("${device} : Skipping Bat Fetch. age:${ageInMinutes} min", "debug")}
-    if (ageInMinutes >= 400) {// 24 hrs
+    if (ageInMinutes <60){ logging("${device} : Skipping Bat Fetch. age:${ageInMinutes} min", "debug")}
+    if (ageInMinutes >= 60) {
         state.lastBatteryGet = nowTime
-        logging("${device} : Requesting Battery age:${ageInMinutes} min", "info")
+        logging("${device} : Requesting Battery age:${ageInMinutes} min", "debug")
 		zwave.batteryV1.batteryGet().format()
     } else "delay 87"
 }
@@ -1013,13 +1011,11 @@ private setClock() {
         if (weekdayZ <1){weekdayZ = 7} // rotate to sat
         logging("${device} : Adjusting clock ${theTime} 24hr", "info")
         sendEvent(name: "SetClock", value: theTime, descriptionText: "Driver ${state.version}",displayed: true, isStateChange:true)
-//		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: nowCal.get(Calendar.DAY_OF_WEEK)).format()
-//        zwave.commands.clockv1.ClockReport()
+
         delayBetween([
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: weekdayZ).format(),
         zwave.clockV1.clockGet().format()
 	], standardDelay)
-        
     } else "delay 87"
 }
 
