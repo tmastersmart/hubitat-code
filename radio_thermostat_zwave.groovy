@@ -37,6 +37,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.1   08/07/2022 mode bug fixed
  v5.1   08/05/2022 Changes to manufacturerSpecificGet. Heat or Cool Only working
  v4.8   08/04/2022 First major release out of beta working code.
  v3.3   07/30/2022 Improvements and debuging code.      
@@ -91,7 +92,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.1.3"
+    TheVersion="5.2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -151,6 +152,9 @@ metadata {
        fingerprint type:"0806", mfr:"0098", prod:"0001", model:"00FF",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 Z-Wave Thermostat" 
        fingerprint type:"0806", mfr:"0098", prod:"0001", model:"00FF",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 Z-Wave Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"2002", model:"0100",manufacturer: "Radio Thermostat", deviceJoinName:"CT-32 Z-Wave Thermostat" 
+       fingerprint type:"0806", mfr:"0098", prod:"0002", model:"0100",manufacturer: "Radio Thermostat", deviceJoinName:"CT-32 Z-Wave Thermostat" 
+       fingerprint type:"0806", mfr:"0098", prod:"2002", model:"0102",manufacturer: "Radio Thermostat", deviceJoinName:"CT-32 Z-Wave Thermostat" 
+    
        fingerprint type:"0806", mfr:"0098", prod:"3200", model:"015E",manufacturer: "Radio Thermostat", deviceJoinName:"CT-50 Filtrete 3M-50 Thermostat" 
        fingerprint type:"0806", mfr:"0098", prod:"5003", model:"0109",manufacturer: "Radio Thermostat", deviceJoinName:"CT-80 Radio Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"5003", model:"01FD",manufacturer: "Radio Thermostat", deviceJoinName:"CT-80 Radio Thermostat" 
@@ -161,7 +165,10 @@ metadata {
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000B",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Lowes Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000C",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Iris Thermostat" 
         
+       fingerprint type:"0806", mfr:"0098", prod:"C801", model:"001D",manufacturer: "Radio Thermostat", deviceJoinName:"CT-200 Vivint Element Thermostat" 
+       fingerprint type:"0806", mfr:"0098", prod:"C801", model:"0022",manufacturer: "Radio Thermostat", deviceJoinName:"CT-200X Vivint Element Thermostat" 
 
+// 6402:0100       
 // Tested on.... 
 // fingerprint mfr:0098 prod:6501 model:000C ct101 Iris versio-Wave USNAP Module RTZW-01 n
 // fingerprint mfr:0098 prod:1E12 model:015C ct30e rev v1 C-wire report    
@@ -241,6 +248,8 @@ def configure() {
     state.remove("lastClockSet") 
     state.remove("supportedFanModes")
     state.remove("supportedModes")
+    state.icon = "<img src='data:image/jpeg;base64,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'>"
+    
     
     logging("${device} : Configure Driver v${state.version}", "info")
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
@@ -603,13 +612,12 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSuppo
     logging("${device} : received E8 ${cmd}", "debug")
 	if(cmd.auto) { supportedFanModes += "fanAuto," }
 	if(cmd.low) { supportedFanModes += "fanOn," }
-	if(cmd.circulation) { supportedFanModes += "fanCirculate " } // not used
-
-//	state.supportedFanModes = supportedModes
+	if(cmd.circulation) { supportedFanModes += "fanCirculate, " } // not used
+//  if(cmd.humidityCirculation)supportedFanModes += "fanHumCirculate, " } // not used
+//	if(cmd.high) { supportedFanModes += "fanHigh," } // not used
     logging("${device} : E8 supportedFanModes[${supportedFanModes}]", "info")
     sendEvent(name: "supportedFanModes", value: "[${supportedModes}]",descriptionText: supportedModes, isStateChange:true)
 
-  // supportedFanModes [fanAuto fanOn ]  
     
 }
 // these are untrapped log them...
@@ -665,14 +673,24 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
       if (map.model=="000C") {state.model ="CT30e rev.01"}
     } 
     
-    if (map.type=="2002" ){ state.model ="CT32"}    
+    if (map.type=="2002" ){ state.model ="CT32"}// 0002:0100,2002:0100,2002:0102 
+    if (map.type=="0002" ){ state.model ="CT32"}
     if (map.type=="3200" ){ state.model ="CT50"}
     if (map.type=="5003" ){ state.model ="CT80"}
-    if (map.type=="6401" | map.type=="6402"){ state.model ="CT100"}   
+    if (map.type=="6401" | map.type=="6402"){ state.model ="CT100"} 
+    if (map.type=="6402" | map.type=="0100"){ state.model ="CT100 Plus"}
     if (map.type=="6501"){   
       state.model ="CT101"
       if (map.model=="000B") {state.model ="CT101 iris"}
    }
+    if (map.type=="C801"){
+        state.model = "CT200"
+        if(map.model =="001D"){state.model ="CT200 Vivant"}
+        if(map.model =="0022"){state.model = "CT200x Vivant"}
+    }
+     
+      
+    
     logging("${device} : E11 fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
     if (!getDataValue("manufacturer")) {updateDataValue("manufacturer", map.mfr)}
     if (!getDataValue("brand")){        updateDataValue("brand", "Radio Thermostat")}
@@ -789,22 +807,62 @@ def getDataByName(String name) {
 	state[name] ?: device.getDataValue(name)
 }
 
-
-// what is this for (To be removed )
-//def setThermostatMode(String value) {
-//    logging("${device} :Set setThermostatMode ---------", "info")
-//	delayBetween([
-//		zwave.thermostatModeV2.thermostatModeSet(mode: modeMap[value]).format(),
-//		zwave.thermostatModeV2.thermostatModeGet().format()
-//	], standardDelay)
-//}
-//def setThermostatFanMode(String value) {
-//    logging("${device} :Set setThermostatFanMode ---------", "info")
-//	delayBetween([
-///		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: fanModeMap[value]).format(),
-//		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-//	], standardDelay)
-//}
+// E20 receives Hub mode command
+def setThermostatMode(String value) {
+    logging("${device} : E20 setThermostatMode  ${value}", "trace")
+    if(!value){return}
+    if(value == "off"){ set= 0}
+    if(value == "heat"){
+        set =1
+        if(onlyMode == "coolonly"){
+       coolOnly()
+       return
+     } 
+    }
+    if(value == "cool"){
+        set =2
+        if(onlyMode == "heatonly"){
+       heatingOnly()
+       return
+     }
+    }
+    
+    if(value == "auto"){
+         if(onlyMode == "heatonly" | onlyMode =="coolonly"){
+         noAuto()    
+         return
+         }
+        set =3
+    }
+    if(value == "emergency heat"){
+        set =4
+            if(onlyMode == "coolonly"){
+       coolOnly()
+       return
+     } 
+    }
+ 
+    logging("${device} : E20 Set Mode:${value} #:${set}", "info")
+	delayBetween([
+		zwave.thermostatModeV2.thermostatModeSet(mode: set).format(),
+		zwave.thermostatModeV2.thermostatModeGet().format()
+	], standardDelay)
+}
+// E21
+def setThermostatFanMode(String value) {
+    logging("${device} : E21 setThermostatFanMode   ${value}", "trace")
+    if (!value){return}
+    if(value == "auto"){     set=0}
+    if(value == "on"){       set=1}
+    if(value == "circulate"){set=2}
+    
+    logging("${device} : E21 Set Fan Mode:${value} #:${set}", "info")
+	delayBetween([
+		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: set).format(),
+		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
+	], standardDelay)   
+    
+}
 
 // -------------------------------------mode setting ------------------
 //   "onlyMode" ["off", "heatonly","coolonly"] 
@@ -822,6 +880,12 @@ removeDataValue("coolingSetpoint")
 removeDataValue("SetCool")
   state.remove("setCool")    
 }
+
+void noAuto(){
+    logging("${device} : When in ${onlyMode} auto disabled", "info") 
+}
+
+// off = 0
 def off() {
     logging("${device} : Set mode OFF", "info")
 	delayBetween([
@@ -829,28 +893,16 @@ def off() {
 		zwave.thermostatModeV2.thermostatModeGet().format()
 	], standardDelay)
 }
+// 1
 def heat() {
         //   "onlyMode" ["off", "heatonly","coolonly"]     
     if(onlyMode == "coolonly"){
        coolOnly()
        return
-    } 
-    logging("${device} : Set mode HEAT", "info")
+   }
+    logging("${device} : Set Mode heat", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 1).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
-}
-
-def emergencyHeat() {
-    //   "onlyMode" ["off", "heatonly","coolonly"]     
-    if(onlyMode == "coolonly"){
-       coolOnly()
-       return
-    } 
-    logging("${device} : Set Mode Emergency heat", "info")
-	delayBetween([
-		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
 	], standardDelay)
 }
@@ -872,16 +924,33 @@ def cool() {
 
 def auto() {
 //   "onlyMode" ["off", "heatonly","coolonly"]     
-    if(onlyMode == "heatonly"){
-       heatingOnly()
-       return
-    } 
+     if(onlyMode == "heatonly" | onlyMode =="coolonly"){
+         noAuto()
+         return 
+     }
     logging("${device} : Set Mode Auto", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 3).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
 	], standardDelay)
 }
+
+def emergencyHeat() {
+    //   "onlyMode" ["off", "heatonly","coolonly"]     
+    if(onlyMode == "coolonly"){
+       coolOnly()
+       return
+    } 
+    logging("${device} : Set Mode Emergency heat", "info")
+	delayBetween([
+		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
+		zwave.thermostatModeV2.thermostatModeGet().format()
+	], standardDelay)
+}
+
+
+
+
 
 def fanOn() {
     logging("${device} : Set Fan ON", "info")
@@ -1010,34 +1079,6 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
 }
 
 
-// need to get rid of this.
-//def getModeMap() { 
-//    [
-//	"off": 0,
-//	"heat": 1,
-//	"cool": 2,
-//	"auto": 3,
-//	"emergency heat": 4
-//]
-//}
-
-//def getFanModeMap() {
-//   [
-//   "auto": 0,
-//   "on": 1,
-//   "circulate": 6
-//        ]
-//}
-//def modes() {
-//	[
-//        "off",
-//        "heat",
-//        "cool",
-//       "auto",
-//       "emergency heat"
-//    ]
-//}
-
 
 void loggingStatus() {
 	log.info  "${device} : Info  Logging : ${infoLogging == true}"
@@ -1083,6 +1124,3 @@ private boolean logging(String message, String level) {
 	}
 	return didLog
 }
-
-
-
