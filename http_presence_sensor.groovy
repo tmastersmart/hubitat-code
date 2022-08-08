@@ -1,16 +1,15 @@
 /**
- *  HTTP Presence Sensor adjustable schedule
+ *  HTTP Presence Sensor with adjustable schedule
     Hubitat HTTP presence sensor
+    
+    Polls webpages to detect if something stops working. Added detection of logion for cameras.
+    Allows you to set min for chron to stop overloading servers
+    
 
-Allows you to set min for chron to stop overloading servers
-
-
+================================================================================================
   v2.1.2 08/08/2022  Added pasword falure as ok
   v2.1.1 09/14/2021
   v2.0 09/12/2021
-
-
-
 
 https://github.com/tmastersmart/hubitat-code/blob/main/http_presence_sensor.groovy
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy
@@ -22,9 +21,11 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_s
 
 
 
+
+
 forked from
 https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPresenceSensor.groovy
-   
+ 
     v1.0
  *
  *  Copyright 2019 Joel Wetzel
