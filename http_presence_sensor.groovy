@@ -5,7 +5,7 @@
 Allows you to set min for chron to stop overloading servers
 
 
-
+  v2.1.2 08/08/2022  Added pasword falure as ok
   v2.1.1 09/14/2021
   v2.0 09/12/2021
 
@@ -129,8 +129,8 @@ def httpGetCallback(response, data) {
     def st = response.getStatus()
     
     log.debug "${device.displayName}: Presence check status =${st}"
-	
-	if (st == 200) {
+// 200 ok 401 pasword	
+	if (st == 200 | st== 401) {
 		state.tryCount = 0
 		
 		if (device.currentValue('presence') != "present") {
