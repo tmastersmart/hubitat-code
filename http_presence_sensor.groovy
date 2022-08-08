@@ -1,4 +1,5 @@
 /**
+    HTTP Presence Sensor with schedule
  *  HTTP Presence Sensor with adjustable schedule
     Hubitat HTTP presence sensor
     
