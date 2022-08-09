@@ -18,7 +18,7 @@ Button Controller support to map coomands to buttons 1-0
                                                   |___/|_|   
 
 =================================================================================================
-  v5.8   06/29/2022 Button 11 and 12 mapped to * and #
+  v5.8   08/09/2022 Fixed looping if 2 alarm commands sent.
   v5.7   06/28/2022 Stop runaway countdown if disarmed by app during entry.
                     Added more events to logs
   v5.6   04/28/2022 Added command to unschedule pausing cron for debuging.
@@ -116,7 +116,6 @@ sending alarm while in HSM alarming will change the tones.
 Button Support
 If a key is pressed once it acts like a button not a PIN
 All keypad number buttons mapped to 10 push buttons.
-* and # mapped to 11 and 12 buttons
 
 
 Tamper
@@ -431,6 +430,7 @@ def updated() {
 	runIn(3600,debugLogOff)
 	runIn(3500,traceLogOff)
 	refresh()
+    clientVersion()
 
 }
 
@@ -1034,8 +1034,8 @@ state.PIN = "NA"
 def siren(cmd){
     
 if (state.Command == "armingNight" | state.Command == "armingHome"| state.Command == "armingAway" | state.Command == "alarmingNight"| state.Command == "alarmingAway" | state.Command == "alarmingHome"){
-    logging ("${device} : Alarm in use Restarting in 10","warn")
-        runIn(10,siren(cmd))
+    logging ("${device} : Ignoring second Alarm CMD  ","warn")
+//        runIn(10,siren(cmd))
         return
         }
 sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
@@ -1325,7 +1325,7 @@ def checkPresence() {
 				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
                 if(detectBadBat){
                  if(state.batteryOkay == false){
-                  logging( "${device} : Auto Bat detection. was low now not present. set 0% ")
+                  logging( "${device} : Auto Bat detection. was low now not present. set 0% ","info")
 	              sendEvent(name: "batteryVoltage", value: 0, unit: "V")
      	          sendEvent(name: "battery", value:0, unit: "%")   
                  }
@@ -1336,7 +1336,7 @@ def checkPresence() {
 
 		} else {
      		sendEvent(name: "presence", value: "present")
-			logging("${device} : Presence : Last presence report ${secondsElapsed} seconds ago.","debug")
+//			logging("${device} : Presence : Last presence report ${secondsElapsed} seconds ago.","debug")
 		}
 		logging("${device} : checkPresence() : ${millisNow} - ${state.presenceUpdated} = ${millisElapsed} (Threshold: ${presenceTimeoutMillis} ms)","trace")
 	} else if (state.presenceUpdated > 0 && state.batteryOkay == false) {
@@ -1565,8 +1565,7 @@ def processMap(Map map) {
          
      if (keyRec == "2A"){
       if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
-      if (PinEnclosed  =="23" ){
-          logging ("${device} : Action :[Released * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+      if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
       if (StarSet == "Arm Home"){
 		 if (state.Command =="home" | state.Command =="armingHome" ){
@@ -1633,11 +1632,8 @@ def processMap(Map map) {
          }     
      
      // disabled
-     logging("${device} :${StarSet} Valid PIN:${state.validPIN} Ignoring","debug")   
-     if (PinEnclosed  =="22" ){
-//      soundCode(13)
-         push(11)
-     } // beep once 
+     logging("${device} :${StarSet} Valid PIN:${state.validPIN} Ignoring","info")   
+     if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
      return
      }        
         
@@ -1717,11 +1713,8 @@ def processMap(Map map) {
               }   
          }     
      
-     logging("${device} : ${PoundSet} Valid PIN:${state.validPIN} Ignoring","debug")   
-     if (PinEnclosed  =="22" ){   
-//         soundCode(13) // bad pin 
-         push(12)
-     }
+     logging("${device} : ${PoundSet} Valid PIN:${state.validPIN} Ignoring","info")   
+     if (PinEnclosed  =="22" ){   soundCode(13)}     
      return
      } 
 
