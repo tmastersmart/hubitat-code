@@ -3,8 +3,8 @@ Hubitat driver for radio thermostat & Iris Thermostat
 Radio Thermostat Company of America (RTC)
 
 Supports
-poll chron, time set chron,humidity,heat or cool only,C-wire,Diff,Recovery mode,Mans detection
-setpoint restore from state memory. 
+poll chron, time set chron,humidity,heat or cool only,C-wire,Diff,Mans detection
+
 ______          _ _         _____ _                                   _        _   
 | ___ \        | (_)       |_   _| |                                 | |      | |  
 | |_/ /__ _  __| |_  ___     | | | |__   ___ _ __ _ __ ___   ___  ___| |_ __ _| |_ 
@@ -12,9 +12,6 @@ ______          _ _         _____ _                                   _        _
 | |\ \ (_| | (_| | | (_) |   | | | | | |  __/ |  | | | | | | (_) \__ \ || (_| | |_ 
 \_| \_\__,_|\__,_|_|\___/    \_/ |_| |_|\___|_|  |_| |_| |_|\___/|___/\__\__,_|\__|
                                                                                   
-
-Auto Correct can reset a thermostats setpoint from the last one sent. Correcting missed setpoint commans
-or restoring from a local manual change.
 
 Polling chron ends the need to use rouines to refreash the thermostat as some models just dont report
 temp and setpoints to the hub unless polled.
