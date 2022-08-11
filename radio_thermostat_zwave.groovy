@@ -16,14 +16,15 @@ ______          _ _         _____ _                                   _        _
 Auto Correct can reset a thermostats setpoint from the last one sent. Correcting missed setpoint commans
 or restoring from a local manual change.
 
-Polling chron eleminates the need to use rouines to refreash the thermostat as some models just dont report
+Polling chron ends the need to use rouines to refreash the thermostat as some models just dont report
 temp and setpoints to the hub unless polled.
+Versions of the same model act diffrently depending on firmware. Some ct101 report some dont. 
 
 Heating Colling only supports using the thermostat only for heaters  or ac units. Prevents the blocked mode
 commans and removes blocked modes from the options in scripts.
 
 Driver was written to fix the many problems with internal drivers not supporting fully the ct101
-and the ct30 thermostats. The ct30 thermostats have bugs that need special programming.
+and the ct30 thermostats. The thermostats have bugs that need special programming.
 
 Tested on.... 
 USNAP Module RTZW-01 n
@@ -37,7 +38,8 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
- v5.1   08/07/2022 mode bug fixed
+ v5.2.7 08/11/2022 Bug fixes. to many to list
+ v5.2   08/07/2022 mode bug fixed
  v5.1   08/05/2022 Changes to manufacturerSpecificGet. Heat or Cool Only working
  v4.8   08/04/2022 First major release out of beta working code.
  v3.3   07/30/2022 Improvements and debuging code.      
@@ -92,9 +94,10 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.2.3"
+    TheVersion="5.2.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
+
      configure() // Forces config on updates
  }
 }
@@ -181,20 +184,19 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
-    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
-    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 3,required: true)
+//    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
+//    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 3,required: true)
     input(  "polling", "number", title: "Polling", description: "Mins between poll. Must config after changing", defaultValue: 15,required: true)
 
 }
 
 def installed(){
 logging("${device} : Radio Thermostat Paired!", "info")
+cleanState()    
 configure()
 }
 
-def uninstall() {
- 
-	unschedule()
+void cleanState(){
     state.remove("pendingRefresh")
     state.remove("precision")
 	state.remove("scale")
@@ -225,6 +227,12 @@ def uninstall() {
     state.remove("setCool")
     state.remove("setHeat")
     state.remove("cwire")
+    state.remove("error")
+    
+        // no longer used
+    state.remove("lastClockSet") 
+    state.remove("supportedFanModes")
+    state.remove("supportedModes")
 
 removeDataValue("thermostatSetpoint")    
 removeDataValue("SetCool")
@@ -236,27 +244,27 @@ updateDataValue("hardwareVersion", "")
 updateDataValue("protocolVersion", "")
 updateDataValue("lastRunningMode", "")
 updateDataValue("zwNNUR", "")
-    
-    
-logging("${device} : Uninstalled", "info")   
+
+    logging("${device} : Garbage Collection.", "info")    
+   
+}
+
+def uninstall() {
+	unschedule()
+    cleanState()
+    logging("${device} : Uninstalled", "info")   
 }
 
 def configure() {
     unschedule()
-    
-    // no longer used
-    state.remove("lastClockSet") 
-    state.remove("supportedFanModes")
-    state.remove("supportedModes")
     state.icon = "<img src='data:image/jpeg;base64,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'>"
-    
-    
     logging("${device} : Configure Driver v${state.version}", "info")
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	updated()
     state.cwire =0 
+//    state.error = 0
     delayBetween([
         zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),// fingerprint
 		zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
@@ -274,19 +282,15 @@ def configure() {
 
 def updated() {
     // Poll the device every x min
-    
+    clientVersion()
     if (polling <10) {polling=15}
     if (polling >59) {polling=45}
     
-  
-    
 	int checkEveryMinutes = polling	
-    
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
     schedule("${randomSixty} 0 12 * * ? *", setTheClock)
-
-    logging("${device} :Setting Chrons ${randomSixty} 0/${checkEveryMinutes} * * * ? * - ${randomSixty} 0 12 * * ? *  ", "info")
+    logging("${device} :Setting Chron Poll:${randomSixty} 0/${checkEveryMinutes} * * * ? *  Clock:${randomSixty} 0 12 * * ? *  ", "info")
 
     loggingStatus()
 	runIn(3600,debugLogOff)
@@ -294,8 +298,7 @@ def updated() {
     
     delayBetween([
     zwave.thermostatModeV2.thermostatModeGet().format(),// get mode
-    zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature 
-    setClock()     
+    zwave.sensorMultilevelV3.sensorMultilevelGet().format() // current temperature 
     ], 2300)    
 //	refresh()
 
@@ -311,7 +314,10 @@ def refresh() {
 }
 def poll() {
     clientVersion()
-    logging("${device} : Poll E=Event# v${state.version}", "info")
+    
+    def nowCal = Calendar.getInstance(location.timeZone)
+    Timecheck = "${nowCal.getTime().format("EEE MMM dd", location.timeZone)}"
+    logging("${device} : Poll E=Event# ${Timecheck} v${state.version}", "info")
 //zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
 //zwave.batteryV1.batteryGet().format(),
 //zwave.commands.versionv2.VersionReport
@@ -332,17 +338,6 @@ def poll() {
 //        setClock(), // moved to chron
 	], 2300)
 }
-//        "TempReport":		[ Param: 1, Size: 1, Default: 2, Min: 0, Max: 4, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
-//        "UtilityLock": 	[ Param: 3, Size: 1, Default: 0, Full: 2, Partial: 1, Disabled: 0 ],
-//        "CWire": 			[ Param: 4, Size: 1, Default: 2, Enabled: 1, Disabled: 2 ],
-//        "HumidityReport":	[ Param: 5, Size: 1, Default: 2, Min: 0, Max: 3, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
-//        "EmergencyHeat": 	[ Param: 6, Size: 1, Default: 0, Enabled: 1, Disabled: 0 ],
-//        "TempSwing":		[ Param: 7, Size: 1, Default: 2, Min: 1, Max: 8, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
-//        "DiffTemp":			[ Param: 8, Size: 2, Default: 4, Min: 0, Max: 65535, Value: reverseValue(value) ].with { put('ParamValue', paramValue(value, get('Size'))); it },
-//        "FastRecovery": 	[ Param: 9, Size: 1, Default: 2, Enabled: 1, Disabled: 2 ],
-//        "SimpleUIMode": 	[ Param: 11, Size: 1, Default: 1, Enabled: 1, Disabled: 0 ],
-//        "MulticastMode": 	[ Param: 12, Size: 1, Default: 0, Enabled: 1, Disabled: 0 ],
-//
 //    zwave.configurationV2.configurationSet(parameterNumber: 11, size: 1, configurationValue: 1) // simple UI enabled 1 on 2 off
 //    zwave.configurationV2.configurationGet(parameterNumber: 11) 
 //    zwave.configurationV2.configurationSet(parameterNumber: 4, size: 1, configurationValue: 2) // cwire enabled
@@ -396,7 +391,6 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
     
 	map.unit = getTemperatureScale()
 	map.displayed = false
-     
 	switch (cmd.setpointType) {
 		case 1:
 			map.name = "heatingSetpoint"
@@ -415,7 +409,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
     if (map.name != null){
 //    logging("${device} : ${cmd.setpointType} ${map.value}", "trace") 
     logging("${device} : E1 ${map.name} ${map.value} ${cmdScale}", "info")
-    sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"Driver ${state.version}", isStateChange:true)    
+    sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"${map.name} ${map.value} ${state.version}", isStateChange:true)    
     }
     tempCheck2 = map.value.toDouble() 
     if(tempCheck){ // needed in case of no last setpoints set
@@ -424,16 +418,27 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 //      state.error = 0 
       }
      if(tempCheck != tempCheck2){
-         logging("${device} : E1 ${map.name} Last Point does not match Last${tempCheck}<>Currect${tempCheck2} Errors:${state.error} <<---", "warn") 
-      state.error = state.error +1
+         logging("${device} : E1 ${map.name} Last Point does not match Last${tempCheck}<>Current${tempCheck2} ", "warn") 
+// This doesnt work wont take set cmd from here? Why.
+//         state.error = state.error +1
+//         if (state.error >= autocorrectNum) {
+//           if (autocorrect == true){ // Set in config. optional
+//                 setCoolingSetpoint(state.SetCool) doesnt work
+//                 setHeatingSetpoint(state.SetHeat) doesnt work
          
-         if (state.error >= autocorrectNum) {
-           if (autocorrect == true){ // Set in config. optional
-                 setCoolingSetpoint(state.SetCool)
-                 setHeatingSetpoint(state.SetHeat)
-                 state.error = 0
-           }    
-         }   
+//        logging("${device} : E1 Resetting cool:${state.SetCool}/Heat:${state.SetHeat}", "info")
+//        logging("${device} : E1 (setpointType: 1, scale: ${state.scale}, precision: ${state.precision}, scaledValue: ${state.SetHeat})", "info")
+//        logging("${device} : E1 (setpointType: 2, scale: ${state.scale}, precision: ${state.precision}, scaledValue: ${state.SetCool})", "info")        
+               
+//        state.error = 0 eben sending cmd from here doesnt work..
+ //       delayBetween([
+//        zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: state.scale, precision: state.precision, scaledValue: state.SetHeat) ,   
+//        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1),
+//        zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: state.scale, precision: state.precision, scaledValue: state.SetCool),
+//        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2)    
+//	], delay)   
+//           }    
+//         }   
       }
    }// end if not null
 
@@ -461,7 +466,7 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport 
 	}
     if (map.value != null){
     logging("${device} : E2 ${map.name} ${map.value} ${map.unit}", "info")
-    sendEvent(name:map.name ,value:map.value ,unit: map.unit, descriptionText:"Driver ${state.version}", isStateChange: true)
+    sendEvent(name:map.name ,value:map.value ,unit: map.unit, descriptionText:"${map.name} ${map.value} ${state.version}", isStateChange: true)
     }
     else {logging("${device} : E2 Unknown data ${cmd}", "warn")}
 	map
@@ -498,7 +503,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOpera
 	}
 	
     logging("${device} : E3 ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
+    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
 	map
 }
 // E4
@@ -519,7 +524,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateRep
 			break
 	}
     logging("${device} : received E4 ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
+    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
 	map
 }
 
@@ -547,7 +552,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 	}
 	
     logging("${device} : E5 ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
+    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
     
 	map
 }
@@ -570,7 +575,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 	}
 	
     logging("${device} : E6 ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "Driver ${state.version}", isStateChange:true)
+    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
  
 	map.displayed = false
 	map
@@ -600,7 +605,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
 
 //	state.supportedModes = supportedModes
     logging("${device} : E7 supportedModes [${supportedModes}]", "info")
-    sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: supportedModes, isStateChange:true)
+    sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: "${supportedModes} ${state.version}", isStateChange:true)
 
   
 //    supportedThermostatModes : [off, heat, cool, auto, emergency heat]
@@ -616,7 +621,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSuppo
 //  if(cmd.humidityCirculation)supportedFanModes += "fanHumCirculate, " } // not used
 //	if(cmd.high) { supportedFanModes += "fanHigh," } // not used
     logging("${device} : E8 supportedFanModes[${supportedFanModes}]", "info")
-    sendEvent(name: "supportedFanModes", value: "[${supportedModes}]",descriptionText: supportedModes, isStateChange:true)
+    sendEvent(name: "supportedFanModes", value: "[${supportedModes}]",descriptionText: "${supportedModes} ${state.version}", isStateChange:true)
 
     
 }
@@ -645,11 +650,11 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
         state.cwire = cmd.scaledConfigurationValue
         if (state.cwire == 1){
             logging("${device} : E10 C-Wire :TRUE PowerSouce :mains", "info")
-            sendEvent(name: "powerSource", value: "mains",descriptionText: "Driver ${state.version}", isStateChange: true)
+            sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         }
         if (state.cwire == 2){
             logging("${device} : E10 C-Wire :FALSE PowerSouce :battery", "info") 
-            sendEvent(name: "powerSource", value: "battery",descriptionText: "Driver ${state.version}", isStateChange: true)
+            sendEvent(name: "powerSource", value: "battery",descriptionText: "Power Battery ${state.version}", isStateChange: true)
         }
     }
 }
@@ -708,19 +713,16 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
 }
 
 
-void zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
-    logging("${device} : Received E12 ${cmd}", "debug")
+    
+// have yet to see data here
+def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
+    logging("${device} : Received E12 ${cmd}", "info")
     device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
     device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
     device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
 }
 
-
-
-
-//def quickSetHeat(degrees) {
-//	setHeatingSetpoint(degrees, 1000)
-//}
+//==================heating
 
 def setHeatingSetpoint(degrees, delay = 30000) {
 	setHeatingSetpoint(degrees.toDouble(), delay)
@@ -746,8 +748,8 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     }
     state.SetHeat = convertedDegrees
     logging("${device} : Set Heat Setpoint ${convertedDegrees} ${locationScale} ---  Reset Last to ${state.SetHeat}", "info")
-    sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} Driver ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} Driver ${state.version}", isStateChange:true)
+    sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
+    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
     
      
     
@@ -758,9 +760,7 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
 	], delay)
 }
 
-//def quickSetCool(degrees) {
-//	setCoolingSetpoint(degrees, 10000)
-//}
+//==================cooling
 
 def setCoolingSetpoint(degrees, delay = 30000) {
     logging("${device} : Set Cool Setpoint ${degrees} delay:${delay}", "debug")
@@ -786,8 +786,8 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     }
     state.SetCool = convertedDegrees
     logging("${device} : Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
-    sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} Driver ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} Driver ${state.version}", isStateChange:true)
+    sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
+    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
 
     
     
@@ -999,7 +999,7 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
     map.isStateChange = true
     if (cmd.batteryLevel == 0xFF){ // I have never seen this but its in the spec.
         logging("${device} : ---- Power Restored ----", "info")
-        sendEvent(name: "powerSource", value: "mains",descriptionText: "Driver ${state.version}", isStateChange: true)
+        sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         return
     }
 
@@ -1010,7 +1010,7 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
     if (state.cwire == 0){extra="Unknown power"} 
                     
     logging("${device} : E15 battery ${test}% ${extra}", "info")
-    sendEvent(name: map.name, value: test,unit: map.unit, descriptionText: "${extra} Driver ${state.version}", isStateChange:true)
+    sendEvent(name: map.name, value: test,unit: map.unit, descriptionText: "${test}% ${extra} ${state.version}", isStateChange:true)
 
     map
 }
@@ -1039,13 +1039,16 @@ private setClock() {
 //		state.lastClockSet = nowTime
         def nowTime = new Date().time
         def nowCal = Calendar.getInstance(location.timeZone) // get current location timezone
-        state.LastTimeSet = "${nowCal.getTime().format("EEE MMM dd yyyy HH:mm:ss z", location.timeZone)}"
-        setDay(nowCal.get(Calendar.DAY_OF_WEEK)) // gives us weekday name
+        state.LastTimeSet = "${nowCal.getTime().format("EEE MMM dd HH:mm z", location.timeZone)}"
+        weekday = "${nowCal.getTime().format("EEE", location.timeZone)}" // gives weekday name
+//        weekdayNo = "${nowCal.getTime().format("V", location.timeZone)}" // gives wekday 1 = mon
+ 
+//      setDay(nowCal.get(Calendar.DAY_OF_WEEK)) // gives us weekday name
         theTime ="${weekday} ${nowCal.get(Calendar.HOUR_OF_DAY)}:${nowCal.get(Calendar.MINUTE)}"
-        weekdayZ = nowCal.get(Calendar.DAY_OF_WEEK) -1 // Gives us zwave weekday
-        if (weekdayZ <1){weekdayZ = 7} // rotate to sat
-        logging("${device} : Adjusting clock ${theTime} 24hr", "info")
-        sendEvent(name: "SetClock", value: theTime, descriptionText: "Driver ${state.version}",displayed: true, isStateChange:true)
+        weekdayZ = nowCal.get(Calendar.DAY_OF_WEEK) -1 // Gives us zwave weekday code (-1)
+        if (weekdayZ <1){weekdayZ = 7} // rotate to up 7=sunday 
+    logging("${device} : Adjusting clock (${theTime}) ${state.LastTimeSet}", "info")
+        sendEvent(name: "SetClock", value: theTime, descriptionText: "${theTime} ${state.version}",displayed: true, isStateChange:true)
 
         delayBetween([
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: weekdayZ).format(),
@@ -1054,28 +1057,38 @@ private setClock() {
 }
 
 void setDay(day){
-    if (day==0){weekday="Saturday"}
-    if (day==1){weekday="Sunday"}  
-    if (day==2){weekday="Monday"}
-    if (day==3){weekday="Tuesday"}
-    if (day==4){weekday="Wednesday."}
-    if (day==5){weekday="Thursday"}
-    if (day==6){weekday="Friday"}
-    if (day==7){weekday="Saturday"}
-    if (day==8){weekday="Sunday"}
-    
+    // This is the Zwave format day
+    // The zwave day is 1 less than the hub
+    if (day==1){weekday="Mon"}
+    if (day==2){weekday="Tue"}
+    if (day==3){weekday="Wed"}
+    if (day==4){weekday="Thu"}
+    if (day==5){weekday="Fri"}
+    if (day==6){weekday="Sat"}
+    if (day==7){weekday="Sun"}  
 }
-// The zwave day is 1 less than the hub
+
 def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
-    setDay(cmd.weekday+1)
+    setDay(cmd.weekday)
     def nowCal = Calendar.getInstance(location.timeZone) // get current location timezone
     Timecheck = "${nowCal.getTime().format("EEE MMM dd yyyy HH:mm:ss z", location.timeZone)}"
+    daycheck =  "${nowCal.getTime().format("EEE", location.timeZone)}"
     setclock= false 
-    if (cmd.weekday != nowCal.get(Calendar.DAY_OF_WEEK)-1 ){ setclock=true}
-    if (cmd.hour    != nowCal.get(Calendar.HOUR_OF_DAY)){setclock=true}
-    if (cmd.minute  != nowCal.get(Calendar.MINUTE)){     setclock=true}
-    if (setclock == false) {logging("${device} : E16 Receiving clock ${weekday} ${cmd.hour}:${cmd.minute} 24hr ok", "info")}
-    if (setclock == true) {logging("${device} : E16 Receiving clock ${weekday} ${cmd.hour}:${cmd.minute} 24hr (out of sync)", "warn")}
+   
+    if (weekday != daycheck){ 
+       setclock=true
+       error = "${weekday} <> ${daycheck }"
+    }
+    if (cmd.hour    != nowCal.get(Calendar.HOUR_OF_DAY)){
+        setclock=true
+         error = "${cmd.hour} <> ${nowCal.get(Calendar.HOUR_OF_DAY)} "
+    }
+    if (cmd.minute  != nowCal.get(Calendar.MINUTE)){     
+        setclock=true
+         error = "${cmd.minute} <> ${nowCal.get(Calendar.MINUTE)} "
+    }
+    if (setclock == false) {logging("${device} : E16 Rec   clock (${weekday} ${cmd.hour}:${cmd.minute}) ok", "info")}
+    if (setclock == true) {logging("${device} : E16 Rec   clock ${weekday} ${cmd.hour}:${cmd.minute}) (out of sync) ${error}", "warn")}
 }
 
 
