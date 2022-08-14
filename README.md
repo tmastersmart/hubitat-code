@@ -14,6 +14,7 @@
  
  iris radio thermostat Driver for hubitat (Radio Thermostat Zwave)
  
+Radio Thermostat driver for Hubitat 
 Radio Thermostat Zwave Hubitat driver. CT-101 CT30e 
  
 Hubitat Everspring Utilitech Water Sensor  driver
