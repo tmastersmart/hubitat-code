@@ -35,6 +35,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.3   08/14/2022 Added 2 stage differential
  v5.2.7 08/11/2022 Bug fixes. to many to list
  v5.2   08/07/2022 mode bug fixed
  v5.1   08/05/2022 Changes to manufacturerSpecificGet. Heat or Cool Only working
@@ -91,7 +92,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.2.7"
+    TheVersion="5.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -125,8 +126,7 @@ metadata {
         attribute "SetCool", "string"
         attribute "SetHeat", "string"
         
-//		command "switchMode"
-//		command "switchFanMode"
+        command "setDiff"
         command "unschedule"
         command "uninstall"
         command "setClock"
@@ -172,7 +172,11 @@ metadata {
 // Tested on.... 
 // fingerprint mfr:0098 prod:6501 model:000C ct101 Iris versio-Wave USNAP Module RTZW-01 n
 // fingerprint mfr:0098 prod:1E12 model:015C ct30e rev v1 C-wire report    
-// fingerprint mfr:0098 prod:0001 model:001E ct30e  Displays REMOTE CONTROL box when paired - No c-wire report         
+// fingerprint mfr:0098 prod:0001 model:001E ct30e  Displays REMOTE CONTROL box when paired - No c-wire report 
+        
+        
+        
+//  https://www.opensmarthouse.org/zwavedatabase/98       
 	}
 }
 preferences {
@@ -180,10 +184,16 @@ preferences {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
+
+    
+    input(  "heatDiff", "number", title: "Heat differential 2 Stage", description: "When does 2nd stage engage. 4=cold areas 8=warm areas. Press setDiff after changing", defaultValue: 4,required: true)
+    input(  "coolDiff", "number", title: "Cool differential 2 Stage", description: "Cool differential. Only for 2 stage Heatpumps.  Press setDiff after changing", defaultValue: 4,required: true)
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
+    input(  "polling", "number", title: "Polling", description: "Mins between poll. Press Config after changing ", defaultValue: 15,required: true)
+
+    
 //    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
 //    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 3,required: true)
-    input(  "polling", "number", title: "Polling", description: "Mins between poll. Must config after changing", defaultValue: 15,required: true)
 
 }
 
@@ -404,14 +414,14 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 			return [:]
 	}
     if (map.name != null){
-//    logging("${device} : ${cmd.setpointType} ${map.value}", "trace") 
+
     logging("${device} : E1 ${map.name} ${map.value} ${cmdScale}", "info")
     sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"${map.name} ${map.value} ${state.version}", isStateChange:true)    
     }
     tempCheck2 = map.value.toDouble() 
     if(tempCheck){ // needed in case of no last setpoints set
      if(tempCheck == tempCheck2){
-      logging("${device} : E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "info")
+      logging("${device} : E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "debug") //moved to debug
 //      state.error = 0 
       }
      if(tempCheck != tempCheck2){
@@ -633,7 +643,7 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
    if (cmd.parameterNumber== 8){
        state.heatDiff = cmd.configurationValue[0] 
        state.coolDiff = cmd.configurationValue[1] 
-       logging("${device} : E10 Temp Diff Heat:${state.heatDiff}  Cool:${state.coolDiff}", "info")
+       logging("${device} : E10 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info")
    }
 // ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
    if (cmd.parameterNumber== 9){
@@ -753,6 +763,7 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     logging("${device} : Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
+        zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format()
 	], delay)
 }
@@ -793,7 +804,8 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
-		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format()
+		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
+        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format()
 	], delay)
  
 }
@@ -1088,6 +1100,23 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
     if (setclock == true) {logging("${device} : E16 Rec   clock ${weekday} ${cmd.hour}:${cmd.minute}) (out of sync) ${error}", "warn")}
 }
 
+
+def setDiff(cmd){
+// 2 stage differential
+    
+   coolDiff = (coolDiff as Integer) 
+   heatDiff = (heatDiff as Integer) 
+    
+   if (!coolDiff){coolDiff = 4}
+   if (!heatDiff){heatDiff = 4}  
+   logging("${device} : Set 2 stage Differential Heat:${heatDiff} Cool:${coolDiff}", "info")
+
+    delayBetween([    
+   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
+   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
+   zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
+	], delay)    
+}
 
 
 void loggingStatus() {
