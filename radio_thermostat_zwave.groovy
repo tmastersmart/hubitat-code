@@ -35,6 +35,8 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.3.2 08/15/2022 Added Recovery mode
+ v5.3.1 08/15/2022 Added Swing
  v5.3   08/14/2022 Added 2 stage differential
  v5.2.7 08/11/2022 Bug fixes. to many to list
  v5.2   08/07/2022 mode bug fixed
@@ -92,7 +94,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.3.0"
+    TheVersion="5.3.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -127,9 +129,13 @@ metadata {
         attribute "SetHeat", "string"
         
         command "setDiff"
+        command "setSwing"
         command "unschedule"
         command "uninstall"
         command "setClock"
+        command "setRecovery"
+//        command "saveSettings"
+  
 		fingerprint deviceId: "0x08"
 		fingerprint inClusters: "0x43,0x40,0x44,0x31"
         
@@ -143,7 +149,8 @@ metadata {
         fingerprint inClusters: "0x20,0x81,0x87,0x72,0x31,0x40,0x42,0x44,0x45,0x43,0x86,0x70,0x80,0x85,0x60" //      ct-100 & (ct-101 iris)
         fingerprint inClusters: "0x20,0x81,0x87,0x72,0x31,0x40,0x42,0x44,0x45,0x43,0x86,0x70,0x80,0x85,0x5D,0x60"//  ct-101
 // hubitat ignores deviceJoinName only included for ref notes        
-       fingerprint type:"0806", mfr:"0098", prod:"1E10", model:"0158",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 Radio Thermostat" 
+//  https://www.opensmarthouse.org/zwavedatabase/94
+       fingerprint type:"0806", mfr:"0098", prod:"1E10", model:"0158",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 Radio Thermostat"     
        fingerprint type:"0806", mfr:"0098", prod:"0000", model:"0000",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 Radio Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"1E12", model:"015C",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30e Radio Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"1E12", model:"015E",manufacturer: "Radio Thermostat", deviceJoinName:"CT-30 v1 Radio Thermostat"
@@ -161,6 +168,7 @@ metadata {
        fingerprint type:"0806", mfr:"0098", prod:"6401", model:"0107",manufacturer: "Radio Thermostat", deviceJoinName:"CT-100 Radio Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6401", model:"0106",manufacturer: "Radio Thermostat", deviceJoinName:"CT-100 Vivint Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6402", model:"0100",manufacturer: "Radio Thermostat", deviceJoinName:"CT-100 Plus Radio Thermostat"
+        //  https://www.opensmarthouse.org/zwavedatabase/98
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"00FD",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Radio Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000B",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Lowes Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000C",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Iris Thermostat" 
@@ -176,7 +184,7 @@ metadata {
         
         
         
-//  https://www.opensmarthouse.org/zwavedatabase/98       
+
 	}
 }
 preferences {
@@ -188,8 +196,13 @@ preferences {
     
     input(  "heatDiff", "number", title: "Heat differential 2 Stage", description: "When does 2nd stage engage. 4=cold areas 8=warm areas. Press setDiff after changing", defaultValue: 4,required: true)
     input(  "coolDiff", "number", title: "Cool differential 2 Stage", description: "Cool differential. Only for 2 stage Heatpumps.  Press setDiff after changing", defaultValue: 4,required: true)
+    input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on. Press setSwing after changing", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)
+
+    
+    input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. Press setRecovery after changing",  options: ["fast", "economy"], defaultValue: "economy",required: true 
+   
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
-    input(  "polling", "number", title: "Polling", description: "Mins between poll. Press Config after changing ", defaultValue: 15,required: true)
+    input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["10","15","20","30","40","50"],defaultValue: 15,required: true)
 
     
 //    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
@@ -278,8 +291,9 @@ def configure() {
         zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format(), 
         zwave.configurationV2.configurationSet(parameterNumber: 4, size: 1, configurationValue: [2]).format(), // cwire enabled
         zwave.configurationV2.configurationGet(parameterNumber: 4).format(), // is cwire 1=true 2=false
-        zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off
+        zwave.configurationV2.configurationGet(parameterNumber: 7).format(), // swing        
         zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is diff
+        zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off        
         getBattery(), 
 //        setClock(), 
 	], 2300)
@@ -290,10 +304,9 @@ def configure() {
 def updated() {
     // Poll the device every x min
     clientVersion()
-    if (polling <10) {polling=15}
-    if (polling >59) {polling=45}
-    
-	int checkEveryMinutes = polling	
+    if (!polling){polling=15}
+    // options: ["10","15","20","30","40","50"]
+    int checkEveryMinutes = Integer.parseInt(polling)
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
     schedule("${randomSixty} 0 12 * * ? *", setTheClock)
@@ -338,9 +351,10 @@ def poll() {
 		zwave.thermostatModeV2.thermostatModeGet().format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
 		zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
-        zwave.configurationV2.configurationGet(parameterNumber: 9).format(),// is fast recovery
-        zwave.configurationV2.configurationGet(parameterNumber: 8).format(),// is temp diff
         zwave.configurationV2.configurationGet(parameterNumber: 4).format(),// get cwire
+        zwave.configurationV2.configurationGet(parameterNumber: 7).format(),// temp swing
+        zwave.configurationV2.configurationGet(parameterNumber: 8).format(),// is temp diff
+        zwave.configurationV2.configurationGet(parameterNumber: 9).format(),// is fast recovery
 		getBattery(), 
 //        setClock(), // moved to chron
 	], 2300)
@@ -639,31 +653,51 @@ def zwaveEvent(hubitat.zwave.commands.basicv1.BasicReport cmd) {
 
 def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
     logging("${device} : Received E10 ${cmd}", "debug")
-// ConfigurationReport(parameterNumber: 8, size: 2, configurationValue: [4, 4], scaledConfigurationValue: 1028) Diff
-   if (cmd.parameterNumber== 8){
-       state.heatDiff = cmd.configurationValue[0] 
-       state.coolDiff = cmd.configurationValue[1] 
-       logging("${device} : E10 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info")
-   }
-// ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
-   if (cmd.parameterNumber== 9){
-       state.fastrecovery = cmd.configurationValue[0] 
-        if (state.fastrecovery == 1){logging("${device} : E10 Fast recovery :fast", "info")}
-        if (state.fastrecovery == 2){logging("${device} : E10 Fast recovery :economy ", "info") }
-   }    
 //  ConfigurationReport(parameterNumber: 4, size: 1, configurationValue: [1], scaledConfigurationValue: 1)
     if (cmd.parameterNumber== 4){
 //      state.cwire = cmd.configurationValue[0]
         state.cwire = cmd.scaledConfigurationValue
         if (state.cwire == 1){
-            logging("${device} : E10 C-Wire :TRUE PowerSouce :mains", "info")
+            logging("${device} : E10-4 C-Wire :TRUE PowerSouce :mains", "info")
             sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         }
         if (state.cwire == 2){
-            logging("${device} : E10 C-Wire :FALSE PowerSouce :battery", "info") 
+            logging("${device} : E10-4 C-Wire :FALSE PowerSouce :battery", "info") 
             sendEvent(name: "powerSource", value: "battery",descriptionText: "Power Battery ${state.version}", isStateChange: true)
         }
-    }
+    }    
+//  ConfigurationReport(parameterNumber: 7, size: 1, configurationValue: 
+    if (cmd.parameterNumber== 7){
+    def test = cmd.scaledConfigurationValue  
+    def value = 2
+    def locationScale = getTemperatureScale()    
+    if (test == 1){value = "0.5"}
+    if (test == 2){value = "1.0"}
+    if (test == 3){value = "1.5"}
+    if (test == 4){value = "2.0"}
+    if (test == 5){value = "2.5"}
+    if (test == 6){value = "3.0"}
+    if (test == 7){value = "3.5"}
+    if (test == 8){value = "4.0"}    
+    state.swing = value    
+    logging("${device} : E10-7 Temp Swing :${state.swing} ${locationScale} - #${test}", "info")
+    sendEvent(name: "temperatureSwing", value: state.swing, descriptionText: "${state.swing}${locationScale} - #${test} ${state.version}",displayed: true, isStateChange:true)
+    }    
+    
+// ConfigurationReport(parameterNumber: 8, size: 2, configurationValue: [4, 4], scaledConfigurationValue: 1028) Diff
+   if (cmd.parameterNumber== 8){
+       state.heatDiff = cmd.configurationValue[0] 
+       state.coolDiff = cmd.configurationValue[1] 
+       logging("${device} : E10-8 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info")
+   }
+// ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
+   if (cmd.parameterNumber== 9){
+       if (cmd.configurationValue[0] == 1){state.fastrecovery = "fast"}
+       if (cmd.configurationValue[0] == 2){state.fastrecovery = "economy"} 
+       logging("${device} : E10-9 Recovery :${state.fastrecovery} #${cmd.configurationValue[0]}", "info")
+   }    
+   
+   
 }
 
 def zwaveEvent(hubitat.zwave.Command cmd ){
@@ -1100,6 +1134,12 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
     if (setclock == true) {logging("${device} : E16 Rec   clock ${weekday} ${cmd.hour}:${cmd.minute}) (out of sync) ${error}", "warn")}
 }
 
+def saveSettings(cmd){
+ logging("${device} : SaveSettings", "info")  
+ delayBetween([setDiff(cmd),setSwing(cmd),setRecovery(cmd)], delay)     
+    
+}
+
 
 def setDiff(cmd){
 // 2 stage differential
@@ -1116,6 +1156,47 @@ def setDiff(cmd){
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
    zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
 	], delay)    
+}
+
+def setSwing(cmd){
+    
+// options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"]
+    def value = 2
+    def locationScale = getTemperatureScale()
+    if (swing == "0.5"){value = 1}
+    if (swing == "1.0"){value = 2}
+    if (swing == "1.5"){value = 3}
+    if (swing == "2.0"){value = 4}
+    if (swing == "2.5"){value = 5}
+    if (swing == "3.0"){value = 6}
+    if (swing == "3.5"){value = 7}
+    if (swing == "4.0"){value = 8}
+
+    logging("${device} : Set Temp Swing:${swing} ${locationScale} - #${value}", "info")
+
+    
+   delayBetween([    
+   zwave.configurationV2.configurationSet(parameterNumber: 7, size: 1, configurationValue: [value]).format(),
+   zwave.configurationV2.configurationGet(parameterNumber: 7).format(),    
+	], delay)  
+
+}
+
+def setRecovery(cmd){
+// ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
+    if(!recovery){recovery = 2}
+ 
+    if (recovery == "fast"){value = 1}
+    if (recovery == "economy"){value = 2}
+   
+    logging("${device} : Set Recovery to:${recovery} #${value}", "info")
+    
+    
+   delayBetween([    
+   zwave.configurationV2.configurationSet(parameterNumber: 9, size: 1, configurationValue: [value]).format(),
+   zwave.configurationV2.configurationGet(parameterNumber: 9).format(),    
+	], delay)  
+
 }
 
 
