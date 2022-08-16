@@ -29,6 +29,7 @@ Button 6 = Lock brand not setup
 
 =============================================================
 
+ 98/16/2022  v1.2  Support locks that use VIA instead of BY in description.
  06/28/2022  v1.1  working version. One lock only
  06/27/2022  v1.0  Testing version.....
 
@@ -37,7 +38,7 @@ Button 6 = Lock brand not setup
 
 def setVersion(){
     state.name = "Lock Button Monitor ${app.lock}"
-    state.version ="1.1"
+    state.version ="1.2"
 //    updateLabel("Lock Button Monitor ${app.lock}")
 
 //    updateLabel(state.name)
@@ -134,6 +135,8 @@ def initialize() {
 
 def codeName(evt){
 name = evt.value
+
+    
 }
 
 def lockStatus(evt) {
@@ -143,6 +146,9 @@ return
 
 def unlockHandler(evt) {
 setVersion()
+    
+   if(!name){name="NA"}
+    
    if (evt.descriptionText.contains('unlocked by thumb turn')){
    log.info ("Lock monitor: unlocked by thumb turn")
    virtuaButton.push(3)
@@ -157,7 +163,13 @@ setVersion()
        log.info ("Lock monitor: UnLocked by a valid code ${name}")
    virtuaButton.push(4)
    return    
-    }  
+    } 
+   if (evt.descriptionText.contains('was unlocked via')){//was unlocked by 
+       log.info ("Lock monitor: UnLocked by a valid code ${name}")
+   virtuaButton.push(4)
+   return    
+    }   
+    
    if (evt.descriptionText.contains('was unlocked [digital]')){
    log.info ("Lock monitor: was unlocked by HUB")
    virtuaButton.push(5)    
@@ -165,8 +177,8 @@ setVersion()
     }  
 
    
-log.warn ("Lock monitor: event passed loop: ${evt.descriptionText}")
-  virtuaButton.push(6)  
+log.warn ("Lock monitor: Error: [${evt.descriptionText}]")
+ 
 }
 
 // Schlage log results to scan
@@ -200,7 +212,11 @@ def lockHandler(evt) {
     virtuaButton.push(1)
     return    
     }
-    
+    if (evt.descriptionText.contains('locked via button')){
+    log.info ("Lock monitor: Locked by button")
+    virtuaButton.push(1)
+    return    
+    }    
     
     if (evt.descriptionText.contains('was locked by thumb turn')){
     log.info ("Lock monitor: Locked by thumb turn")
@@ -222,14 +238,10 @@ def lockHandler(evt) {
     return    
     } 
     
-    if (evt.descriptionText.contains('unlocked')){
-    log.warn ("Lock monitor: Error: ..unlock in lock loop")
-    return    
-    } 
        
      
-log.warn ("Lock monitor: event passed loop: ${evt.descriptionText}")
-virtuaButton.push(7)
+log.warn ("Lock monitor: Error: [${evt.descriptionText}]")
+
 }
 
 
