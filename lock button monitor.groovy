@@ -9,7 +9,7 @@ For hubitat
 
 
 Installation Notes:
-Create a Virtual button. set buttons to 6
+Create a Virtual button. set buttons to 5
 
 set lock and button in app
 
@@ -25,7 +25,7 @@ Button 2 = Locked by Thumb Turn
 Button 3 = Unlocked by Thumb Turn
 Button 4 = Unlocked by Code
 Button 5 = Unlocked by HUB 
-Button 6 = Lock brand not setup
+
 
 =============================================================
 
