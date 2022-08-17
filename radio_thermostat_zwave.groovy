@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.3.5 08/17/2022 Bug fix Last update broke the clock fixed
  v5.3.4 08/16/2022 Added Recovery mode
  v5.3.1 08/15/2022 Added Swing
  v5.3   08/14/2022 Added 2 stage differential
@@ -95,7 +96,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.3.4"
+    TheVersion="5.3.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -1058,7 +1059,7 @@ setClock()
 }
 // Auto set clock code (improved)
 // Day is not visiable in ct101 but is on ct30
-private setClock() {
+private setClock(cmd) {
 //	def ageInMinutes = state.lastClockSet ? (nowTime - state.lastClockSet)/60000 : 1440
 //    if (ageInMinutes >= 60) { // once a hr
 //		state.lastClockSet = nowTime
