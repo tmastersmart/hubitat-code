@@ -3,7 +3,17 @@
 
 
 
-        09/10/2021  Update Inserted into get hub
+
+
+
+
+
+
+v1.2  08/19/2022 Rewrite of BAT and temp routines for IRIS
+v1  09/10/2021  Update Inserted into get hub
+
+
+
  *	04/11/2021
  * Orginal 
  *
@@ -16,13 +26,19 @@
  *	
  */
 
+def clientVersion() {
+    TheVersion="1.2"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
 
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
-
-
+import hubitat.helper.HexUtils
 metadata {
 
-	definition (name: "Iris v1 AlertMe Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_AlertMe_Motion_Sensor.groovy") {
+	definition (name: "Iris v1 Motion Sensor Custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_AlertMe_Motion_Sensor.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
@@ -39,37 +55,66 @@ metadata {
 		command "normalMode"
 		command "rangingMode"
 		//command "quietMode"
+        command "unschedule"
+        command "uninstall"
+        command "ClearTamper"
 
 		attribute "batteryState", "string"
 		attribute "batteryVoltage", "string"
-		attribute "batteryVoltageWithUnit", "string"
-		attribute "batteryWithUnit", "string"
 		attribute "mode", "string"
-		attribute "temperatureWithUnit", "string"
-
-		fingerprint profileId: "C216", inClusters: "00F0,00F1,00F2", outClusters: "", manufacturer: "AlertMe.com", model: "PIR Device", deviceJoinName: "AlertMe Motion Sensor"
-
-	}
 
 
+		fingerprint profileId: "C216", inClusters: "00F0,00F1,00F2", outClusters: "", manufacturer: "IRIS", model: "MT800", deviceJoinName: "Iris Motion Sensor"
 
+    }
+
+}
+// fingerprint model:"MT800", manufacturer:"IRIS", profileId:"C216", endpointId:"02", inClusters:"00F0,00F1,00F2", outClusters:""
 //endpointId: 02
 //manufacturer: AlertMe
 //model: PIR Device
 
+preferences {
 	
 	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
-	
+	input("tempAdj", "number", title: "Temperature Offset:", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
+	input("batAdj",  "number", title: "Battery Offset:", description: "Adjust the Bat% by adding or subtracting this amount in % ",defaultValue: 0,required: false)
+
 }
 
 
 def installed() {
-	// Runs after first pairing.
+	// Runs after first pairing. this may never run internal drivers overide pairing.
 	logging("${device} : Paired!", "info")
 }
 
+def uninstall() {
+	unschedule()
+	state.remove("rangingPulses")
+	state.remove("operatingMode")
+	state.remove("batteryOkay")
+	state.remove("presenceUpdated")    
+	state.remove("version")
+	state.remove("battery")
+
+
+    
+removeDataValue("battery")
+removeDataValue("battertState")
+removeDataValue("batteryVoltage")
+removeDataValue("batteryVoltageWithUnit")
+removeDataValue("batteryWithUnit")     
+removeDataValue("contact")
+removeDataValue("lqi")
+removeDataValue("operation")
+removeDataValue("presence")
+removeDataValue("tamper")    
+removeDataValue("temperature")
+removeDataValue("temperatureWithUnit")    
+logging("${device} : Uninstalled", "info")   
+}
 
 def initialize() {
 
@@ -77,7 +122,7 @@ def initialize() {
 	// Runs on reboot, or can be triggered manually.
 
 	// Reset states...
-
+clientVersion()
 	state.batteryOkay = true
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
@@ -156,7 +201,7 @@ def configure() {
 def updated() {
 
 	// Runs whenever preferences are saved.
-
+clientVersion()
 	loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(1800,traceLogOff)
@@ -189,21 +234,22 @@ void debugLogOff(){
 
 }
 
+// Expermental  will likely retamper..
+def ClearTamper (){
+        logging("${device} : Tamper : Cleared FORCED", "info")
+		sendEvent(name: "tamper", value: "clear")
+}
+
 
 void reportToDev(map) {
-
 	String[] receivedData = map.data
-
 	def receivedDataCount = ""
 	if (receivedData != null) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
-
-	logging("${device} : UNKNOWN DATA! Please report these messages to the developer.", "warn")
-	logging("${device} : Received : cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
-	logging("${device} : Splurge! : ${map}", "trace")
-
+	logging("${device} : New unknown Cluster Detected: Report to DEV clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 }
+
 
 
 def normalMode() {
@@ -246,11 +292,9 @@ def quietMode() {
 	// We don't receive any of these in quiet mode, so reset them.
 	sendEvent(name: "battery",value:0, unit: "%", isStateChange: false)
 	sendEvent(name: "batteryVoltage", value: 0, unit: "V", isStateChange: false)
-	sendEvent(name: "batteryVoltageWithUnit", value: "unknown", isStateChange: false)
-	sendEvent(name: "batteryWithUnit", value: "unknown", isStateChange: false)
 	sendEvent(name: "operation", value: "quiet")
 	sendEvent(name: "temperature", value: 0, unit: "F", isStateChange: false)
-	sendEvent(name: "temperatureWithUnit", value: "unknown", isStateChange: false)
+
 
 	logging("${device} : Mode : Quiet", "info")
 
@@ -347,33 +391,28 @@ def parse(String description) {
 
 	// Primary parse routine.
 
-	logging("${device} : Parse : $description", "debug")
+	logging("${device} : Parse : ${description}", "debug")
 
 	state.batteryOkay == true ?	sendEvent(name: "presence", value: "present") : sendEvent(name: "presence", value: "not present")
 	updatePresence()
 
 	if (description.startsWith("zone status")) {
-
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
 		processStatus(zoneStatus)
-
 	} else {
-
 		Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-
 		if (descriptionMap) {
-
 			processMap(descriptionMap)
-
 		} else {
-			
-			logging("${device} : Parse : Failed to parse received data. Please report these messages to the developer.", "warn")
-			logging("${device} : Splurge! : ${description}", "warn")
-
+            if (description == "enroll request endpoint 0x02 : data 0x0015") {
+             logging("${device} : Device needs to be removed from hub and rejoined!", "warn")
+             logging("${device} : Device is eating up the battery. See notes in driver.", "warn")   
+             logging("${device} : ${description}", "warn") 
+             unschedule()   
+            }  
+             else{logging("${device} : Unknown: ${description}", "warn")}
 		}
-
 	}
-
 }
 
 
@@ -403,133 +442,102 @@ def processMap(Map map) {
 	// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
 
-	if (map.clusterId == "00F0") {
-
+if (map.clusterId == "00F0") {
 		// Device status cluster.
-
 		// Report the battery voltage and calculated percentage.
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
-
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
-
+//		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
 		if (batteryVoltageHex == "FFFF") {
 			// Occasionally a weird battery reading can be received. Ignore it.
 			logging("${device} : batteryVoltageHex skipping anomolous reading : ${batteryVoltageHex}", "debug")
 			return
 		}
+		batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 
-		batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-		logging("${device} : batteryVoltage sensor value : ${batteryVoltage}", "debug")
+		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
 
-		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-
-		logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
+        
+        
+        logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
 		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-		sendEvent(name: "batteryVoltageWithUnit", value: "${batteryVoltage} V")
-
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72
-		BigDecimal batteryVoltageScaleMax = 3.10
+		BigDecimal batteryVoltageScaleMax = 3.00
+            if (!batAdj){batAdj =0}
 
-		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.4) {
 
+// defective sensors are reading -1         
+//		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.4) {
 			state.batteryOkay = true
-
 			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-
-			if (batteryPercentage > 50) {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
-			} else if (batteryPercentage > 30) {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "info")
-			} else {
-				logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
+            logging("${device} : Battery : ${batteryPercentage}%  Adj ${batAdj}", "trace")
+            if (batAdj > 0){batteryPercentage = batteryPercentage + batAdj }
+            if (batAdj < 0){batteryPercentage = batteryPercentage - batAdj }  
+            
+            
+            powerLast = device.currentValue("battery")
+            logging("${device} : bat: now:${batteryPercentage} Last:${powerLast} ", "debug")
+            if (powerLast != batteryPercentage){
+            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+            state.battery = batteryPercentage
+			if (batteryPercentage > 10) {
+                logging("${device} : Battery : ${batteryPercentage}% ${batteryVoltage} V", "trace")// moved to combined temp bat
+                sendEvent(name: "batteryState", value: "ok")
+			} 
+            else {
+                logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage} V", "warn")
+                sendEvent(name: "batteryState", value: "low")
 			}
-
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-			sendEvent(name: "batteryState", value: "discharging")
-
-		} else if (batteryVoltage < batteryVoltageScaleMin) {
-
-			// Very low voltages indicate an exhausted battery which requires replacement.
-
+	
+		 
+        if (batteryVoltage <= 0) {
+            logging("${device} : Battery sensor needs adjustment ${batteryPercentage}% (${batteryVoltage} V)", "warn")
+		} 
+            
+        if (batteryVoltage <= batteryVoltageScaleMin) {
 			state.batteryOkay = false
-
 			batteryPercentage = 0
-
-			logging("${device} : Battery : Exhausted battery requires replacement.", "warn")
-			logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
+            logging("${device} : Battery :BAD ${batteryPercentage}% (${batteryVoltage} V)", "warn")
 			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-			sendEvent(name: "batteryState", value: "exhausted")
+			sendEvent(name: "batteryState", value: "bad")
+		} 
+      } // end if changes %
+//    }
 
-		} else {
-
-			// If the charge circuitry is reporting greater than 4.5 V then the battery is either missing or faulty.
-			// THIS NEEDS TESTING ON THE EARLY POWER CLAMP
-
-			state.batteryOkay = false
-
-			batteryPercentage = 0
-
-			logging("${device} : Battery : Exhausted battery requires replacement.", "warn")
-			logging("${device} : Battery : $batteryPercentage% ($batteryVoltage V)", "warn")
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-			sendEvent(name: "batteryWithUnit", value:"${batteryPercentage} %")
-			sendEvent(name: "batteryState", value: "fault")
-
-		}
-
-		// Report the temperature in celsius.
+// Report the temperature 
 		def temperatureValue = "undefined"
 		temperatureValue = receivedData[7..8].reverse().join()
-		logging("${device} : temperatureValue byte flipped : ${temperatureValue}", "trace")
 		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
-        BigDecimal temperatureF = hexToBigDecimal(temperatureValue)
-		logging("${device} : temperatureCelsius sensor value : ${temperatureCelsius}", "trace")
-		logging("${device} : Temperature : $temperatureF", "info")
+        temperatureF = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
+        if (!tempAdj){tempAdj = 0}
+        if (tempAdj > 0){temperatureF= temperatureF + tempAdj }
+        if (tempAdj < 0){temperatureF= temperatureF - tempAdj }    
+        
+        logging("${device} : Temp:${temperatureF} Battery :${state.battery}% ${batteryVoltage}V", "info")
 		sendEvent(name: "temperature", value: temperatureF, unit: "F")
-		sendEvent(name: "temperatureWithUnit", value: "${temperatureF} °F")
 
+
+// Tamper cluster.
 	} else if (map.clusterId == "00F2") {
-
-		// Tamper cluster.
-
+        if(tamperIgnore != "true"){
 		if (map.command == "00") {
-
 			if (receivedData[0] == "02") {
-
+                
 				logging("${device} : Tamper : Detected", "warn")
 				sendEvent(name: "tamper", value: "detected")
-
-			} else {
-
-				reportToDev(map)
-
-			}
-
+                }    
+			
 		} else if (map.command == "01") {
-
 			if (receivedData[0] == "01") {
-
 				logging("${device} : Tamper : Cleared", "info")
 				sendEvent(name: "tamper", value: "clear")
-
-			} else {
-
-				reportToDev(map)
-
-			}
-
-		} else {
-
-			reportToDev(map)
-
-		}
+			} 
+        }
+    }
 
 	} else if (map.clusterId == "00F6") {
 
@@ -591,23 +599,33 @@ def processMap(Map map) {
 
 			logging("${device} : device version received in ${versionInfoBlockCount} blocks : ${versionInfoDump}", "debug")
 
-			String deviceManufacturer = "AlertMe"
+			String deviceManufacturer = "IRIS"
 			String deviceModel = ""
-			String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
+            String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
+           reportFirm = "unknown"
+          if(deviceFirmware == "2012-09-20" ){reportFirm = "Ok"}
 
+          if(reportFirm == "unknown"){state.reportToDev="Report Unknown firmware [${deviceFirmware}] " }
+          else{state.remove("reportToDev")}
 			// Sometimes the model name contains spaces.
-			if (versionInfoBlockCount == 2) {
-				deviceModel = versionInfoBlocks[0]
-			} else {
-				deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
-			}
+	if (versionInfoBlockCount == 2) {
+	deviceModel = versionInfoBlocks[0]
+	} else {
+	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
+	}
 
-			logging("${device} : Device : ${deviceModel}", "info")
-			logging("${device} : Firmware : ${deviceFirmware}", "info")
+            logging("${device} : ${deviceModel} Ident: Firm:[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "info")
 
 			updateDataValue("manufacturer", deviceManufacturer)
-			updateDataValue("model", deviceModel)
-			updateDataValue("firmware", deviceFirmware)
+
+
+            updateDataValue("device", deviceModel)
+            updateDataValue("model", "MT800")
+            updateDataValue("firmware", deviceFirmware)
+//            updateDataValue("fcc", "WJHWD11")
+        
+            
+
 
 		} else {
 
