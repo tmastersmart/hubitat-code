@@ -1,6 +1,11 @@
 /* Iris v1 motion sensor driver for hubitat
-   USA version
+   USA version only. 
+   Not for UK alertMe
 
+
+Improved battery and temp reporting that default drivers dont understand.
+
+No more negatve battery reports. 
 
 
 
@@ -11,6 +16,12 @@
 
 v1.2  08/19/2022 Rewrite of BAT and temp routines for IRIS
 v1  09/10/2021  Update Inserted into get hub
+
+
+
+
+
+
 
 
 
