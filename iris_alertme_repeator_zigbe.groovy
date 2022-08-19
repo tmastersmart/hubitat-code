@@ -3,9 +3,16 @@ https://fcc.report/FCC-ID/WJHRP11/
 
 Iris v1 repeader zigbee driver for hubitat
 
+
+
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
 notice acording to old reports the REP800 had a defect in the ZWAVE side so dont pair ZWAVE
-    10/06/2020 v2.0 Added logo. Reduced BAT reports now only when changed
+
+
+
+    08/19/2022 v2.2 To many battery reports fixed.
+    10/10/2021 v2.1 Bat bug fixed
+    10/06/2021 v2.0 Added logo. Reduced BAT reports now only when changed
     09/30/2021 v1.9 Merge in new code from KeyPad driver better error detection logging
     09/06/2021 v1.8 Battery fix / Powerfalure detection
     09/04/2021 v1.7 Button support added 
@@ -36,21 +43,36 @@ REP901 is the new version Need firmware versions.
 Post comments here
 http://www.winnfreenet.com/wp/2021/09/iris-v1-alertme-repeater-zigbe-hubitat-driver/
 
+======================================================================================================
+Copyright [2022] [tmaster winnfreenet.com]
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+=======================================================================================================
 
 
 
 
- * based on alertme UK code from  
-   https://github.com/birdslikewires/hubitat
-
+code includes some routines based on alertme UK code from  
+https://github.com/birdslikewires/hubitat
 GNU General Public License v3.0
 Permissions of this strong copyleft license are conditioned on making available
 complete source code of licensed works and modifications, which include larger
 works using a licensed work, under the same license. Copyright and license
 notices must be preserved. Contributors provide an express grant of patent rights.
+
  */
 def clientVersion() {
-    TheVersion="2.0"
+    TheVersion="2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -111,6 +133,7 @@ def initialize() {
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
+    state.lastBatteryVoltage = 0
     state.icon = "<img src='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gIoSUNDX1BST0ZJTEUAAQEAAAIYAAAAAAIQAABtbnRyUkdCIFhZWiAAAAAAAAAAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAAHRyWFlaAAABZAAAABRnWFlaAAABeAAAABRiWFlaAAABjAAAABRyVFJDAAABoAAAAChnVFJDAAABoAAAAChiVFJDAAABoAAAACh3dHB0AAAByAAAABRjcHJ0AAAB3AAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAFgAAAAcAHMAUgBHAEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFhZWiAAAAAAAABvogAAOPUAAAOQWFlaIAAAAAAAAGKZAAC3hQAAGNpYWVogAAAAAAAAJKAAAA+EAAC2z3BhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABYWVogAAAAAAAA9tYAAQAAAADTLW1sdWMAAAAAAAAAAQAAAAxlblVTAAAAIAAAABwARwBvAG8AZwBsAGUAIABJAG4AYwAuACAAMgAwADEANv/bAEMAAwICAgICAwICAgMDAwMEBgQEBAQECAYGBQYJCAoKCQgJCQoMDwwKCw4LCQkNEQ0ODxAQERAKDBITEhATDxAQEP/bAEMBAwMDBAMECAQECBALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/AABEIADcAZAMBIgACEQEDEQH/xAAcAAEAAgIDAQAAAAAAAAAAAAAABAUCBgEHCAP/xAA6EAABAgMCCAsHBQAAAAAAAAAAAgMBBAUGEhYXIlRVdJGSBxETMjU2coKisrMUJDRCRVFzZHGjscH/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAgED/8QAFhEBAQEAAAAAAAAAAAAAAAAAAAEC/9oADAMBAAIRAxEAPwD3DXOFC1D1Vcbps4mXlUuqbS2ltKuaq7ziyYtZaJxq8qrO3u6devp98VrL3qKNulvhiMtq4wotBpV7aIWktAr6o/vFZBN75j6pTdSGLOFoq9pR/eOcJK9pR7eK0AWWEle0o9vDCSuaSe3itAFjhHXNJP7wwhrWkn9pXAsWSLRVhMcqedV3iZN1mfXTlTMtPvoeQm8nLVdgooSYrop/sKA7Lo8/Cp0mSqLkeTVNS7b0U/a8mEf9BHsd1VpGpMemkAeeZlPvitac9RRtste5E1SY+PXrb3qKNtlE3mTlltfVCbiTMhSErUpebnXp6pJmGHnUqlmuSS3yCbvNvfNlZRNKYAAAAAAAAEv6S/2FEQmp6Kf7Cix2HY/qpR9SZ8kAY2M6p0jU2fJAAef5xN2dXrj3qKNqlcps1+sMql6ktKs7cV/Io2CVyWjlltSAAUwAAAAAAAAJsOjH/wAaiET2+jX/AMagN7sj1Vo+pNeWAFk0cVl6RD9E15YAsa3aDgtbq88qfYqns8FKvXIovGTfBvNtIuxqbMe6oAgc4vJ3SjW6oYvZ7SLGxQAHOL6oZ8x4hi+qGeseIABi/qGeMeIxwAqOeseIABgBUc9Y8Qxf1POWdgACFgKjCOXMtQ/Yl4ETLkupj2pDSVp4lOcV6OwAsbZIyrUhKMyMvC61LtpaRD7JTCEIf0AAP//Z'>"
     
     state.message = "REP800 should not be paired in ZWAVE as it has a defect. Only REP901 works on Zwave."
@@ -229,7 +252,7 @@ void reportToDev(map) {
 		receivedDataCount = "${receivedData.length} bits of "
 	}
 
-	logging("${device} : Received Unknown: cluster: ${map.cluster}, clusterId: ${map.clusterId}, attrId: ${map.attrId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+	logging("${device} : Unknown: clusterId: ${map.clusterId}, command: ${map.command} with value: ${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
 
 }
 
@@ -403,6 +426,41 @@ def parse(String description) {
 	}
 }
 
+
+/* Internal notes: Building Cluster map 
+* = likely done by HUB in Join.
+0000 Network (16-bit) Address Request *
+0004 Simple Descriptor Request *
+0005 Active Endpoint Request *
+0006 Match Descriptor Request (Light Flashes)
+0013 Device announce message (Light Flashes)
+00C0 Button report (button on repeator)
+     00 = Unknown (Lifeline report)
+     0A = Button
+00EE Relay actuation (smartPlugs)
+     80 = PowerState
+00EF Power Energy messages
+     81 = Power Reading
+     82 = Energy
+00F0 Battery & Temp
+     FB 
+00F3 Key Fob (button on Repeator pressed)
+00F2 Tamper
+00F6 Discovery Cluster
+     FD = Ranging
+     FE = Device version response.
+0500 Security Cluster (Tamper & Reed)
+8001 Routing Neighobor information
+8004 simple descriptor response
+8005 Active Endpoint Response (tells you what the device can do)
+8032 Received when new devices join
+8038 Management Network Update Request
+//00F6, attrId: null, command: FD with value: null and 2 bits of data: [AB, FE]
+
+
+Unknown: clusterId: 8038, command: 00 with value: null and 27 bits of data: [00, 00, 00, F8, FF, 07, 1E, 00, 08, 00, 10, B6, B3, C6, B1, A2, A4, A3, A2, A2, A1, A4, A1, A2, A1, A0, A1]
+
+*/        
 def processMap(Map map) {
 	logging ("${device} : ${map}","trace")
 	String[] receivedData = map.data	// AlertMe values are always sent in a data element.
@@ -410,9 +468,13 @@ def processMap(Map map) {
 
  
     if (map.clusterID == "0013"){
-	logging("${device} : Device announce message","warn")   
+	logging("${device} : Device announce message MAP:${map.data} ","warn")   
 	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device","debug")
-	
+
+    } else if (map.clusterId == "8038") {
+		logging("${device} : Management Network Update Request MAP:${map.data}","warn")
+        rangeAndRefresh() // We dont know what to do.  Try this
+   	
 
     } else if (map.clusterId == "0006") {
 		logging("${device} : Sending Match Descriptor Response","debug")
@@ -456,7 +518,8 @@ def processMap(Map map) {
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
-        
+    powerLast = device.currentValue("battery")// Stop to many battery reports
+    if (powerLast != batteryPercentage){         
         
     if (batteryVoltage > state.lastBatteryVoltage  ){
 	 logging( "${device} : Battery : ${batteryPercentage}% (${batteryVoltage} V)","info")
@@ -469,11 +532,10 @@ def processMap(Map map) {
      sendEvent(name: "PowerSource", value: "mains")
      sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
     }
-    if (batteryVoltage < state.lastBatteryVoltage ){    
-      logging( "${device} : Battery : ${batteryPercentage}% (${batteryVoltage} V)","info")
+    if (batteryVoltage < state.lastBatteryVoltage ){   
+     logging( "${device} : Battery : ${batteryPercentage}% (${batteryVoltage} V)","info")
 	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
      sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-     logging("${device} : Last:${state.lastBatteryVoltage} Now:${batteryVoltage}", "debug")    
      logging("${device} : Discharging", "debug") 
      state.supplyPresent = false
      sendEvent(name: "batteryState", value: "discharging")
@@ -481,7 +543,7 @@ def processMap(Map map) {
      sendEvent(name: "supplyPresent", value: "${state.supplyPresent}")
      }
     state.lastBatteryVoltage = batteryVoltage
-     
+      }   
          
 
 //00F3 Key Fob Cluster:00F3 Cmd:00 MAP:[00, 02, A2, A6, 00, 00]
@@ -517,7 +579,7 @@ def processMap(Map map) {
 	} else if (map.clusterId == "00F6") {
 
 		// Discovery cluster. 
-
+//00F6, attrId: null, command: FD with value: null and 2 bits of data: [AB, FE]
 		if (map.command == "FD") {
 
 			// Ranging is our jam, Hubitat deals with joining on our behalf.
@@ -546,7 +608,7 @@ def processMap(Map map) {
 
 				// This is the ranging report received when the device reboots.
 				// After rebooting a refresh is required to bring back remote control.
-				logging("${device} : reboot ranging report received", "debug")
+				logging("${device} : reboot ranging report received", "info")
 				refresh()
 
 			} else {
@@ -602,7 +664,7 @@ def processMap(Map map) {
         }
 } else if (map.clusterId == "8001") {
 
-  logging("${device} : Routing and Neighbour Information", "info")	     
+  logging("${device} : Routing and Neighbour Info MAP:${map.data}", "info")	
 // no ideal here I thought 8001 was a recovery mesg but it is not.
 //  state.supplyPresent = true
 //  sendEvent(name: "PowerSource", value: "mains", isStateChange: true)   
@@ -611,7 +673,7 @@ def processMap(Map map) {
 	// These clusters are sometimes received when joining new devices to the mesh.
         //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
         // We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
-	logging( "${device} : New join has triggered a routing table reshuffle.","debug")
+	logging( "${device} : New join has triggered a routing table reshuffle. MAP:${map.data}","info")
      } else {
 	// Not a clue what we've received.
 	reportToDev(map)
