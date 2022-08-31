@@ -1,5 +1,8 @@
-/**Smart Things Presence Sensor driver for hubitat
-Also called Smart Things Arival sensor.
+/** SmartThings Arrival Sensor driver for hubitat
+
+or  SmartThings Presence Sensor driver for hubitat
+
+
 
 Beep Beep for 5 seconds.
 
