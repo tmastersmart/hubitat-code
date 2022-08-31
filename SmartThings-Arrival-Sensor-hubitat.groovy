@@ -52,7 +52,7 @@ def clientVersion() {
 
 metadata {
     
-    definition (name: "SmartThings Arrival Sensor Chime", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+    definition (name: "SmartThings Arrival Sensor Chime", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy") {
 
 
 		capability "Tone"
