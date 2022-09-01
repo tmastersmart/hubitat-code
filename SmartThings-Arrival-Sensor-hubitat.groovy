@@ -23,7 +23,7 @@ To reset hold button for 5 seconds and led will flash.
 
 
 ====================================================================================================
-v1.4  08/31/2022 Log cleanups. Renamed V2
+v1.4  09/01/2022 Log cleanups. Renamed V2
 v1.3  08/31/2022 Minor changes
 v1.2  08/30/2022 Refresh added
 v1.1  08/17/2022 Reworked all the code
