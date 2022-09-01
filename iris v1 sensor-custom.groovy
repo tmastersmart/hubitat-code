@@ -2,9 +2,13 @@
 
 iris v1 contact sensor for hubitat
 
-Support for batteries going dead at 30% If not present
-forces bat reading to 0 so bat mon can detect.
-Adjustment for bat/ temp sensor
+Totaly rewritten battery support.
+No more - battery readings. Min voltage will auto adjust to sensor.
+This is new and will be added to all my scripts.
+The default settings supplied by iris are wrong and vary from device to device.
+
+
+Adjustment for temp sensor
 
 Tested on Firmware : 2012-09-20 The last iris pushed update.
 New out of the box devices may have older firmware.
@@ -26,6 +30,7 @@ added option to ignore tamper on broken cases.
 
 
 Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
+v1.6  09/01/2022 Battery voltage rewriten. 
 v1.5  09/01/2022 New release. More fixes
 v1.4  08/17/2022 Bug fix on bat and temp adj
       07-27-2022 Detect dead batt. new force options. Uninstall option
@@ -60,7 +65,7 @@ https://fccid.io/WJHWD11
  */
 
 def clientVersion() {
-    TheVersion="1.5"
+    TheVersion="1.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -96,9 +101,9 @@ metadata {
     command "ClearTamper"
     command "unschedule"
     command "uninstall"
-	command "quietMode"
+	command "resetBatMin"
 
-	attribute "batteryState", "string"
+
 	attribute "batteryVoltage", "string"
 	attribute "mode", "string"
         attribute "operation","string"
@@ -118,7 +123,7 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
     input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
 	input("tempAdj", "number", title: "Adjust Temp F", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
-	input("batAdj",  "number", title: "Adjust Bat %", description: "Adjust the Bat% by adding or subtracting this amount in % ",defaultValue: 0,required: false)
+//	input("minVolt", "number", title: "Battery Min Voltage", description: "IRIS recoments 2.72 But sensors can work at 2.38",defaultValue: 2.72,required: false)
 
 }
 
@@ -148,6 +153,12 @@ removeDataValue("presence")
 removeDataValue("tamper")    
 removeDataValue("temperature")
 logging("${device} : Uninstalled", "info")   
+}
+
+def resetBatMin(){
+// set to the iris recomended value
+state.minVoltTest=2.72
+logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info")    
 }
 
 def initialize() {
@@ -380,14 +391,8 @@ def checkPresence() {
 
 				sendEvent(name: "presence", value: "not present")
 				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
-                logging("${device} : Battery : Setting bat to 0 for low bat alarms", "warn")
-			    sendEvent(name: "battery", value:0, unit: "%")
-			    sendEvent(name: "batteryState", value: "bad")
-
 			} else {
-
 				logging("${device} : Presence : Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")
-
 			}
 
 		} else {
@@ -505,50 +510,42 @@ def processMap(Map map) {
         
         
         logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
-		sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+
+        if (state.minVoltTest < 1.99){ resetBatMin() }
+        if (batteryVoltage < state.minVoltTest){
+            state.minVoltTest = batteryVoltage
+            logging("${device} : Min Voltage Lowered to ${state.minVoltTest}v", "info")  
+        } 
+ 
 		BigDecimal batteryPercentage = 0
-		BigDecimal batteryVoltageScaleMin = 2.72
+        BigDecimal batteryVoltageScaleMin = state.minVoltTest // Auto adjustment
 		BigDecimal batteryVoltageScaleMax = 3.00
-            if (!batAdj){batAdj =0}
 
-
-// defective sensors are reading -1         
+      
 //		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.4) {
 			state.batteryOkay = true
 			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-            logging("${device} : Battery : ${batteryPercentage}%  Adj ${batAdj}", "trace")
-            if (batAdj > 0){batteryPercentage = batteryPercentage + batAdj }
-            if (batAdj < 0){batteryPercentage = batteryPercentage - batAdj }  
             
-            
+        
             powerLast = device.currentValue("battery")
-            logging("${device} : bat: now:${batteryPercentage} Last:${powerLast} ", "debug")
+            logging("${device} : battery: now:${batteryPercentage} Last:${powerLast} ", "debug")
             if (powerLast != batteryPercentage){
-            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-            state.battery = batteryPercentage
-			if (batteryPercentage > 10) {
-                logging("${device} : Battery : ${batteryPercentage}% ${batteryVoltage} V", "trace")// moved to combined temp bat
-                sendEvent(name: "batteryState", value: "ok")
-			} 
-            else {
-                logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage} V", "warn")
-                sendEvent(name: "batteryState", value: "low")
-			}
+             sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")    
+             state.battery = batteryPercentage
+
+             if (batteryPercentage > 10) {logging("${device} : Battery : ${batteryPercentage}% ${batteryVoltage} V", "trace")}
+             else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage} V", "warn")}
 	
 		 
-        if (batteryVoltage <= 0) {
-            logging("${device} : Battery sensor needs adjustment ${batteryPercentage}% (${batteryVoltage} V)", "warn")
+        if (batteryPercentage <= 0) {
+            logging("${device} : MinVolts needs to be lower! Bat:${batteryPercentage}% Volts:(${batteryVoltage}V MinVolts:${batteryVoltageScaleMin})", "warn")
 		} 
-            
-        if (batteryVoltage <= batteryVoltageScaleMin) {
-			state.batteryOkay = false
-			batteryPercentage = 0
-            logging("${device} : Battery :BAD ${batteryPercentage}% (${batteryVoltage} V)", "warn")
-			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-			sendEvent(name: "batteryState", value: "bad")
-		} 
+        // Record the min volts seen working ( Future auto adjust for min voltage)
+        if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}       
+
       } // end if changes %
 //    }
 
