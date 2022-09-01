@@ -26,11 +26,11 @@ added option to ignore tamper on broken cases.
 
 
 Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
-
+v1.5  09/01/2022 New release. More fixes
 v1.4  08/17/2022 Bug fix on bat and temp adj
-      07-27-2022  Detect dead batt. new force options. Uninstall option
-      05/29/2022  Removed init routine was causing problems.
-      04/11/2021  First release
+      07-27-2022 Detect dead batt. new force options. Uninstall option
+      05/29/2022 Removed init routine was causing problems.
+      04/11/2021 First release
 =================================================================================================
 
 
@@ -60,7 +60,7 @@ https://fccid.io/WJHWD11
  */
 
 def clientVersion() {
-    TheVersion="1.4"
+    TheVersion="1.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
