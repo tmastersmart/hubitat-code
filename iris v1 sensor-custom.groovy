@@ -4,6 +4,7 @@ iris v1 contact sensor for hubitat
 
 Support for batteries going dead at 30% If not present
 forces bat reading to 0 so bat mon can detect.
+Adjustment for bat/ temp sensor
 
 Tested on Firmware : 2012-09-20 The last iris pushed update.
 New out of the box devices may have older firmware.
@@ -17,27 +18,26 @@ I have found that some devices need to have bat removed for some time to clear t
 Until you fix this your device will eat up batteries and have flakey results.
 
 
-Added option to force contact open or closed. Can be used in scripts. 
+Added option to force events on off. Can be used in scripts. 
 Added option to force clear tamper. Can be used in scripts.
 Since the tamper and contact only reports on events It will stay as you force it
 until the next event.  Great if using on a custom operation.
+added option to ignore tamper on broken cases.
 
 
 Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
 
-
-    07-27-2022  Detect dead batt. new force options. Uninstall option
-    05/29/2022  Removed init routine was causing problems.
-*   04/11/2021  First release
-*
-
-
+v1.4  08/17/2022 Bug fix on bat and temp adj
+      07-27-2022  Detect dead batt. new force options. Uninstall option
+      05/29/2022  Removed init routine was causing problems.
+      04/11/2021  First release
+=================================================================================================
 
 
 
-https://fccid.i
 
-o/WJHWD11
+
+https://fccid.io/WJHWD11
 
 
 
@@ -60,7 +60,7 @@ o/WJHWD11
  */
 
 def clientVersion() {
-    TheVersion="1.3"
+    TheVersion="1.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -116,6 +116,7 @@ preferences {
 	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
+    input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
 	input("tempAdj", "number", title: "Adjust Temp F", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
 	input("batAdj",  "number", title: "Adjust Bat %", description: "Adjust the Bat% by adding or subtracting this amount in % ",defaultValue: 0,required: false)
 
@@ -499,11 +500,8 @@ def processMap(Map map) {
 		}
 		batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 
-		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)// why do this
-        powerLast = device.currentValue("batteryVoltage")
-        
-        logging("${device} : bat: now:${batteryVoltageRaw} Last:${powerLast} ", "trace")
-        if (powerLast != batteryVoltageRaw){
+		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
+
         
         
         logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
@@ -511,45 +509,55 @@ def processMap(Map map) {
 		BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 2.72
 		BigDecimal batteryVoltageScaleMax = 3.00
-        
+            if (!batAdj){batAdj =0}
 
 
-		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.4) {
+// defective sensors are reading -1         
+//		if (batteryVoltage >= batteryVoltageScaleMin && batteryVoltage <= 4.4) {
 			state.batteryOkay = true
 			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
+            logging("${device} : Battery : ${batteryPercentage}%  Adj ${batAdj}", "trace")
+            if (batAdj > 0){batteryPercentage = batteryPercentage + batAdj }
+            if (batAdj < 0){batteryPercentage = batteryPercentage - batAdj }  
             
-            if (batAdj > 0){batteryPercentage= batteryPercentage + batAdj }
-            if (batAdj < 0){batteryPercentage= batteryPercentage - batAdj }  
             
+            powerLast = device.currentValue("battery")
+            logging("${device} : bat: now:${batteryPercentage} Last:${powerLast} ", "debug")
+            if (powerLast != batteryPercentage){
             sendEvent(name: "battery", value:batteryPercentage, unit: "%")
             state.battery = batteryPercentage
 			if (batteryPercentage > 10) {
-				logging("${device} : Battery : $batteryPercentage% $batteryVoltage V", "trace")// moved to combined temp bat
+                logging("${device} : Battery : ${batteryPercentage}% ${batteryVoltage} V", "trace")// moved to combined temp bat
                 sendEvent(name: "batteryState", value: "ok")
 			} 
             else {
-                logging("${device} : Battery :LOW $batteryPercentage% $batteryVoltage V", "warn")
+                logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage} V", "warn")
                 sendEvent(name: "batteryState", value: "low")
 			}
 	
+		 
+        if (batteryVoltage <= 0) {
+            logging("${device} : Battery sensor needs adjustment ${batteryPercentage}% (${batteryVoltage} V)", "warn")
 		} 
-        
+            
         if (batteryVoltage <= batteryVoltageScaleMin) {
 			state.batteryOkay = false
 			batteryPercentage = 0
-			logging("${device} : Battery :BAD $batteryPercentage% ($batteryVoltage V)", "warn")
+            logging("${device} : Battery :BAD ${batteryPercentage}% (${batteryVoltage} V)", "warn")
 			sendEvent(name: "battery", value:batteryPercentage, unit: "%")
 			sendEvent(name: "batteryState", value: "bad")
 		} 
-       } 
+      } // end if changes %
+//    }
 
 // Report the temperature 
 		def temperatureValue = "undefined"
 		temperatureValue = receivedData[7..8].reverse().join()
 		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
         temperatureF = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
+        if (!tempAdj){tempAdj = 0}
         if (tempAdj > 0){temperatureF= temperatureF + tempAdj }
         if (tempAdj < 0){temperatureF= temperatureF - tempAdj }    
         
@@ -559,23 +567,22 @@ def processMap(Map map) {
         
 // Tamper cluster.
 	} else if (map.clusterId == "00F2") {
+        if(tamperIgnore != "true"){
 		if (map.command == "00") {
 			if (receivedData[0] == "02") {
+                
 				logging("${device} : Tamper : Detected", "warn")
 				sendEvent(name: "tamper", value: "detected")
-			} else {
-				reportToDev(map)
-			}
+                }    
+			
 		} else if (map.command == "01") {
 			if (receivedData[0] == "01") {
 				logging("${device} : Tamper : Cleared", "info")
 				sendEvent(name: "tamper", value: "clear")
-			} else {
-				reportToDev(map)
-			}
-		} else {
-			reportToDev(map)
-		}
+			} 
+        }
+    }
+
 
 	} else if (map.clusterId == "00F6") {
 
