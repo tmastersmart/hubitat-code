@@ -1,7 +1,14 @@
-/** SmartThings Arrival Sensor driver for hubitat
+/** SmartThings Arrival Sensor V2 driver for hubitat
 
-or  SmartThings Presence Sensor driver for hubitat
+or  SmartThings Presence Sensor V2 driver for hubitat
 
+SmartThings Presence Sensor V2
+Part Number	F-ARR-US-2 
+MFN # STS-PRS-250
+FCCID 2AF4S-STS-PRS-250
+https://fccid.io/2AF4S-STS-PRS-250
+
+Not yet tested on V1
 
 
 Beep Beep for 5 seconds.
@@ -12,10 +19,12 @@ This is my improved smartthings arrival sensor driver for hubitat.
 One of the improvements is you can play longer beeps. Another is less cluter in the log
 As only changes are recorded. Im also hoping for better reliabilaty and less dropouts.
 
-
+To reset hold button for 5 seconds and led will flash.
 
 
 ====================================================================================================
+v1.4  08/31/2022 Log cleanups. Renamed V2
+v1.3  08/31/2022 Minor changes
 v1.2  08/30/2022 Refresh added
 v1.1  08/17/2022 Reworked all the code
 v1.0  08/16/2022 Forked and modified or hubitat
@@ -47,7 +56,7 @@ https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetype
  *
  */
 def clientVersion() {
-    TheVersion="1.2"
+    TheVersion="1.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -58,7 +67,7 @@ def clientVersion() {
 
 metadata {
     
-    definition (name: "SmartThings Arrival Sensor Chime", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy") {
+    definition (name: "SmartThings Arrival Sensor Chime V2", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy") {
 
 
 		capability "Tone"
@@ -79,7 +88,7 @@ metadata {
 
 // device Join name ignored in hubitat used for ref
         
-        fingerprint profileId: "FC01", deviceId: "019A", manufacturer: "SmartThings", deviceJoinName: "SmartThings Presence Sensor"
+        fingerprint profileId: "FC01", deviceId: "019A", manufacturer: "SmartThings", deviceJoinName: "SmartThings Arrival Sensor Chime"
 		fingerprint profileId: "FC01", deviceId: "0131", manufacturer: "SmartThings", inClusters: "0000,0003", outClusters: "0003", deviceJoinName: "SmartThings Presence Sensor"
 		fingerprint profileId: "FC01", deviceId: "0131", manufacturer: "SmartThings", inClusters: "0000",      outClusters: "0006", deviceJoinName: "SmartThings Presence Sensor"
         fingerprint inClusters: "0000,0001,0003,000F,0020", outClusters: "0003,0019", manufacturer: "SmartThings", model: "tagv4", deviceJoinName: "SmartThings Presence Sensor"
@@ -141,10 +150,9 @@ def refresh() {
 }
 
 // [raw:E131010001082000201A, dni:E131, endpoint:01, cluster:0001, size:08, attrId:0020, encoding:20, command:0A, value:1A, clusterInt:1, attrInt:32]
-
 // [raw:catchall: 0104 0003 01 01 0040 00 E131 00 00 0000 0B 01 0000, profileId:0104, clusterId:0003, clusterInt:3, sourceEndpoint:01, destinationEndpoint:01, options:0040, messageType:00, dni:E131, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:0B, direction:01, data:[00, 00]] 
-
 // [raw:E1310100010A2000201A, dni:E131, endpoint:01, cluster:0001, size:0A, attrId:0020, encoding:20, command:01, value:1A, clusterInt:1, attrInt:32] 
+
 def parse(String description) {
     state.lastCheckin = now()
     def descMap = zigbee.parseDescriptionAsMap(description)
@@ -152,6 +160,10 @@ def parse(String description) {
     handlePresenceEvent(true)
     if (descMap.clusterInt == 0x0001 && descMap.attrInt == 0x0020) { 
         handleBatteryEvent(Integer.parseInt(descMap.value, 16)) 
+    }
+    if (descMap.command == "00") { // options 0040 (when rejoining we get this)
+    logging("${device} : Rejoining Mesh", "info")
+    return
     }
     if (descMap.command == "01") {
     logging("${device} : Reply to refresh ", "info")
@@ -201,9 +213,9 @@ private handleBatteryEvent(batteryVoltage) {
         }
 
 }
-
+// To limit logs only report in log on change
 private handlePresenceEvent(present) {
-    logging("${device} : presence event: ${present}","trace")
+    logging("${device} : Received presence event: ${present}","trace")
     if(present){value="present"}
     else{value="not present"}
 
@@ -220,12 +232,12 @@ private handlePresenceEvent(present) {
 }
 
 private startTimer() {
-    logging("${device} : Scheduling periodic timer","debug")
+    logging("${device} : Scheduling periodic timer","info")
     runEvery1Minute("checkPresenceCallback")
 }
 
 private stopTimer() {
-    logging("${device} : unschedule()","debug")
+    logging("${device} : Stoping periodic timer","info")
     unschedule()
 }
 
@@ -236,7 +248,7 @@ def checkPresenceCallback() {
 //  Interval set by driver
     min = timeSinceLastCheckin/60
 //  sensor checks in every  0.13 seconds. We have to mimimize log entry.
-    logging("${device} : Sensor Check in its ben ${min} mins","debug")
+    logging("${device} : Sensor Checkin its been ${min} mins","debug")
     if (min >= Interval-5){
         logging("${device} : Sensor timing out ${min} min ago","info")
         refresh()// Ping Perhaps we can wake it up...
