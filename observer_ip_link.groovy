@@ -25,7 +25,7 @@ Create a Outdoor and indoor sensor using this driver
 Give permission in the API maker then enter the 
 ID #s for the sensors and API in the script.
 
-
+v1.7        09/02/2022  attribute "WU" added
 v1.6        08/18/2022  Fix numeric varables so scripts can use math 
 v1.5        06-10-2021
 v1.4    
@@ -94,6 +94,8 @@ metadata {
         attribute "name", "string"
         attribute "CWOP", "string"
         attribute "PWS", "string"
+        attribute "WU", "string"
+        
         attribute "ultraviolet", "string"
 		attribute "Rain", "Number"       
         attribute "RainDaily", "Number"
