@@ -1,12 +1,13 @@
-/*Observer IP link
-
-(c) 2021 by winnfreenet.com
+/*PWS Observer IP Link
 
 Ambent weather station driver for MMPWS scripts
+Get script here v3.2.7 and above http://pws.winnfreenet.com 
 
-Compatible with: WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
+Compatible with: 
+WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP 
+WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
 
-http://pws.winnfreenet.com get script here
+
 https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
 
 SolarRad must be set to W/m2 on station. 
@@ -23,13 +24,14 @@ Give permission in the API maker then enter the
 ID #s for the sensors and API in the script.
 
 
-v1.2 beta   06/02/2021
+v1.6        08/18/2022  Fix numeric varables so scripts can use math 
+v1.5        06-10-2021
+v1.4    
 v1.3        06/07/2021
-v1.4  
+v1.2 beta   06/02/2021
 
+    
 
-http://www.winnfreenet.com/wp/2021/09/observer-ip-driver-for-hubitat/
-http://pws.winnfreenet.com/
 */
 
 metadata {
@@ -48,7 +50,11 @@ metadata {
         capability "EnergyMeter"
         capability "Energy Meter"
         
-        
+        command "setUVI", ["Number"]
+        command "setRAD", ["Number"]
+        command "setName", ["Number"]        
+        command "setCWOP",["string"]
+        command "setPWS",["string"]
         command "setWeather",["string"]
         command "setModel", ["string"]
         command "setVersion", ["string"]
@@ -74,13 +80,19 @@ metadata {
         command "setDew", ["Number"]  
         command "wet"
         command "dry"
+        
+        
         command "initialize" 
-        command "setUVI", ["Number"]
-        command "setRAD", ["Number"]
-                           
+        
+
+        
+        attribute "weather", "string"                   
         attribute "Agent", "string"
         attribute "Model", "string"
-        attribute "Version", "string"
+        attribute "name", "string"
+        attribute "CWOP", "string"
+        attribute "PWS", "string"
+        attribute "ultraviolet", "string"
 		attribute "Rain", "Number"       
         attribute "RainDaily", "Number"
         attribute "RainRate", "Number"
@@ -89,22 +101,23 @@ metadata {
         attribute "RainYear", "Number"
         attribute "Rain24", "Number"
         attribute "Wind", "Number"   
-        attribute "windDirection", "number"     //Hubitat  OpenWeather
-        attribute "windSpeed", "number"         //Hubitat  OpenWeather
-        attribute "WindDGust", "string"
-        attribute "WindGust", "string"
-        attribute "Altemeter", "string"
-        attribute "Pressure", "string"
-        attribute "Temperature", "string"
-        attribute "RelativeHumidity", "string"
-        attribute "humidity", "string"
+        attribute "WindDirection", "Number"    //Hubitat  OpenWeather
+        attribute "WindSpeed", "Number"        //Hubitat  OpenWeather
+        attribute "WindDGust", "Number"
+        attribute "WindGust", "Number"
+        attribute "Altemeter", "Number"
+        attribute "Pressure", "Number"
+        attribute "Temperature", "Number"
+        attribute "RelativeHumidity", "Number"
+        attribute "humidity", "Number"
         attribute "Gust", "Number"
         attribute "PWSDate", "Number"
         attribute "Dew", "Number"
         attribute "Battery", "Number"
         attribute "uvi", "Number"
-        attribute "RAD", "Number"
-        
+        attribute "solarrad", "Number"
+        attribute "untraviolet", "Number"
+        attribute "Wind_cardinal", "Number"
 
       
     }
@@ -131,6 +144,7 @@ def initialize() {
     updateDataValue("manufacturer", "Ambent Weather")
     updateDataValue("model", "Observer IP")
 	updateDataValue("firmware", "Observer IP")
+    state.remove("gust")
 }
     
 
@@ -186,6 +200,7 @@ def setUVI(uvi) {
     def descriptionText = "${device.displayName} UVI Index is ${uvi} "
     if (txtEnable) log.info "${descriptionText}"
     sendEvent(name: "ultraviolet", value: uvi, descriptionText: descriptionText, unit: "uvi")
+    sendEvent(name: "uvi", value: uvi, descriptionText: descriptionText, unit: "uvi")
 }
 def setRAD(solarrad) {
     def descriptionText = "${device.displayName} Solar Rad is ${solarrad} "
@@ -215,6 +230,24 @@ def setPressure(Pressure) {
     sendEvent(name: "pressure", value: Pressure, descriptionText: descriptionText, unit: "inga")
 }
 
+def setName(name) {
+    def descriptionText = "${device.displayName}  Station Name is ${name}"
+    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("WU", name)
+    sendEvent(name: "name", value: name, descriptionText: descriptionText, unit: "text")
+}
+def setCWOP(name) {
+    def descriptionText = "${device.displayName}  CWOP Name is ${name}"
+    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("CWOP", name)
+    sendEvent(name: "CWOP", value: name, descriptionText: descriptionText, unit: "text")
+}
+def setPWS(name) {
+    def descriptionText = "${device.displayName}  PWS Name is ${name}"
+    if (txtEnable) log.info "${descriptionText}"
+    updateDataValue("PWS", name)
+    sendEvent(name: "PWS", value: name, descriptionText: descriptionText, unit: "text")
+}
 def setAltemeter(Altemeter) {
     def descriptionText = "${device.displayName}  Altemeter in Mbar is ${Altemeter}"
     if (txtEnable) log.info "${descriptionText}"
@@ -258,12 +291,14 @@ def setWind(Wind) {
     def descriptionText = "${device.displayName}  Current Wind is ${Wind}"
     if (txtEnable) log.info "${descriptionText}"
     sendEvent(name: "Wind", value: Wind, descriptionText: descriptionText, unit: "mph")
-    sendEvent(name: "windSpeed", value: Wind, descriptionText: descriptionText, unit: "mph")
+    sendEvent(name: "WindSpeed", value: Wind, descriptionText: descriptionText, unit: "mph")
 }
 def setGust(Gust) {
     def descriptionText = "${device.displayName}  Wind Gusting at ${Gust}"
     if (txtEnable) log.info "${descriptionText}"
+    
     sendEvent(name: "WindGust", value: Gust, descriptionText: descriptionText, unit: "mph")
+    sendEvent(name: "Gust", value: Gust, descriptionText: descriptionText, unit: "mph")
 }
 
 def setDGust(Gust) {
@@ -275,12 +310,12 @@ def setDGust(Gust) {
 def setWindDirection(windDirection) {
     def descriptionText = "${device.displayName}  Wind Direction is ${windDirection}"
     if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "windDirection", value: windDirection, descriptionText: descriptionText, unit: "dir")
+    sendEvent(name: "WindDirection", value: windDirection, descriptionText: descriptionText, unit: "dir")
 }
 def setWind_cardinal(wind_cardinal) {
     def descriptionText = "${device.displayName}  Wind cardinal is ${wind_cardinal}"
     if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "wind_cardinal", value: wind_cardinal, descriptionText: descriptionText, unit: "dir")
+    sendEvent(name: "Wind_cardinal", value: wind_cardinal, descriptionText: descriptionText, unit: "dir")
 }
 
 
