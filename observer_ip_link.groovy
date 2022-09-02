@@ -3,6 +3,8 @@
 Ambent weather station driver for MMPWS scripts
 Get script here v3.2.7 and above http://pws.winnfreenet.com 
 
+Copyright pws.winnfreenet.com 2021/2022
+
 Compatible with: 
 WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP 
 WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
