@@ -22,7 +22,8 @@ added option to ignore tamper on broken cases.
 
 
 Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
-v2.0  09/03/2022 Better bat routine. Detection of bad temp sensor
+v2.1  09/03/2022 Schedules made optional.
+v2.0             Better bat routine. Detection of bad temp sensor
 v1.9             Respond to enrole request
 v1.8             Mains detection option added to use with a relay
 v1.7  09/02/2022 Fix null in log. Refresh now random times.
@@ -488,7 +489,7 @@ def processMap(Map map) {
        // bad sensor may report 0000 32f It will get auto ignored because all events will be the same.
         tempLast = device.currentValue("temperature")
         if (tempLast != temperatureF){
-        logging("${device} : temperature: now:${temperatureF} Last:${tempLast} Battery :${batteryPercentage}% ${batteryVoltage}V", "info")
+        logging("${device} : temperature: now:${temperatureF} Last:${tempLast}", "info")
 		sendEvent(name: "temperature", value: temperatureF, unit: "F")
         } 
 
