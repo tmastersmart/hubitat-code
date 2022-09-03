@@ -18,6 +18,10 @@ Button Controller support to map coomands to buttons 1-0
                                                   |___/|_|   
 
 =================================================================================================
+  v6.1   09/03/2022 Ranging and Pesence schedules made optional. Presence off by default better battery life
+  v6.0   09/02/2022 Changed Init boot up routines. Trying to prevent Beep on reboot.
+                    Enrole Request detect added.
+  v5.9   08/26/2022 New iris cluster seen on the mesh, added detection for it.
   v5.8   08/09/2022 Fixed looping if 2 alarm commands sent.
   v5.7   06/28/2022 Stop runaway countdown if disarmed by app during entry.
                     Added more events to logs
@@ -196,12 +200,28 @@ http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/
  * 
  * If a PIN has been typed in, but no action key pressed within 2 seconds of the last digit, then a single ATTRID_PIN
  * will be sent to the hub.
- * 
+ *
+Used forked code bellow from a contact/motion switch. This included
+ranging code and some detection code and zigbee sending commans.
 
+All added code is orginal code written by me. Keypad routines were back engerned by me
+and commands to control keypad were created by trial and error. Lock code storage code
+was created to replace the copyrighted hubitat code. I created my own button code to use
+with the button manager. HSM connection code created from scratch since no docs exist.
+Lock code manager reverse engenered since no docs exist for it and it crashes easialy.
+This code recreates how the keypad functioned on Iris,
+I beleive it even works better because of the extra custom options I have added.
+
+This code looks diffrent because I learned to program on a Timex Sinclair ZX81 and a Commorore C64
+READY.
+poke 53280,0 
+poke 53281,0
 
 
  * ranging code based on alertme UK code from  
    https://github.com/birdslikewires/hubitat
+   Some fragments of iris format also used.
+
 
 GNU General Public License v3.0
 Permissions of this strong copyleft license are conditioned on making available
@@ -211,15 +231,12 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="5.8"
+    TheVersion="6.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
  }
 }
-
-import hubitat.zigbee.clusters.iaszone.ZoneStatus
-//import hubitat.zigbee
 import hubitat.helper.HexUtils
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -303,6 +320,8 @@ preferences {
     input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
+    input name: "optionPresent",type: "bool", title: "Presence Detection", description: "Run a presence schedule (save then config)",defaultValue: false,required: true
+    input name: "optionRange",  type: "bool", title: "Ranging Report", description: "Run a ranging schedule (save then config)",defaultValue: true,required: true
 
 
 }
@@ -315,11 +334,9 @@ configure()
 
  
 def initialize() {
-    
+/// Runs on reboot also    
 // Testing is this needed? Because its not set right by default   
-updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
-updateDataValue("outClusters", "00C0")
-    
+  
 state.delayExit = 30
 state.armNightDelay = 30
 state.armHomeDelay = 30
@@ -336,7 +353,9 @@ state.validPIN = false
 state.operatingMode = "normal"
 state.presenceUpdated = 0
 state.rangingPulses = 0
-state.Command = "unknown"
+    
+// Survive a reboot
+if (!state.Command){state.Command = "unknown"} 
 
 state.PinName = "none"
 state.PIN = "none"
@@ -380,17 +399,18 @@ device.deleteCurrentState("pushed")
 device.deleteCurrentState("pin")     
 device.deleteCurrentState("lockCodes")
 device.deleteCurrentState("HSMAlert")    
-
-//operation
-// What is operation for carryover from alert me drivers
-    
-// Stagger our device init refreshes or we run the risk of DDoS attacking our hub on reboot!
+  
+// Stagger init refreshes On reboot
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
 
-getStatus()
+randomSixty = Math.abs(new Random().nextInt() % 60)
+runIn(randomSixty,getStatus)
+
+randomSixty = Math.abs(new Random().nextInt() % 60)
+runIn(randomSixty,getCodes)    
 //SendState()    
-getCodes()   
+ 
 logging("${device} : Initialised", "info")
   
 }
@@ -398,30 +418,34 @@ logging("${device} : Initialised", "info")
 
 def configure() {
 	initialize()
+    
+    updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
+    updateDataValue("outClusters", "00C0")
+    
 	unschedule()
 	// Default logging preferences.
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"true",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
-	// Schedule our ranging report.
-	int checkEveryHours = 12 
-    // Request a ranging report and refresh every x hours.						
+    
+	// Schedule our ranging report.6 hours or every 1 hour for outlets.
+    if(optionRange){
+	int checkEveryHours = 12				
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)
-    // At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
-	// Schedule the presence check.
-	int checkEveryMinutes = 6																					
-    // Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
+    }
+	// Schedule the presence check. 6 minutes or every 1 minute for key fobs.
+    if (optionPresent){
+	int checkEveryMinutes = 20							
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
-    // At X seconds past the minute, every checkEveryMinutes minutes.
-	// Configuration complete.
-	logging("${device} : Configured", "info")
+	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
+    }
 	// Run a ranging report and then switch to normal operating mode.
-	rangingMode()
-	runIn(12,normalMode)
+	logging("${device} : Configured", "info")
 
+    rangingMode()
+	runIn(12,normalMode)
 }
 
 
@@ -429,9 +453,12 @@ def updated() {
 	loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(3500,traceLogOff)
-	refresh()
+	
+    
+    randomSixty = Math.abs(new Random().nextInt() % 60)
+    runIn(randomSixty,refresh)
+    
     clientVersion()
-
 }
 
 
@@ -1230,11 +1257,7 @@ def push (buttonNumber){
 
 void reportToDev(map) {
 	String[] receivedData = map.data
-	def receivedDataCount = ""
-	if (receivedData != null) {
-		receivedDataCount = "${receivedData.length} bits of "
-	}
-	logging("${device} : New unknown Cluster Detected: Report to DEV clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command} with value:${map.value} and ${receivedDataCount}data: ${receivedData}", "warn")
+	logging("${device} : New unknown Cluster Detected: clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command}, value:${map.value} data: ${receivedData}", "warn")
 }
 
 
@@ -1352,14 +1375,18 @@ def parse(String description) {
     clientVersion()
     updatePresence()
 //    getSoftStatus(status)// for debuging
-	Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-	if (descriptionMap) {
-		processMap(descriptionMap)
-	} else {
-		logging("${device} : Parse Failed ..${description}", "warn")
-	}
+    if (description?.startsWith('enroll request')) {// never seen this but just in case
+     logging("${device} : Responding to Enroll Request.", "info")
+	 sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"]) 
+    }else{
+	 Map descriptionMap = zigbee.parseDescriptionAsMap(description)
+        if (descriptionMap) {processMap(descriptionMap)}
+         else{
+          // we should never get here reportToDev is in processMap above
+          logging("${device} : Error ${description} ${descriptionMap}", "debug")    
+        }
+    }
 }
-
 
 
 
@@ -1939,7 +1966,7 @@ if (keyRec == "30"){push(10)}
 	String[] versionInfoBlocks = versionInfo.split("\\s")
 	int versionInfoBlockCount = versionInfoBlocks.size()
 	String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
-	logging("${device} : Device version Size:${versionInfoBlockCount} blocks:${versionInfoDump}","trace")
+	logging("${device} : Ident:${versionInfoDump}","trace")
 	String deviceManufacturer = "IRIS/Everspring"
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
@@ -1957,7 +1984,7 @@ if (keyRec == "30"){push(10)}
 	} else {
 	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 	}
-      logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "info")
+      logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "debug")
 	updateDataValue("manufacturer", deviceManufacturer)
         updateDataValue("device", deviceModel)
         updateDataValue("model", "KPD800")
@@ -1971,14 +1998,16 @@ if (keyRec == "30"){push(10)}
        }
 } else if (map.clusterId == "8001") {
   logging("${device} : Routing and Neighbour Information", "info")	     
-    
-        
+      
 } else if (map.clusterId == "8032" ) {
-	// These clusters are sometimes received when joining new devices to the mesh.
         //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
-        // We don't do anything with this, the mesh re-jigs itself and is a known thing with AlertMe devices.
-	logging( "${device} : New join has triggered a routing table reshuffle.","debug")
-     } else {
+	logging( "${device} : New join has triggered a routing table reshuffle.","warn")
+} else if (map.clusterId == "0013" ) {
+        // clusterId: 0013, command: 00 [8E, D1, 9F, 2D, 40, BC, 03, 00, 6F, 0D, 00, 80]        
+        // NEW seen 2022 during power falure we see this as repeators go down. 
+		logging("${device} : Re-routeing around dead devices. (power Falure?)", "warn")
+    
+    } else {
 	// Not a clue what we've received.
 	reportToDev(map)
 	}
