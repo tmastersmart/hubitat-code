@@ -3,7 +3,7 @@
 iris v1 contact sensor for hubitat
 
 Totaly rewritten battery support.
-No more - battery readings. Min voltage will auto adjust to sensor.
+No more negative battery readings. Min voltage will auto adjust to sensor.
 This is new and will be added to all my scripts.
 The default settings supplied by iris are wrong and vary from device to device.
 
@@ -22,7 +22,8 @@ added option to ignore tamper on broken cases.
 
 
 Please note this is expermental. Its working for me. I have not tried it on all firmware versions.
-v1.9  09/03/2022 Respond to enrole request
+v2.0  09/03/2022 Better bat routine. Detection of bad temp sensor
+v1.9             Respond to enrole request
 v1.8             Mains detection option added to use with a relay
 v1.7  09/02/2022 Fix null in log. Refresh now random times.
 v1.6  09/01/2022 Battery voltage rewriten. LQI events reduced
@@ -56,12 +57,13 @@ https://fccid.io/WJHWD11
  */
 
 def clientVersion() {
-    TheVersion="1.9"
+    TheVersion="2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
  }
 }
+
 
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.helper.HexUtils
@@ -187,14 +189,14 @@ def configure() {
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
-	// Schedule our ranging report.
-	int checkEveryHours = 6																						// Request a ranging report and refresh every 6 hours or every 1 hour for outlets.						
+	// Schedule our ranging report.6 hours or every 1 hour for outlets.
+	int checkEveryHours = 6					
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
 
-	// Schedule the presence check.
-	int checkEveryMinutes = 6																					// Check presence timestamp every 6 minutes or every 1 minute for key fobs.						
+	// Schedule the presence check. 6 minutes or every 1 minute for key fobs.
+	int checkEveryMinutes = 6							
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
 
@@ -351,6 +353,7 @@ def parse(String description) {
 	logging("${device} : Parse : ${description}", "trace")
 	state.batteryOkay == true ?	sendEvent(name: "presence", value: "present") : sendEvent(name: "presence", value: "not present")
 	updatePresence()
+    // Device contacts are zigbee cluster compatable
 	if (description.startsWith("zone status")) {
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
 		processStatus(zoneStatus)
@@ -378,7 +381,7 @@ void reportToDev(map) {
 // Expermental  will likely retamper..
 def ClearTamper (){
         logging("${device} : Tamper : Cleared FORCED", "info")
-		sendEvent(name: "tamper", value: "clear", isStateChange: true, descriptionText: "open v${state.version}")
+		sendEvent(name: "tamper", value: "clear", isStateChange: true, descriptionText: "force cleared v${state.version}")
 }
 
 def ForceOpen (){
@@ -405,16 +408,12 @@ if(option1){
  }
 }
 
-
+// sends standard zigbee command
 def processStatus(ZoneStatus status) {
-// processStatus() : hubitat.zigbee.clusters.iaszone.ZoneStatus@cae233
-// Parse : zone status 0x0000 -- extended status 0x00 - sourceEndpoint:02  
-// Where does status.isAlarm1Set() come from what is it a varable or a call.
-    
-    logging("${device} : processStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()}", "debug")
-	if (status.isAlarm1Set() || status.isAlarm2Set()) {
-        contactOpen()}
-    else {contactClosed()}
+    logging("${device} : ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()}", "debug")
+	if (status.isAlarm1Set() || status.isAlarm2Set()) {// 1 for contacts
+        contactOpen()
+    }else {contactClosed()}
 }
 
 
@@ -422,7 +421,9 @@ def processMap(Map map) {
 	
 	// AlertMe values are always sent in a data element.
 	String[] receivedData = map.data
-    logging("${device} : processMap clusterId:${map.clusterId} command:${map.command}", "debug")
+    size = receivedData.size()// size of data field
+
+    logging("${device} : processMap clusterId:${map.clusterId} command:${map.command} ${receivedData} ${size}", "debug")
 
 	if (map.clusterId == "00F0") {
 		// Device status cluster.
@@ -432,16 +433,12 @@ def processMap(Map map) {
 		batteryVoltageHex = receivedData[5..6].reverse().join()
 //		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
 		if (batteryVoltageHex == "FFFF") {
-            logging("${device} : No bat voltage received Skipping", "debug")
+            logging("${device} : No bat voltage received FFFF Skipping", "debug")
 			return
 		}
 		batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
 
 		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
-
-        
-        
-        logging("${device} : batteryVoltage : ${batteryVoltage}", "debug")
 
         if (state.minVoltTest < 1.00){ 
             state.minVoltTest= 2.50// Start at 2.50
@@ -464,19 +461,14 @@ def processMap(Map map) {
             
 
             powerLast = device.currentValue("battery")
-            logging("${device} : battery: now:${batteryPercentage} Last:${powerLast} ", "debug")
+            logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V", "debug")
             if (powerLast != batteryPercentage){
              sendEvent(name: "battery", value:batteryPercentage, unit: "%")
              sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-                
-
-             if (batteryPercentage > 10) {logging("${device} : Battery : ${batteryPercentage}% ${batteryVoltage} V", "trace")}
-             else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage} V", "warn")}
+             if (batteryPercentage > 10) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
+             else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
 	
 		 
-        if (batteryPercentage <= 0) {
-            logging("${device} : MinVolts needs to be lower! Bat:${batteryPercentage}% Volts:(${batteryVoltage}V MinVolts:${batteryVoltageScaleMin})", "debug")
-		} 
         // Record the min volts seen working ( Future auto adjust for min voltage)
         if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}       
 
@@ -492,10 +484,9 @@ def processMap(Map map) {
         if (tempAdj > 0){temperatureF= temperatureF + tempAdj }
         if (tempAdj < 0){temperatureF= temperatureF - tempAdj }    
         logging("${device} : Temp:${temperatureF}F ${temperatureCelsius}C ${temperatureValue}", "debug")
-        if(temperatureValue == "0000"){
-            logging("${device} : Temp Sensor is 0000 may be bad.", "debug")
-        }
-       // bad sensor may report 0000 or 32 deg
+        if(temperatureValue == "0000"){logging("${device} : Temp: 0000 Bad sensor?", "debug")}
+      
+       // bad sensor may report 0000 32f It will get auto ignored because all events will be the same.
         tempLast = device.currentValue("temperature")
         if (tempLast != temperatureF){
         logging("${device} : temperature: now:${temperatureF} Last:${tempLast} Battery :${batteryPercentage}% ${batteryVoltage}V", "info")
@@ -585,7 +576,7 @@ def processMap(Map map) {
 			int versionInfoBlockCount = versionInfoBlocks.size()
 			String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
 
-			logging("${device} : received version ${versionInfoBlockCount} blocks : ${versionInfoDump}", "trace")
+			logging("${device} : Ident Block: ${versionInfoDump}", "trace")
 
 			String deviceManufacturer = "IRIS"
 			String deviceModel = ""
