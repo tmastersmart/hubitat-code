@@ -116,6 +116,9 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
     input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
 	input name: "option1",      type: "bool", title: "Trigger Mains", description: "Use as a mains detection switch ",defaultValue: false
+    input name: "optionPresent",type: "bool", title: "Presence Detection", description: "Run a presence schedule (save then config)",defaultValue: false,required: true
+    input name: "optionRange",  type: "bool", title: "Ranging Report", description: "Run a ranging schedule (save then config)",defaultValue: true,required: true
+
 	input("tempAdj", "number", title: "Adjust Temp F", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
 }
 
@@ -190,16 +193,18 @@ def configure() {
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
 	// Schedule our ranging report.6 hours or every 1 hour for outlets.
-	int checkEveryHours = 6					
+    if(optionRange){
+	int checkEveryHours = 12				
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
-
+    }
 	// Schedule the presence check. 6 minutes or every 1 minute for key fobs.
-	int checkEveryMinutes = 6							
+    if (optionPresent){
+	int checkEveryMinutes = 20							
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
-
+    }
 	// Run a ranging report and then switch to normal operating mode.
 	rangingMode()
 	runIn(12,normalMode)
@@ -431,17 +436,12 @@ def processMap(Map map) {
 		def batteryVoltageHex = "undefined"
 		BigDecimal batteryVoltage = 0
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-//		logging("${device} : batteryVoltageHex byte flipped : ${batteryVoltageHex}", "trace")
-		if (batteryVoltageHex == "FFFF") {
-            logging("${device} : No bat voltage received FFFF Skipping", "debug")
-			return
-		}
-		batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+		if (!batteryVoltageHex == "FFFF") {
+     		batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+    		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
 
-		batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
-
-        if (state.minVoltTest < 1.00){ 
-            state.minVoltTest= 2.50// Start at 2.50
+        if (state.minVoltTest < 2.00){ 
+            state.minVoltTest= 2.50// Start at 2.50  testing shows working down to 2.4
             logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
         }
         if (batteryVoltage < state.minVoltTest){
@@ -467,13 +467,12 @@ def processMap(Map map) {
              sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
              if (batteryPercentage > 10) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
              else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
-	
 		 
-        // Record the min volts seen working ( Future auto adjust for min voltage)
+        // Record the min volts seen working 
         if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}       
 
       } // end if changes %
-//    }
+   }// end of FFFF detection
 
 // Report the temperature 
 		def temperatureValue = "undefined"
