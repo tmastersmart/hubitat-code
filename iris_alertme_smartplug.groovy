@@ -519,7 +519,7 @@ else if (map.clusterId == "00EF") {
 			if (receivedData[1] == "77") {
 			state.rangingPulses++
 		     // This is ranging mode, which must be temporary. Make sure we come out of it.
- 			if (state.rangingPulses > 5) {
+ 			if (state.rangingPulses > 12) {
  	          logging("${device} : Ranging ${state.rangingPulses} times is to Long", "warn")
               normalMode()
               return
