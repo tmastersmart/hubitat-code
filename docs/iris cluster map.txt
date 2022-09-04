@@ -1,0 +1,31 @@
+/*
+Internal notes: Building Cluster map 
+* = likely done by HUB in Join.
+0000 Network (16-bit) Address Request *
+0004 Simple Descriptor Request *
+0005 Active Endpoint Request *
+0006 Match Descriptor Request (Light Flashes)
+0013 Device announce message (Light Flashes)
+00C0 Button report
+     00 = Unknown (lots of reports)
+     0A = Button
+00EE Relay actuation (smartPlugs)
+     80 = PowerState
+00EF Power Energy messages
+     81 = Power Reading
+     82 = Energy
+00F0 Battery & Temp
+     FB 
+00F3 Key Fob
+00F2 Tamper
+00F6 Discovery Cluster
+     FD = Ranging
+     FE = Device version response.
+0500 Security Cluster (Tamper & Reed)
+8001 Routing Neighobor information
+8004 simple descriptor response
+8005 Active Endpoint Response (tells you what the device can do)
+8032 Received when new devices join
+8038 Management Network Update Request
+
+*/  
