@@ -1,0 +1,13 @@
+{
+  "author": "TheMaster",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
+  "packages":[
+  {
+  "name":"Iris v1 keypad",
+  "catagory":"Safety & Security",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
+  "description": "Iris v1 keypad driver"
+   }
+ ]
+}
