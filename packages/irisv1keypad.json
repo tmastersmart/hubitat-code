@@ -1,12 +1,12 @@
 {
   "packageName": "Iris v1 Keypad",
+  "author": "Tmaster",
   "releaseNotes": "",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/",
   "communityLink": "",
-  "author": "Tmaster",
   "version": "6.1.0",
   "dateReleased": "2022-09-03",
-  "catagory":"Security",
+  "catagory":"Safety & Security",
   "tags": 
   [
     "Alarm Systems",
@@ -15,16 +15,17 @@
   "drivers": [
     {
       "name":"Iris v1 keypad",
+      "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy",
       "required": "true",
       "oauth": "false",
       "description": "Iris v1 keypad driver. ",
-      "id": "000-000-0000"
+      "id": "f2aaf002-149e-403c-b225-6ece63729781"
     }
     ]
 }
-      
-  
+
+
   
   
   
