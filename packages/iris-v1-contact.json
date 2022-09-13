@@ -19,7 +19,6 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy",
       "required": true
-    },
     }
-    ]
+]
 }
