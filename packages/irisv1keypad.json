@@ -18,7 +18,6 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy",
       "required": "true",
-      "oauth": "false",
       "description": "Iris v1 keypad driver. ",
       "id": "f2aaf002-149e-403c-b225-6ece63729781"
     }
