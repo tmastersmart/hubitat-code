@@ -32,6 +32,13 @@
   "catagory":"Convenience",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/SmartThings-Arrival-Sensor-hubitat",
   "description": "SmartThings arrival sensor v2 with adjustable chimes.",
-   } 
+   } ,
+     {
+  "name":"iris v1 repeator zigbee",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_repeator_zigbee.json",
+  "description": "Iris v1 extender driver",
+   }   
+
 
     
