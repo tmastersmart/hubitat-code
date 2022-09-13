@@ -8,10 +8,18 @@
   "catagory":"Safety & Security",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
   "description": "Iris v1 keypad driver. Adds support for iris keypad v1"
-   }
+   },
    {
   "name":"Iris v1 Contact Sensor custom",
   "catagory":"Safety & Security",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
-  "description": "Iris v1 Contact Sensor custom batter bat"
-   }
+  "description": "Iris v1 Contact Sensor custom better bat"
+   },
+   {
+  "name":"Iris v1 Motion Sensor custom",
+  "catagory":"Motion Control",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
+  "description": "Iris v1 Motion Sensor custom better bat"
+   }  
+    
+    
