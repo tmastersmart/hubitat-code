@@ -18,7 +18,7 @@
    {
   "name":"Iris v1 Motion Sensor custom",
   "catagory":"Motion Control",
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_motion_sensor.json",
   "description": "Iris v1 Motion Sensor custom better bat"
    },
    {
