@@ -20,6 +20,12 @@
   "catagory":"Motion Control",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
   "description": "Iris v1 Motion Sensor custom better bat"
-   }  
-    
+   },
+   {
+  "name":"Iris v1 Senior Care Pendant",
+  "catagory":"Safety & Security",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
+  "description": "Simulates iris pay care system. Pressing button triggers alarm on dashboard and when turned off notifies pendant holder by beeping green",
+   }    
+
     
