@@ -1,0 +1,23 @@
+{
+  "packageName": "Iris v1 Senior Care Pendant",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.6.0",
+  "dateReleased": "2022-09-08",
+  "catagory":"Security",
+  "tags": 
+  [
+    "Safety & Security"
+    ]
+  "drivers": [
+    {
+   "id": "029ca37a-f5f0-4df9-8c6a-63f0fdbb24c0",
+      "name": "Iris v1 Senior Care Pendant",
+      "namespace": "tmastersmart",
+      "location": "https://github.com/tmastersmart/hubitat-code/raw/main/Iris_v1_Senior_Care_Pendant.groovy",
+      "required": true
+    }
+]
+}
