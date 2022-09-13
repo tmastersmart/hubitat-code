@@ -26,6 +26,12 @@
   "catagory":"Safety & Security",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
   "description": "Simulates iris pay care system. Pressing button triggers alarm on dashboard and when turned off notifies pendant holder by beeping green",
-   }    
+   }  ,
+    {
+  "name":"SmartThings V2 Arrival Sensor Chime",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/SmartThings-Arrival-Sensor-hubitat",
+  "description": "SmartThings arrival sensor v2 with adjustable chimes.",
+   } 
 
     
