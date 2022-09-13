@@ -1,0 +1,25 @@
+{
+  "packageName": "Iris v1 Contact Sensor-custom",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "2.5.0",
+  "dateReleased": "2022-09-08",
+  "catagory":"Doors & Windows",
+  "tags": 
+  [
+    "Alarm Systems",
+    "Doors & Windows",
+    ]
+  "drivers": [
+    {
+     "id": "c5ae4e00-75ae-4a20-8690-8bb29b8f2403",
+      "name": "Iris v1 Contact Sensor-custom",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy",
+      "required": true
+    },
+    }
+    ]
+}
