@@ -22,7 +22,14 @@ added option to ignore tamper on broken cases.
 
 
 =================
-v2.5  09/08/2020 Rewritten ranging code.
+v2.7.3 09/17/2022 New temp adjust code.
+                 Randomised each device so they dont all run at the same
+                 time on code change and reboot.
+v2.7.1           Minor code change
+v2.7  09/14/2022 Temp/Battery report reverse enegered only one sent at a time
+                 never together. Code adjusted. Presence changed to 1 hr
+v2.6  09/13/2022 Min bat voltage tested down to 2.19 Adjustments in code
+v2.5  09/08/2022 Rewritten ranging code.
 v2.4  09/07/2022 adjusting bad temp/bat events
 v2.3  09/07/2022 Operation event removed to reduce events
 v2.2  09/06/2022 Init routine delayed. minor fixes
@@ -54,6 +61,8 @@ https://fccid.io/WJHWD11
  * all settings and schedules must be erased or chron will generate errors in the log 
  * You can not go back to the orginal built in drivers unless you erase all of the setup...
 
+Iris v2 source code driver here 2.3 driver
+https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_ContactSensor_2_3.driver
 
 
 
@@ -63,7 +72,7 @@ https://fccid.io/WJHWD11
  */
 
 def clientVersion() {
-    TheVersion="2.5"
+    TheVersion="2.7.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -123,7 +132,14 @@ preferences {
     input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
 	input name: "option1",      type: "bool", title: "Trigger Mains", description: "Use as a mains detection switch ",defaultValue: false
 
-	input("tempAdj", "number", title: "Adjust Temp F", description: "Adjust the temp by adding or subtraction this amount",defaultValue: 0,required: false)
+
+    input name: "tempAdj",type:"enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8",
+    "-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",
+    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",
+    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",
+   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
+
+
 }
 
 
@@ -144,6 +160,8 @@ def uninstall() {
 	state.remove("version")
 	state.remove("battery")
     state.remove("LQI")
+    state.remove("batteryOkay")
+    state.remove("Config")
     
 removeDataValue("battery")
 removeDataValue("battertState")
@@ -160,12 +178,11 @@ logging("${device} : Uninstalled", "info")
 
 
 def initialize() {
-    logging("${device} : Initialize", "info")
+
 	// Set states to starting values and schedule a single refresh.
 	// Runs on reboot, or can be triggered manually.
 	// Reset states...
-	state.batteryOkay = true
-	state.operatingMode = "normal"
+
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
 
@@ -180,51 +197,65 @@ def initialize() {
     if(!option1){sendEvent(name: "powerSource", value: "battery")}
     clientVersion()
 	// multi devices will run this on reboot make sure they all use a diffrent time
-  	randomSixty = Math.abs(new Random().nextInt() % 180)
+  	randomSixty = Math.abs(new Random().nextInt() % 3500)
 	runIn(randomSixty,refresh)
-    logging("${device} : Initialised Refreash in ${randomSixty}sec", "info")
+    logging("${device} : Initialised", "info")
 
 }
 
 
 def configure() {
-    logging("${device} : configure", "info")
+
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
     
 	// Remove state variables from old versions.
     state.remove("operatingMode")
     state.remove("LQI")
+    state.remove("batteryOkay")
+    state.remove("batteryState") 
+    state.remove("Config")
     
 	unschedule()
-    state.Config = false
+
 	// Default logging preferences.
 	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
-	// Schedule our ranging report.6 hours or every 1 hour for outlets.
- 
-	int checkEveryHours = 6				
+	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
 
-	// Schedule the presence check. 6 minutes or every 1 minute for key fobs.
-
-	int checkEveryMinutes = 20							
+    // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
+
+    
+	// Schedule presence check in mins
+//	int checkEveryMinutes = 20							
+//	randomSixty = Math.abs(new Random().nextInt() % 60)
+//	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
 
 	// Run a ranging report and then switch to normal operating mode.
-	rangingMode()
+    // Randomise so we dont get several running at the same time
+    random = Math.abs(new Random().nextInt() % 33500)
+    logging("${device} : configure pause:${random}", "info")
+    pauseExecution(random)
+	rangeAndRefresh()
 	runIn(12,normalMode)
+    
+    
+
 	
 }
 
 
 def updated() {
 	// Runs whenever preferences are saved.
+    clientVersion()
 	loggingStatus()
 	runIn(3600,debugLogOff)
 	runIn(1800,traceLogOff)
@@ -232,6 +263,17 @@ def updated() {
 	runIn(randomSixty,refresh) // Refresh in random time
 }
 
+// To be used later on a schedule. 
+def quietMode() {
+	// Turns off all reporting except for a ranging message every 2 minutes.
+    delayBetween([ // Once is not enough
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
+    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
+    ], 3000)    
+	logging ("${device} : Mode: Quiet  [FA:03.01]","info")
+    randomSixty = Math.abs(new Random().nextInt() % 60)
+    runIn(randomSixty,refresh) // Refresh in random time
+}
 
 def normalMode() {
     // This is the standard running mode.
@@ -243,7 +285,7 @@ def normalMode() {
     randomSixty = Math.abs(new Random().nextInt() % 60)
     runIn(randomSixty,refresh) // Refresh in random time
 }
-// Sending once is not enough
+
 
 void refresh() {
 	logging("${device} : Refreshing  [FC:01]", "info")
@@ -271,9 +313,10 @@ def checkPresence() {
 	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
 	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
 	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
-	presenceTimeoutMinutes = 4
-    uptimeAllowanceMinutes = 5
-	if (state.presenceUpdated > 0 && state.batteryOkay == true) {
+	presenceTimeoutMinutes = 30 // increased
+    uptimeAllowanceMinutes = 50
+    LastPresence = device.currentValue("presence")// only change state one time..
+	if (state.presenceUpdated > 0 ) {
 		long millisNow = new Date().time
 		long millisElapsed = millisNow - state.presenceUpdated
 		long presenceTimeoutMillis = presenceTimeoutMinutes * 60000
@@ -281,25 +324,32 @@ def checkPresence() {
 		BigInteger hubUptime = location.hub.uptime
 		if (millisElapsed > presenceTimeoutMillis) {
 			if (hubUptime > uptimeAllowanceMinutes * 60) {
+                if (LastPresence != "not present"){
 				sendEvent(name: "presence", value: "not present")
-				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
-		} else {logging("${device} : Presence : Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
+                logging("${device} : Presence: not present", "warn")    
+                }    
+				logging("${device} : Presence: Not Present! Last report received ${secondsElapsed} seconds ago.", "debug")
+                powerLast = device.currentValue("battery")
+                if (powerLast != 0){ // this does not work well yet
+                    sendEvent(name: "battery", value:0, unit: "%")
+                    logging("${device} : Battery set to 0%", "warn")
+                }
+		} else {logging("${device} : Presence: Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
         }else {
-			sendEvent(name: "presence", value: "present")
-			logging("${device} : Presence : Last presence report ${secondsElapsed} seconds ago.", "debug")
+            if (LastPresence != "present"){
+			 sendEvent(name: "presence", value: "present")
+			 logging("${device} : Presence: present", "info")
+            }
+            logging("${device} : Presence: Last presence report ${secondsElapsed} seconds ago.", "debug")   
 		}
-		logging("${device} : checkPresence() : ${millisNow} - ${state.presenceUpdated} = ${millisElapsed} (Threshold: ${presenceTimeoutMillis} ms)", "trace")
-	} else if (state.presenceUpdated > 0 && state.batteryOkay == false) {
-		sendEvent(name: "presence", value: "not present")
-		logging("${device} : Presence : Battery too low! Reporting not present as this device will no longer be reliable.", "warn")
-	} else {logging("${device} : Presence : Not yet received. ", "warn")}
+	} else {logging("${device} : Presence: Not yet received. ", "warn")}
 }
 
 
 def parse(String description) {
 	logging("${device} : Parse : ${description}", "trace")
-	state.batteryOkay == true ?	sendEvent(name: "presence", value: "present") : sendEvent(name: "presence", value: "not present")
-	updatePresence()
+    clientVersion()
+	updatePresence()// this updates the timmer not the state
     // Device contacts are zigbee cluster compatable
 	if (description.startsWith("zone status")) {
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
@@ -373,99 +423,82 @@ def processMap(Map map) {
     logging("${device} : processMap clusterId:${map.clusterId} command:${map.command} ${receivedData} ${size}", "debug")
 
 	if (map.clusterId == "00F0") {
+     if (map.command == "FB") {
 		// Device status cluster.
-		// Report the battery voltage and calculated percentage.
-		        // Report the temperature 
-		def temperatureValue = "undefined"
-		temperatureValue = receivedData[7..8].reverse().join()
-        if(temperatureValue != "0000"){   
-		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
-        temperatureF = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
-        if (!tempAdj){tempAdj = 0}
-        if (tempAdj > 0){temperatureF= temperatureF + tempAdj }
-        if (tempAdj < 0){temperatureF= temperatureF - tempAdj }    
-        logging("${device} : Temp:${temperatureF}F ${temperatureCelsius}C ${temperatureValue}", "debug")
-
-        tempLast = device.currentValue("temperature")
-        if (tempLast != temperatureF){
-        logging("${device} : temperature: now:${temperatureF} Last:${tempLast}", "info")
-		sendEvent(name: "temperature", value: temperatureF, unit: "F")
-        }
-        }    
-        else{logging("${device} : temperature: now:${0000} Last:${tempLast} Ignored", "debug")}
-        
-        
-        
-        
-        
-		def batteryVoltageHex = "undefined"
-		BigDecimal batteryVoltage = 0
+		def temperatureValue  = "NA"
+        def batteryVoltageHex = "NA"
+        BigDecimal batteryVoltage = 0
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-        if (batteryVoltageHex != "FFFF") {
-        
+        temperatureValue = receivedData[7..8].reverse().join()
+
+     // some sensors report bat and temp at diffrent times some both at once?
+     if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
-        if (state.minVoltTest < 2.00){ 
-            state.minVoltTest= 2.50// 
+        // Auto adjustment like iris hub did it  minimumVolts:2.2, nominalVolts:3.0  
+        if (state.minVoltTest < 2.19){ 
+            state.minVoltTest= 2.40 
             logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
         }
         if (batteryVoltage < state.minVoltTest){
             state.minVoltTest = batteryVoltage
             logging("${device} : Min Voltage Lowered to ${state.minVoltTest}v", "info")  
         } 
- 
 		BigDecimal batteryPercentage = 0
-        BigDecimal batteryVoltageScaleMin = state.minVoltTest // Auto adjustment
-		BigDecimal batteryVoltageScaleMax = 3.00 // can be 3.048 
-
-      
-    	state.batteryOkay = true
-			batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
-			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
-			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-            
-
-            powerLast = device.currentValue("battery")
-            logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V", "debug")
-            if (powerLast != batteryPercentage){
-             sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-             if (batteryPercentage > 10) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
-             else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
-		 
-        // Record the min volts seen working 
-        if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}       
-
-      } // end if changes %
-
-        }        
-        else{logging("${device} : Battery: FFFF Ignored", "debug")}
-       
-
-        }  
-
+        BigDecimal batteryVoltageScaleMin = state.minVoltTest 
+		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
+		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
+		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
+		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
+        powerLast = device.currentValue("battery")
+        logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V", "debug")
+        if (powerLast != batteryPercentage){
+           sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+           sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
+          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
+          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
+          if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
+         } // end dupe events detection
+         logging("${device} : Temp Report ${temperatureValue}", "debug") 
+        }// end battery report        
+     if (temperatureValue != "0000") {
+         
         
-// Tamper cluster.
-	 else if (map.clusterId == "00F2") {
-       if(tamperIgnore){logging("${device} : Tamper : ignored ${receivedData[0]}", "debug")}
-       else{
-		if (map.command == "00") {
-			if (receivedData[0] == "02") {
-                
-				logging("${device} : Tamper : Detected", "warn")
-				sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper v${state.version}")
-                }    
-			
-		} else if (map.command == "01") {
-			if (receivedData[0] == "01") {
-				logging("${device} : Tamper : Cleared", "info")
-				sendEvent(name: "tamper", value: "clear", isStateChange: true, descriptionText: "tamper v${state.version}")
-			} 
-        }
-    }
-    
+        // We get false temp readings of 0000 so ignore for now.
+        // When getting a false reading bat is not FFFF 
+        // This is not true for all sensors. So more work needed. 
+        logging("${device} : Battery Report ${batteryVoltageHex}", "debug")    
+		BigDecimal temperatureCelsius = hexToBigDecimal(temperatureValue) / 16
+        temperatureF = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
+        temperatureU = temperatureF
+        def correctNum = (tempAdj ?: 0.0).toBigDecimal() 
+        if (correctNum != 0){ temperatureF = temperatureF + correctNum }
+        logging("${device} : Temp:${temperatureF}F ${temperatureCelsius}C adjust:${correctNum} [Sensor:${temperatureU}]", "debug")
+        tempLast = device.currentValue("temperature")
+        if (tempLast != temperatureF){
+         logging("${device} : temperature: now:${temperatureF} Last:${tempLast} [Sensor:${temperatureU}]", "info")
+		 sendEvent(name: "temperature", value: temperatureF, unit: "F", isStateChange: true, descriptionText: "Sensor:${temperatureU} adjust:${correctNum} v${state.version}")
+         }// end dupe events detection
+        }// end temp   
+    }// end FB
+ } // end cluster 00F0
 
-	} else if (map.clusterId == "00F6") {// Discovery cluster. 
+ else if (map.clusterId == "00F2") {// Tamper cluster.
+      logging("${device} : Tamper : Cluster [${map.command} ${receivedData[0]}]", "debug")
+      if (map.command == "00" || receivedData[0] == "02") {
+           if(tamperIgnore){logging("${device} : Tamper : ignored", "debug")}
+           else{
+            logging("${device} : Tamper : Detected", "warn")
+			sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper detected v${state.version}")
+            }
+        }
+		if (map.command == "01" || receivedData[0] == "01") {
+			logging("${device} : Tamper : Cleared", "info")
+			sendEvent(name: "tamper", value: "clear",    isStateChange: true, descriptionText: "tamper clear v${state.version}")
+		 }
+        }
+
+ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
 
 		
        // Ranging
@@ -495,7 +528,9 @@ def processMap(Map map) {
 // End ranging block 
             
             
-		} else if (map.command == "FE") {// Device version response.
+		} else if (map.command == "FE") {// Hello Response 0xF6 0xFE
+          
+
 			def versionInfoHex = receivedData[31..receivedData.size() - 1].join()
 			StringBuilder str = new StringBuilder()
 			for (int i = 0; i < versionInfoHex.length(); i+=2) {
@@ -549,7 +584,7 @@ def processMap(Map map) {
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 	} else if (map.clusterId == "0013" ) {
         pauseExecution(new Random().nextInt(10) * 3000)
-		logging("${device} : ${map.clusterId} Re-routeing around dead devices. (power Falure?)", "warn")
+		logging("${device} : ${map.clusterId} Re-routeing", "warn")
 	} else {
 		reportToDev(map)// unknown cluster
 	}
