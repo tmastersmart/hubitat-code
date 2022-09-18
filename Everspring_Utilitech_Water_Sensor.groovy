@@ -51,7 +51,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.3"
+    TheVersion="2.3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
