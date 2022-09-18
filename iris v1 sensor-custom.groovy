@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v2.8.0 09/17/2022 Presence routine rewrote from scratch
 v2.7.3 09/17/2022 New temp adjust code.
                  Randomised each device so they dont all run at the same
                  time on code change and reboot.
@@ -72,7 +73,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  */
 
 def clientVersion() {
-    TheVersion="2.7.3"
+    TheVersion="2.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -162,6 +163,10 @@ def uninstall() {
     state.remove("LQI")
     state.remove("batteryOkay")
     state.remove("Config")
+    state.remove("batteryState") 
+    state.remove("Config")
+    state.remove("lastCheckin")
+
     
 removeDataValue("battery")
 removeDataValue("battertState")
@@ -215,6 +220,7 @@ def configure() {
     state.remove("batteryOkay")
     state.remove("batteryState") 
     state.remove("Config")
+    state.remove("presenceUpdated")
     
 	unschedule()
 
@@ -228,7 +234,7 @@ def configure() {
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
 
-    // Check presence in hrs
+    // Check presence every hr
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
@@ -302,54 +308,47 @@ def rangeAndRefresh() {
 }
 
 
-def updatePresence() {
-	long millisNow = new Date().time
-	state.presenceUpdated = millisNow
-}
-
 
 def checkPresence() {
-	// Check how long ago the presence state was updated.
-	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
-	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
-	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
-	presenceTimeoutMinutes = 30 // increased
-    uptimeAllowanceMinutes = 50
-    LastPresence = device.currentValue("presence")// only change state one time..
-	if (state.presenceUpdated > 0 ) {
-		long millisNow = new Date().time
-		long millisElapsed = millisNow - state.presenceUpdated
-		long presenceTimeoutMillis = presenceTimeoutMinutes * 60000
-		BigInteger secondsElapsed = BigDecimal.valueOf(millisElapsed / 1000)
-		BigInteger hubUptime = location.hub.uptime
-		if (millisElapsed > presenceTimeoutMillis) {
-			if (hubUptime > uptimeAllowanceMinutes * 60) {
-                if (LastPresence != "not present"){
-				sendEvent(name: "presence", value: "not present")
-                logging("${device} : Presence: not present", "warn")    
-                }    
-				logging("${device} : Presence: Not Present! Last report received ${secondsElapsed} seconds ago.", "debug")
-                powerLast = device.currentValue("battery")
-                if (powerLast != 0){ // this does not work well yet
-                    sendEvent(name: "battery", value:0, unit: "%")
-                    logging("${device} : Battery set to 0%", "warn")
-                }
-		} else {logging("${device} : Presence: Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
-        }else {
-            if (LastPresence != "present"){
-			 sendEvent(name: "presence", value: "present")
-			 logging("${device} : Presence: present", "info")
-            }
-            logging("${device} : Presence: Last presence report ${secondsElapsed} seconds ago.", "debug")   
-		}
-	} else {logging("${device} : Presence: Not yet received. ", "warn")}
+    // New shorter presence routine.
+    // Runs on every parse and a schedule.
+    def checkMin  = 5  // 5 min warning
+    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("${device} : Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin){ 
+        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+        runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
+        runIn(60,refresh) 
+        }
+    }
 }
 
 
 def parse(String description) {
 	logging("${device} : Parse : ${description}", "trace")
     clientVersion()
-	updatePresence()// this updates the timmer not the state
+    state.lastCheckin = now()
+    checkPresence()
     // Device contacts are zigbee cluster compatable
 	if (description.startsWith("zone status")) {
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
@@ -515,7 +514,7 @@ def processMap(Map map) {
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 7) {
+ 			 if (state.rangingPulses > 12) {
               logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
               sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
              }  
