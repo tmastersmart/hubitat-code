@@ -16,6 +16,7 @@
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
+v2.3  09/17/2022 Bug in presence code
 v2.2  09/17/2022 Logging and Init code added
 v2.1  08/04/2022 Total rewrite of code and cleanup for hubitat.
                  Logging and events added unneeded event calls removed
@@ -50,7 +51,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.2"
+    TheVersion="2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -65,8 +66,9 @@ metadata {
 		capability "Configuration"
         capability "Refresh"
         capability "Polling"
+        capability "PresenceSensor"
         
-        
+        command "checkPresence"
      
         fingerprint deviceId: "0xA102", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Everspring Flood Sensor"
         fingerprint mfr: "96", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Utilitech Water Leak Detector"
@@ -104,6 +106,15 @@ def configure() {
     state.remove("seconds") 
     state.remove("defaultWakeUpInterval")
     state.remove("wakeUpInterval")
+    state.remove("lastbat")
+    
+    if (!state.lastCheckin){state.lastCheckin = now()}
+    unschedule()
+    
+    // Schedule presence in hrs
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
     
     delayBetween([
         zwave.associationV2.associationSet(groupingIdentifier:1, nodeId:zwaveHubNodeId).format(),
@@ -123,12 +134,51 @@ def updated() {
 	runIn(randomSixty,refresh) // Refresh in random time
 }
 
+def checkPresence() {
+    // New shorter presence routine.
+    // Runs on every parse and a schedule.
+    def checkMin  = 1400 // 24 hrs warning
+    def checkMin2 = 2800 // 48 hrs [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("${device} : Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin){ 
+        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+        runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
+        runIn(60,refresh) 
+        }
+    }
+}
+
+
+
+
 
 def parse(String description) {
     def nowCal = Calendar.getInstance(location.timeZone)
     Timecheck = "${nowCal.getTime().format("EEE MM/dd/YYYY", location.timeZone)}"
+    state.lastCheckin = now()
     state.LastCheckin = Timecheck
     logging("${device} : Raw [${description}]", "trace")
+    checkPresence()
     CommandClassCapabilities = [0x9C: 1, 0x71: 1, 0x84: 2, 0x30: 1, 0x70: 1]   
     hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
     if (map == null) {return null}
@@ -146,6 +196,7 @@ def parse(String description) {
 def zwaveEvent(hubitat.zwave.commands.wakeupv2.WakeUpNotification cmd) {
     logging("${device} : Device Woke Up. Waiting to poll", "info")
     runIn(12,refresh)// polling wont work unless delayed
+    runIn(22,refresh)// 2 times
 }
 
 def zwaveEvent(hubitat.zwave.commands.sensoralarmv1.SensorAlarmReport cmd) {
