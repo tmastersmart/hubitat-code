@@ -16,7 +16,7 @@
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
-v2.3  09/17/2022 Bug in presence code
+v2.3  09/17/2022 Bug in presence code. Error in raw github import url
 v2.2  09/17/2022 Logging and Init code added
 v2.1  08/04/2022 Total rewrite of code and cleanup for hubitat.
                  Logging and events added unneeded event calls removed
