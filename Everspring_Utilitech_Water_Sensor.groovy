@@ -60,7 +60,7 @@ def clientVersion() {
 
 
 metadata {
-	definition (name: "Utilitech Water Sensor", namespace: "tmastersmart", author: "tmaster", importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/Everspring_Utilitech_Water_Sensor.groovy") {
+	definition (name: "Utilitech Water Sensor", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Everspring_Utilitech_Water_Sensor.groovy") {
 		capability "Water Sensor"
 		capability "Battery"
 		capability "Configuration"
