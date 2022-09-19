@@ -16,6 +16,7 @@
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
+v2.4  09/19/2022 Rewrote logging routines.
 v2.3  09/17/2022 Bug in presence code. Error in raw github import url
 v2.2  09/17/2022 Logging and Init code added
 v2.1  08/04/2022 Total rewrite of code and cleanup for hubitat.
@@ -51,7 +52,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.3.1"
+    TheVersion="2.4.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -76,9 +77,10 @@ metadata {
 	}
 }
 preferences {
-	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
+    
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
 }
 
@@ -299,48 +301,28 @@ def poll() {
     
     
     
-
-void loggingStatus() {
-	log.info  "${device} : Info  Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
 }
-
-
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
 }
-
-
 void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-
-private boolean logging(String message, String level) {
-	boolean didLog = false
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-	return didLog
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
 }
