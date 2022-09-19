@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v2.9   09/19/2022 Rewrote logging routines.
 v2.8.0 09/17/2022 Presence routine rewrote from scratch
 v2.7.3 09/17/2022 New temp adjust code.
                  Randomised each device so they dont all run at the same
@@ -73,7 +74,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  */
 
 def clientVersion() {
-    TheVersion="2.8.0"
+    TheVersion="2.9.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -127,9 +128,11 @@ metadata {
 
 preferences {
 	
-	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
+    
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+    
     input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
 	input name: "option1",      type: "bool", title: "Trigger Mains", description: "Use as a mains detection switch ",defaultValue: false
 
@@ -224,10 +227,6 @@ def configure() {
     
 	unschedule()
 
-	// Default logging preferences.
-	device.updateSetting("infoLogging",[value:"true",type:"bool"])
-	device.updateSetting("debugLogging",[value:"false",type:"bool"])
-	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -262,9 +261,7 @@ def configure() {
 def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
-	loggingStatus()
-	runIn(3600,debugLogOff)
-	runIn(1800,traceLogOff)
+	loggingUpdate()
     randomSixty = Math.abs(new Random().nextInt() % 60)
 	runIn(randomSixty,refresh) // Refresh in random time
 }
@@ -623,11 +620,15 @@ private BigDecimal hexToBigDecimal(String hex) {
     return BigDecimal.valueOf(d)
 }
 
-void loggingStatus() {
-	log.info "${device} : Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
 }
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -636,37 +637,11 @@ void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-private boolean logging(String message, String level) {
-
-	boolean didLog = false
-
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-
-	return didLog
-
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
 }
