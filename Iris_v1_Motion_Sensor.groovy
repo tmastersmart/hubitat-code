@@ -246,25 +246,18 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
-    logging("${device} : Mode: Normal  [FA:00.01]", "info")
-//    randomSixty = Math.abs(new Random().nextInt() % 60)
-//    runIn(randomSixty,refresh) // Refresh in random time
+    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
-
-
-
 void refresh() {
-	logging("${device} : Refreshing  [FC:01]", "info")
+	logging("${device} : Refreshing", "info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
-
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-    logging("${device} : Mode : Ranging  [FA:01.01]", "info")
+    logging("${device} : StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(4, normalMode)
- 
 }
 
 
@@ -451,7 +444,6 @@ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
  			 if (state.rangingPulses > 15) {
-              logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
               normalMode()
               return   
              }  
