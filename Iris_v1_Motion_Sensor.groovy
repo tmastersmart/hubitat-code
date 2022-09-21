@@ -1,4 +1,4 @@
-/* Iris v1 motion sensor driver for hubitat
+/* Iris v1 Motion Detector driver for hubutat
    USA version only. 
 
 
@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.1  09/21/2022 Ranging adjustments
 v2.0  09/19/2022 Rewrote logging routines.
 v1.9  09/17/2022 Presence routine rewrote from scratch
 v1.7  09/17/2022 New temp adjust code.
@@ -55,7 +56,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.0.0"
+    TheVersion="2.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -66,7 +67,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.helper.HexUtils
 metadata {
 
-	definition (name: "Iris v1 Motion Sensor Custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy") {
+	definition (name: "Iris v1 Motion Detector Custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy") {
 
 		capability "Battery"
 		capability "Configuration"
@@ -263,7 +264,7 @@ def rangeAndRefresh() {
     logging("${device} : Mode : Ranging  [FA:01.01]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
-	runIn(6, normalMode)
+	runIn(4, normalMode)
  
 }
 
@@ -450,9 +451,10 @@ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 12) {
+ 			 if (state.rangingPulses > 15) {
               logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
-              sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+              normalMode()
+              return   
              }  
         } else if (receivedData[1] == "00") { // Ranging during a reboot
 				// when the device reboots.(keypad) Must answer
