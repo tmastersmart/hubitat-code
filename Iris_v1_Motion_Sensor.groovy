@@ -82,7 +82,7 @@ metadata {
 
 		command "checkPresence"
 		command "normalMode"
-		command "rangingMode"
+		command "rangeAndRefresh"
 		//command "quietMode"
         command "unschedule"
         command "uninstall"
@@ -214,8 +214,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-	runIn(randomSixty,refresh) // Refresh in random time
+    refresh()
 }
 
 
@@ -248,8 +247,8 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
     logging("${device} : Mode: Normal  [FA:00.01]", "info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
+//    randomSixty = Math.abs(new Random().nextInt() % 60)
+//    runIn(randomSixty,refresh) // Refresh in random time
 }
 
 
