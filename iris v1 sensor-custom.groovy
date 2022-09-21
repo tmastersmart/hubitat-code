@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.0.0 09/21/2022 Ranging adjustments
 v2.9   09/19/2022 Rewrote logging routines.
 v2.8.0 09/17/2022 Presence routine rewrote from scratch
 v2.7.3 09/17/2022 New temp adjust code.
@@ -74,7 +75,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  */
 
 def clientVersion() {
-    TheVersion="2.9.0"
+    TheVersion="3.0.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -262,8 +263,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-	runIn(randomSixty,refresh) // Refresh in random time
+    refresh() 
 }
 
 // To be used later on a schedule. 
@@ -284,20 +284,18 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
-    logging("${device} : Mode: Normal  [FA:00.01]", "info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
+    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
 
 
 void refresh() {
-	logging("${device} : Refreshing  [FC:01]", "info")
+	logging("${device} : Refreshing", "info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-    logging("${device} : Mode : Ranging  [FA:01.01]", "info")
+    logging("${device} : StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
@@ -511,9 +509,10 @@ def processMap(Map map) {
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 12) {
-              logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
-              sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+ 			 if (state.rangingPulses > 14) {
+              logging("${device} : Ranging ${state.rangingPulses} Aborting", "debug")    
+              normalMode()
+              return   
              }  
         } else if (receivedData[1] == "00") { // Ranging during a reboot
 				// when the device reboots.(keypad) Must answer
