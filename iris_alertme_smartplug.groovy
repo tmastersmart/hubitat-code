@@ -550,6 +550,9 @@ else if (map.clusterId == "00EF") {
             reportFirm = "Report to DEV"
             if(deviceFirmware == "2012-09-20" ){reportFirm = "Known v2012"}
             if(deviceFirmware == "2013-09-26" ){reportFirm = "Known v2013"}
+            
+            if(reportFirm == "Report to DEV"){state.reportToDev="Report Unknown firmware [${deviceFirmware}] " }
+            else{state.remove("reportToDev")}
 
 			// Sometimes the model name contains spaces.
 			if (versionInfoBlockCount == 2) {
