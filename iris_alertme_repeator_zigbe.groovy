@@ -2,6 +2,10 @@
 https://fcc.report/FCC-ID/WJHRP11/
 
 // Item #388560 Model #REP901 REP800 Iris Range Extender FCC ID WJHRP11 Zigbee/Zwave
+
+
+===========================================================================================
+v1.8    09/21/2022 Adjustments to ranging
 v1.7    09/19/2022 Rewrote logging routines. Block code changes copied from keypad code
                    Rewrote presence and ranging routines.
 v1.6    09/04/2022  Copying improvements from power outlet
@@ -211,8 +215,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-	runIn(randomSixty,refresh) // Refresh in random time
+    refresh() 
 }
 
 
@@ -243,31 +246,18 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
-    logging("${device} : Mode: Normal  [FA:00.01]", "info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
+    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
-
-
-
-
 void refresh() {
-	logging("${device} : Refreshing  [FC:01]", "info")
-    delayBetween([ 
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// get version info
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}"]),// get power info
-    ], 3000) 
+	logging("${device} : Refreshing", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
-
-
-
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-    logging("${device} : Mode : Ranging  [FA:01.01]", "info")
+    logging("${device} : StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
- 
 }
 
 
@@ -416,9 +406,9 @@ def processMap(Map map) {
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 12) {
-              logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
-              sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+ 			 if (state.rangingPulses > 14) {
+              normalMode()
+              return   
              }  
         } else if (receivedData[1] == "00") { // Ranging during a reboot
 				// when the device reboots.(keypad) Must answer
