@@ -1,16 +1,19 @@
-/**
-    HTTP Presence Sensor with schedule
- *  HTTP Presence Sensor with adjustable schedule
+/**HTTP Presence Sensor adjustable schedule
+ *  
     Hubitat HTTP presence sensor
-    
-    Polls webpages to detect if something stops working. Added detection of logion for cameras.
-    Allows you to set min for chron to stop overloading servers
-    
 
-================================================================================================
-  v2.1.2 08/08/2022  Added pasword falure as ok
+Allows you to set chron to stop overloading servers
+
+This fixes the orginal version 
+
+
+=================================================================
+  v2.2  09/21/2022 Better logging 
   v2.1.1 09/14/2021
   v2.0 09/12/2021
+
+
+
 
 https://github.com/tmastersmart/hubitat-code/blob/main/http_presence_sensor.groovy
 https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy
@@ -22,11 +25,9 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_s
 
 
 
-
-
 forked from
 https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPresenceSensor.groovy
- 
+   
     v1.0
  *
  *  Copyright 2019 Joel Wetzel
@@ -51,68 +52,47 @@ metadata {
         capability "Configuration"
 	}
 
-	preferences {
-		section {
-			input (	type: "string",	name: "endpointUrl",title: "Endpoint URL",required: true)
-			input (	type: "bool",name: "enableDebugLogging",title: "Enable Debug Logging?",required: true,defaultValue: false)
-            input (	type: "number",name: "pollMinutes",title: "Polling Minutes",	description: "Schedule to check",required: true,defaultValue: 5)
-		}
-	}
+preferences {
+    
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+    input name: "endpointUrl" , type: "string",title: "Endpoint URL",required: true
+    input name: "pollMinutes" ,	type: "number",title: "Polling Minutes",description: "Schedule to check",required: true,defaultValue: 5
+
+}
+
 }
 
 
-def log(msg) {
-	if (enableDebugLogging) {
-		log.debug msg
-	}
-}
 
 def configure() {
-	log.info "${device.displayName}: Config"
+    logging("${device} : Configure", "info")
     updated()
 }
     
     
 def installed () {
-	log.info "${device.displayName}: Installed"
+	logging("${device} : Install", "info")
     updated()
 }
 
 
 def updated () {
-	log.info "${device.displayName}: updated"
-    
     state.tryCount = 0
- 
-//    runEvery1Minute(refresh)
-
     schedule("0 */${pollMinutes} * ? * *", refresh)
-
-
-// schedule('0 */10 * ? * *', mymethod)
-//void runEvery1Minute(String handlerMethod, Map options = null)
-//void runEvery5Minutes(String handlerMethod, Map options = null)
-//void runEvery10Minutes(String handlerMethod, Map options = null)
-//void runEvery15Minutes(String handlerMethod, Map options = null)
-//void runEvery30Minutes(String handlerMethod, Map options = null)
-//void runEvery1Hour(String handlerMethod, Map options = null)   
-    
-    
-    
-    
+    logging("${device} : Updated Schedule ${pollMinutes} mins", "info")
     runIn(2, refresh)
 }
 
 
 def refresh() {
-	log.debug "${device.displayName}: Checking Presence"
-
+    logging("${device} : Checking Presence  ${state.tryCount}", "debug")
 	state.tryCount = state.tryCount + 1
     
     if (state.tryCount > 3 && device.currentValue('presence') != "not present") {
-        def descriptionText = "${device.displayName} is OFFLINE";
-        log descriptionText
-        sendEvent(name: "presence", value: "not present", linkText: deviceName, descriptionText: descriptionText)
+        logging("${device} : Presence: [Not Present] Tries:${state.tryCount} ", "warn")
+        sendEvent(name: "presence", value: "not present", descriptionText: "[Not Present] Tries:${state.tryCount} ")
     }
     
 	asynchttpGet("httpGetCallback", [
@@ -123,24 +103,47 @@ def refresh() {
 
 
 def httpGetCallback(response, data) {
-	
 	if (response == null || response.class != hubitat.scheduling.AsyncResponse) {
 		return
 	}
-    
+  
     def st = response.getStatus()
-    
-    log.debug "${device.displayName}: Presence check status =${st}"
-// 200 ok 401 pasword	
-	if (st == 200 | st== 401) {
+    logging("${device} : Presence check status =${st}  Tries:${state.tryCount}", "debug")
+	if (st == 200) {
+        logging("${device} : Presence:[Present] Tries:${state.tryCount} ", "info")
 		state.tryCount = 0
-		
 		if (device.currentValue('presence') != "present") {
-			def descriptionText = "${device.displayName} is ONLINE";
-			log descriptionText
-			sendEvent(name: "presence", value: "present", linkText: deviceName, descriptionText: descriptionText)
+        logging("${device} : Presence: [Present] Tries:${state.tryCount} ", "debug")
+        sendEvent(name: "presence", value: "present", descriptionText: "[Present] Tries:${state.tryCount} ")
             
 		}
 	}
 }
 
+
+
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
+}
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+void traceLogOff(){
+	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+	log.trace "${device} : Trace Logging : Automatically Disabled"
+}
+void debugLogOff(){
+	device.updateSetting("debugLogging",[value:"false",type:"bool"])
+	log.debug "${device} : Debug Logging : Automatically Disabled"
+}
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
+}
