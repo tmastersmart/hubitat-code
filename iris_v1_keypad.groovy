@@ -18,7 +18,16 @@ Button Controller support to map coomands to buttons 1-0
                                                   |___/|_|   
 
 =================================================================================================
-  v6.1   09/03/2022 Ranging and Pesence schedules made optional. Presence off by default better battery life
+  v6.7   09/21/2022 Ranging Adjustments
+  v6.6   09/19/2022 Rewrote logging routines.
+  v6.5   09/17/2022 Increased database to 10 PINS
+  v6.4   09/16/2022 Allow HSM to send more than 1 off cmd. Bug in panic timeout fixed.
+                    Rewrite of ranging code. Rewrite of battery logging code.
+                    Updating iris block code on all my iris drivers.
+                    Pin logging rewritten. Hide pin from log
+  v6.3   09/10/2022 Reversing v.61 update
+  v6.2   09/04/2022 Updating iris block code on all my iris drivers.
+  v6.1   09/03/2022 ---
   v6.0   09/02/2022 Changed Init boot up routines. Trying to prevent Beep on reboot.
                     Enrole Request detect added.
   v5.9   08/26/2022 New iris cluster seen on the mesh, added detection for it.
@@ -154,6 +163,11 @@ Play chimes select 1 to 13
 Chimes repeat to stop them I have added a countdown timmer. 
 Beware sometimes the keypad is slow and you may not get the same tone legenth every time..
 
+Eratic Operation:
+It is possible for the cpu to become corupted and cause problems such as 
+countdown timmer not stopping not taking commands and missing sounds.
+I saw this in testing when sending lots of diffrent tones confusing the unit. 
+The solution is to reboot the pad by removing batteries. 
 
 
 Please Note:
@@ -231,7 +245,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.1"
+    TheVersion="6.6.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -263,9 +277,9 @@ capability "Alarm"
 
 command "checkPresence"
 command "normalMode"
-command "rangingMode"
+command "rangeAndRefresh"
 command "entry" 
-command "quietMode"
+
 command "SendState"
 command "getStatus"
 command "unschedule"        
@@ -286,7 +300,21 @@ attribute "code3n", "string"
 attribute "code4", "string"
 attribute "code4n", "string"
 attribute "code5", "string"
-attribute "code5n", "string"		
+attribute "code5n", "string"
+attribute "code6", "string"
+attribute "code6n", "string"
+attribute "code7", "string"
+attribute "code7n", "string"
+attribute "code8", "string"
+attribute "code8n", "string"
+attribute "code9", "string"
+attribute "code9n", "string"
+attribute "code10", "string"
+attribute "code10n", "string"        
+        
+        
+        
+        
 attribute "lockCodes", "string"		
 
 fingerprint profileId:"C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02",outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
@@ -297,9 +325,9 @@ fingerprint profileId:"C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02"
 
 preferences {
 	
-	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
+	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true, required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false, required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false, required: true
 
 	input name: "tamperPIN",   type: "bool", title: "Press Tamper on BAD PIN (off use shock)", defaultValue: true
     input name: "requirePIN",  type: "bool", title: "Require Valid PIN to ARM", defaultValue: false, required: true
@@ -320,16 +348,18 @@ preferences {
     input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
-    input name: "optionPresent",type: "bool", title: "Presence Detection", description: "Run a presence schedule (save then config)",defaultValue: false,required: true
-    input name: "optionRange",  type: "bool", title: "Ranging Report", description: "Run a ranging schedule (save then config)",defaultValue: true,required: true
+	input name: "SwitchModes",type: "bool", title: "Switch Modes",description: "Switch to Home when disarming.", defaultValue: false
 
 
 }
 
 
-def installed(){
-logging("${device} : Paired!", "info")
-configure()
+def installed() {
+	// Runs after first pairing. this may never run internal drivers overide pairing.
+	logging("${device} : Paired!", "info")
+    initialize()
+    configure()
+    
 }
 
  
@@ -350,15 +380,15 @@ state.batteryOkay = true
 state.Panic = false
 state.validPIN = false
     
-state.operatingMode = "normal"
+//state.operatingMode = "normal"
 state.presenceUpdated = 0
 state.rangingPulses = 0
     
 // Survive a reboot
 if (!state.Command){state.Command = "unknown"} 
 
-state.PinName = "none"
-state.PIN = "none"
+state.PinName = "NA"
+state.PIN = "NA"
 state.icon ="<img src='data:image/jpeg;base64,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'>"
 
 state.donate="<img src='data:image/png;base64,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'>"
@@ -367,19 +397,16 @@ state.message = "Keypad supports 13 diffrent chimes under play command"
     
 sendEvent(name: "operation", value: "normal", isStateChange: false)
 sendEvent(name: "presence", value: "present", isStateChange: false)
-sendEvent(name: "numberOfButtons", value: "10", isStateChange: false)
-sendEvent(name: "maxCodes", value:5)
+sendEvent(name: "numberOfButtons", value: "12", isStateChange: false)
+sendEvent(name: "maxCodes", value:10)
 sendEvent(name: "codeLength", value:15)
-//sendEvent(name: "securityKeypad", value: "Fetching")
+
 sendEvent(name: "tamper", value: "clear")
-//sendEvent(name: "switch", value: "off")
 sendEvent(name: "status", value: "ok")    
-sendEvent(name: "lastCodeName", value: "none", descriptionText: "Initialised")
-sendEvent(name: "lastCodePIN",  value: "0000", descriptionText: "Initialised")    
-sendEvent(name: "siren", value: "off")  
-sendEvent(name: "strobe", value: "off") 
-sendEvent(name: "alarm", value: "off")
-sendEvent(name: "panic",  value: "off")    
+//sendEvent(name: "lastCodeName", value: "none", descriptionText: "Initialised")
+//sendEvent(name: "lastCodePIN",  value: "0000", descriptionText: "Initialised") 
+  
+offEvents()    
     
 state.remove("switch")	
 state.remove("uptime")
@@ -403,62 +430,54 @@ device.deleteCurrentState("HSMAlert")
 // Stagger init refreshes On reboot
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,refresh)
-
+logging("${device} : Initialised Refreash in ${randomSixty}sec", "info")
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,getStatus)
 
 randomSixty = Math.abs(new Random().nextInt() % 60)
 runIn(randomSixty,getCodes)    
-//SendState()    
- 
-logging("${device} : Initialised", "info")
   
+clientVersion()
+ 
 }
 
 
 def configure() {
 	initialize()
     
+    state.remove("operatingMode")
+    state.remove("LQI")
+    state.remove("batteryOkay")
+    state.remove("batteryState") 
+    state.remove("armMode")
+    
     updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
     updateDataValue("outClusters", "00C0")
     
 	unschedule()
-	// Default logging preferences.
-	device.updateSetting("infoLogging",[value:"true",type:"bool"])
-	device.updateSetting("debugLogging",[value:"true",type:"bool"])
-	device.updateSetting("traceLogging",[value:"false",type:"bool"])
-    
-	// Schedule our ranging report.6 hours or every 1 hour for outlets.
-    if(optionRange){
-	int checkEveryHours = 12				
+
+	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${checkEveryHours} * * ? *", rangeAndRefresh)	// At X seconds past X minute, every checkEveryHours hours, starting at Y hour.
-    }
-	// Schedule the presence check. 6 minutes or every 1 minute for key fobs.
-    if (optionPresent){
-	int checkEveryMinutes = 20							
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${8} * * ? *", rangeAndRefresh)	
+
+    // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)									// At X seconds past the minute, every checkEveryMinutes minutes.
-    }
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
+
 	// Run a ranging report and then switch to normal operating mode.
 	logging("${device} : Configured", "info")
 
-    rangingMode()
+    rangeAndRefresh()
 	runIn(12,normalMode)
 }
 
-
 def updated() {
-	loggingStatus()
-	runIn(3600,debugLogOff)
-	runIn(3500,traceLogOff)
-	
-    
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh)
-    
+	// Runs whenever preferences are saved.
     clientVersion()
+    loggingUpdate()
+    refresh()
 }
 
 
@@ -468,20 +487,36 @@ def updated() {
 // Legaly we cant use it without written permission
 // replacement code
 def setCode(code,pinCode,userCode){
+    
+    size = pinCode.size() 
+    if (size < 4 || size >15){
+        logging( "${device} : Invalid PIN size :${size} Rejected","warn")
+        return
+    }
 
 	if (code == 1){ save= "code1";}
 	if (code == 2){ save= "code2";}
 	if (code == 3){ save= "code3";}
 	if (code == 4){ save= "code4";}	
-    if (code == 5){ save= "code5";}	
-	if (code < 6){
+    if (code == 5){ save= "code5";}
+    if (code == 6){ save= "code6";}
+	if (code == 7){ save= "code7";}
+	if (code == 8){ save= "code8";}
+	if (code == 9){ save= "code9";}	
+    if (code == 10){save= "code10";}
+	if (code < 11){
         saveit = true
-        // Check for dupes due to broken lock manager
+        // stop dupes from lock manager
         if (device.currentValue("code1") == pinCode){saveit = false} 
         if (device.currentValue("code2") == pinCode){saveit = false}
         if (device.currentValue("code3") == pinCode){saveit = false} 
         if (device.currentValue("code4") == pinCode){saveit = false}        
-        if (device.currentValue("code5") == pinCode){saveit = false}        
+        if (device.currentValue("code5") == pinCode){saveit = false}
+        if (device.currentValue("code6") == pinCode){saveit = false} 
+        if (device.currentValue("code7") == pinCode){saveit = false}
+        if (device.currentValue("code8") == pinCode){saveit = false} 
+        if (device.currentValue("code9") == pinCode){saveit = false}        
+        if (device.currentValue("code10") == pinCode){saveit = false} 
           logging( "${device} : ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","debug")
           logging( "${device} : ADD code#${code} PIN:XXXX User:${userCode}","info") 
         if (saveit){    
@@ -494,11 +529,11 @@ def setCode(code,pinCode,userCode){
 	}
      pauseExecution(3000) // We have to wait for database update
      getCodes() 
-     sendEvent(name:"codeChanged",value:"added",data:"${codeStore}", isStateChange: true)
+     sendEvent(name:"codeChanged",value:"added",data:"${codeStore}", isStateChange: true, descriptionText: "code:${pinCode} name:${userCode}" )
      pauseExecution(3000) // We have to wait for database update
      getCodes() 
-    
 }
+
 
 private upgradeCodes(code){
     
@@ -512,6 +547,16 @@ private upgradeCodes(code){
     store4n= device.currentValue("code4n")    
     store5 = device.currentValue("code5")
     store5n= device.currentValue("code5n")
+    store6 = device.currentValue("code6")
+    store6n= device.currentValue("code6n")
+    store7 = device.currentValue("code7")
+    store7n= device.currentValue("code7n")    
+    store8 = device.currentValue("code8")
+    store8n= device.currentValue("code8n")    
+    store9 = device.currentValue("code9")
+    store9n= device.currentValue("code9n")    
+    store10 = device.currentValue("code10")
+    store10n= device.currentValue("code10n")
 
 }
 
@@ -523,25 +568,93 @@ def deleteCode(code) {
 	if (code == 3){ save= "code3"}
 	if (code == 4){ save= "code4"}	
 	if (code == 5){ save= "code5"}	  
-    
+    if (code == 6){ save= "code6"}
+	if (code == 7){ save= "code7"}
+	if (code == 8){ save= "code8"}
+	if (code == 9){ save= "code9"}	
+	if (code == 10){ save= "code10"}    
     
     thecode = device.currentValue("${save}")
     thename = device.currentValue("${save}n")
     
+    
     logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","debug")    
     logging ("${device} : deleteCode  #${code}   code:XXXX name:${thename}","info") 
     
-	if (code < 6) {
+	if (code < 11) {
      device.deleteCurrentState("${save}")    
      device.deleteCurrentState("${save}n")
      pauseExecution(3000) // We have to wait for database update
      getCodes() 
-     sendEvent(name:"codeChanged",value:"deleted",data:"${codeStore}", isStateChange: true)
+     sendEvent(name:"codeChanged",value:"deleted",data:"${codeStore}", isStateChange: true, descriptionText: "code:${thecode} name:${thename} ")
      pauseExecution(3000) // We have to wait for database update
      getCodes()    
 }
 }
-// the I hate jason format Routine
+// Scan all the pins and return stat
+void checkThePin(code)
+{
+      if (device.currentValue("code1") == state.PIN){
+          state.PinName = device.currentValue("code1n")
+          state.validPIN = true 
+          state.pinN = 1
+	   }	     
+      if (device.currentValue("code2") == state.PIN){
+          state.PinName = device.currentValue("code2n")
+      	  state.validPIN = true
+          state.pinN = 2
+      }
+      if (device.currentValue("code3") == state.PIN){
+          state.PinName = device.currentValue("code3n")
+          state.validPIN = true
+          state.pinN = 3
+      }
+	  if (device.currentValue("code4") == state.PIN){
+          state.PinName = device.currentValue("code4n")
+          state.validPIN = true
+          state.pinN = 4
+      }
+      if (device.currentValue("code5") == state.PIN){
+          state.name = device.currentValue("code5n")
+          state.validPIN = true
+          state.pinN = 5
+      } 
+         
+      if (device.currentValue("code6") == state.PIN){
+          state.PinName= device.currentValue("code6n")
+          state.validPIN = true 
+          state.pinN = 6
+	   }	     
+      if (device.currentValue("code7") == state.PIN){
+          state.PinName = device.currentValue("code7n")
+      	  state.validPIN = true
+          state.pinN = 7
+      }
+      if (device.currentValue("code8") == state.PIN){
+          state.PinName = device.currentValue("code8n")
+          state.validPIN = true
+          state.pinN = 8
+      }
+	  if (device.currentValue("code9") == state.PIN){
+          state.PinName = device.currentValue("code9n")
+          state.validPIN = true
+          state.pinN = 9
+      }
+      if (device.currentValue("code10") == state.PIN){
+          state.PinName = device.currentValue("code10n")
+          state.validPIN = true
+          state.pinN = 10
+      }  
+          if (secure == state.PIN){
+          state.PinName ="master"
+          state.validPIN = true
+          state.pinN = 100
+      }  
+  
+}
+
+
+// We create this for lock manager to read.
 def getCodes(){
     qt= '"'
     needsComma = false 
@@ -576,29 +689,77 @@ def getCodes(){
         if (needsComma== true){ setCode4 = ",${setCode4}"} 
         needsComma = true 
     }
-//    logging("${device} : building ....${device.currentValue("code5")}", "info")
     if (device.currentValue("code5")) {
-   
         code = device.currentValue("code5")
         name = device.currentValue("code5n")
         end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
         setCode5 = "${qt}5${end}"
         if (needsComma == true){ setCode5 = ",${setCode5}"} 
+        needsComma = true 
+    }
+         if (device.currentValue("code6")) {
+        code = device.currentValue("code6")
+        name = device.currentValue("code6n")
+        end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
+        setCode6 = "${qt}6${end}"
+        if (needsComma == true){ setCode6 = ",${setCode6}"}      
+        needsComma = true 
+    }
+    if (device.currentValue("code7")) {
+        code = device.currentValue("code7")
+        name = device.currentValue("code7n")
+        end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
+        setCode7 = "${qt}7${end}"
+        if (needsComma == true){ setCode7 = ",${setCode7}"}
+        needsComma = true                
+    }    
+    if (device.currentValue("code8")) {
+        code = device.currentValue("code8")
+        name = device.currentValue("code8n")
+        end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
+        setCode8 = "${qt}8${end}"
+        if (needsComma == true){ setCode8 = ",${setCode8}"}
+        needsComma = true 
+    }
+    if (device.currentValue("code9")) {
+        code = device.currentValue("code9")
+        name = device.currentValue("code9n")
+        end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
+        setCode9 = "${qt}9${end}"
+        if (needsComma== true){ setCode9 = ",${setCode9}"} 
+        needsComma = true 
+    }
+    if (device.currentValue("code10")) {
+        code = device.currentValue("code10")
+        name = device.currentValue("code10n")
+        end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
+        setCode10 = "${qt}10${end}"
+        if (needsComma == true){ setCode10 = ",${setCode10}"} 
  
     }
+    
+    
+    
+    
+    
     codeStore= "{"
     if (setCode1) { codeStore = "${codeStore}${setCode1}" }
     if (setCode2) { codeStore = "${codeStore}${setCode2}" }
     if (setCode3) { codeStore = "${codeStore}${setCode3}" }
     if (setCode4) { codeStore = "${codeStore}${setCode4}" }              
     if (setCode5) { codeStore = "${codeStore}${setCode5}" }
+    if (setCode6) { codeStore = "${codeStore}${setCode6}" }
+    if (setCode7) { codeStore = "${codeStore}${setCode7}" }
+    if (setCode8) { codeStore = "${codeStore}${setCode8}" }
+    if (setCode9) { codeStore = "${codeStore}${setCode9}" }              
+    if (setCode10){ codeStore = "${codeStore}${setCode10}"}
     
 
     codeStore = "${codeStore}}"
     sendEvent(name: "lockCodes",value: codeStore)
     // Dont show codes in normal log for security
     logging("${device} : lockCode Database ${codeStore}", "trace")          
-    logging("${device} : lockCode Database Update", "info")
+    logging("${device} : getCodes (Lockcode Database rebuilt)", "info")
  }
 
 // using state.delayExit 
@@ -735,17 +896,13 @@ def armNight(cmd){
 def disarm(cmd) { 
     cmd = 0
     state.received = true
-    sendEvent(name: "alarm", value: "off") 
-    sendEvent(name: "siren", value: "off")  
-    sendEvent(name: "strobe", value: "off") 
-    sendEvent(name: "panic",  value: "off") 
+    offEvents()
     
-    
- // More work needed here its possible in entry for disarm not to work first time?
-    if (state.Command == "off" ){ // stop repeated off commands
-        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
-        return
-    }    
+//    if (state.Command == "off" ){   Stop ignoring dupes
+//        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
+//        return
+//     }    
+   
     MakeLockCodeIN()
       data = [armMode:"disarmed",armCmd:"disarm"]
     sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "${device} was disarmed [digital]")
@@ -756,11 +913,21 @@ def disarm(cmd) {
     runIn(15,getSoftStatus)
 }
 
-
+def offEvents(){
+    alarmTest = device.currentValue("alarm")   
+    if(alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
+    alarmTest = device.currentValue("siren") 
+    if(alarmTest != "off"){sendEvent(name: "siren",  value: "off")} 
+    alarmTest = device.currentValue("strobe") 
+    if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
+    alarmTest = device.currentValue("panic") 
+    if(alarmTest != "off"){sendEvent(name: "panic",  value: "off")}   
+    
+}
 
 def softOFF(){
   logging ("${device} : Alarm OFF ","info")  
-  sendEvent(name: "alarm", value: "off") 
+  offEvents() 
   getStatus() // Are we armed or not Reset state
 }
 
@@ -929,9 +1096,9 @@ def panic() {
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
     state.Command = "panic"
     SendState()         
-    runIn(70, "off") 
-    // has to be longer than timeout on PANIC triplits
-    // has to be long or it will restart.
+    state.delay = 10
+    runIn(70,softOFF)
+    // has to be longer than timeout on PANIC triplits or it will restart
 }
 
 private cancelAlert(){
@@ -959,7 +1126,12 @@ private MyDisarm(cmd) {
     data = [armMode:"disarmed",armCmd:"disarm"]
 	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "[physical] disarmed", data: lockCode, type: "physical")
     sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
-    sendEvent(name: "alarm", value: "off") 
+    offEvents() 
+    if(SwitchModes){
+        mode="Home"
+        sendLocationEvent(name: "Mode", value: mode)
+        logging ("${device} : Seting hub mode to ${mode}","info")
+    }
     state.Command = "off"
     SendState()
     runIn(15,getSoftStatus)
@@ -993,9 +1165,9 @@ def getSoftStatus(status){
 // logging routine for debuging HSM status
 //  HSM Sync status HSM:home <> state:armingHome  
    status = location.hsmStatus
-   sendEvent(name: "securityKeypad",value: "HSM Mode",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
+   sendEvent(name: "securityKeypad",value: "GetSoftStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
     if (status == "armedAway" ) {test = "away"}    
-    if (status == "armedHome" ) {test = "home"}
+    if (status == "armedHome" ) {test = "home"}// not modes IRIS states.
     if (status == "armedNight") {test = "night"}
     if (status == "disarmed"  | status == "allDisarmed"){test = "off"}
     if (test == state.Command){logging ("${device} : Verified in state with HSM No problems","info") }
@@ -1004,7 +1176,7 @@ def getSoftStatus(status){
 
 def getStatus(status) {
    status = location.hsmStatus
-   sendEvent(name: "securityKeypad",value: "HSM Mode",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
+   sendEvent(name: "securityKeypad",value: "GetStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
    MakeLockCodeIN() 
    logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
     
@@ -1051,7 +1223,7 @@ def getStatus(status) {
 }
 
 def purgePIN(){
-    if (state.validPIN){logging ("${device} : PIN [${state.PinName}] Removed from memory", "info")}
+if (state.validPIN){logging ("${device} : PIN [${state.PinName}] Removed from memory", "info")}
 state.validPIN = false
 state.PinName = "none"
 state.PIN = "NA"    
@@ -1098,13 +1270,10 @@ def strobe(cmd){
 def both(cmd){siren(cmd)}
 
 def off(cmd){
-    
+   
   sendEvent(name: "securityKeypad",value: "siren OFF",data: lockCode, type: "digital",descriptionText: "${device} alarm siren OFF ${status}")  
   logging ("${device} : OFF siren/strobe","info")
-  sendEvent(name: "siren", value: "off")  
-  sendEvent(name: "strobe", value: "off") 
-  sendEvent(name: "alarm", value: "off")
-  sendEvent(name: "panic",  value: "off") 
+  offEvents()  
   state.Command = "off"
   SendState()  
   runIn(2, getStatus) // Reset the state to HSM 
@@ -1260,160 +1429,108 @@ void reportToDev(map) {
 	logging("${device} : New unknown Cluster Detected: clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command}, value:${map.value} data: ${receivedData}", "warn")
 }
 
-
 def normalMode() {
-	// This is the standard running mode.
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])
-	state.operatingMode = "normal"
-	refresh()
-	sendEvent(name: "operation", value: "normal")
-	logging ( "${device} : Mode : Normal","info")
+    // This is the standard running mode.
+   delayBetween([ // Once is not enough
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	], 3000)
+    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
-
-
-def rangingMode() {
-
-	// Ranging mode double-flashes (good signal) or triple-flashes (poor signal) the ON button
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"])
-	sendEvent(name: "operation", value: "ranging")
-    lqi = device.currentValue("lqi")
-    logging ("${device} : Mode: Ranging LQI:${lqi}","info")
-	// Ranging will be disabled after a maximum of 30 pulses.
-	state.rangingPulses = 0
-
-}
-
-
-def quietMode() {
-	// Turns off all reporting except for a ranging message every 2 minutes.
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"])
-	state.operatingMode = "quiet"
-	// We don't receive any of these in quiet mode, so reset them.
-	sendEvent(name: "battery",value:0, unit: "%", isStateChange: false)
-	sendEvent(name: "operation", value: "quiet")
-	logging ("${device} : Mode : Quiet","info")
-    refresh()
-}
-
-
-
-
-
-
 void refresh() {
-    logging ("${device} : Refresh. Sending Hello to Device","info")
-
-    
-	def cmds = new ArrayList<String>()
-	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}")    // version information request
-//	cmds.add("he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}")    // power control operating mode nudge ( I dont think we need this)
-	sendZigbeeCommands(cmds)
+	logging("${device} : Refreshing", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
-
-
+// 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-// This toggles ranging mode to update the device's LQI value.
-	int returnToModeSeconds = 6			// We use 3 seconds for outlets, 6 seconds for battery devices, which respond a little more slowly.
-	rangingMode()
-	runIn(returnToModeSeconds, "${state.operatingMode}Mode")
+    logging("${device} : StartMode : [Ranging]", "info")
+    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
+	state.rangingPulses = 0
+	runIn(6, normalMode)
 }
 
 
 def updatePresence() {
 	long millisNow = new Date().time
 	state.presenceUpdated = millisNow
-	
-	if (device.currentValue("presence") != "present"){
-	 sendEvent(name: "presence", value: "present")
-	 logging ( "${device} :Present: ${secondsElapsed} seconds ago.","info")
-	}	
 }
 
 
+
 def checkPresence() {
-	presenceTimeoutMinutes = 4
-	uptimeAllowanceMinutes = 5
-	if (state.presenceUpdated > 0 && state.batteryOkay == true) {
+	// Check how long ago the presence state was updated.
+	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
+	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
+	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
+	presenceTimeoutMinutes = 4 
+    uptimeAllowanceMinutes = 5
+    LastPresence = device.currentValue("presence")// only change state one time..
+	if (state.presenceUpdated > 0 ) {
 		long millisNow = new Date().time
 		long millisElapsed = millisNow - state.presenceUpdated
 		long presenceTimeoutMillis = presenceTimeoutMinutes * 60000
 		BigInteger secondsElapsed = BigDecimal.valueOf(millisElapsed / 1000)
 		BigInteger hubUptime = location.hub.uptime
-
 		if (millisElapsed > presenceTimeoutMillis) {
-
 			if (hubUptime > uptimeAllowanceMinutes * 60) {
-
+                if (LastPresence != "not present"){
 				sendEvent(name: "presence", value: "not present")
-				logging("${device} : Presence : Not Present! Last report received ${secondsElapsed} seconds ago.", "warn")
-                if(detectBadBat){
-                 if(state.batteryOkay == false){
-                  logging( "${device} : Auto Bat detection. was low now not present. set 0% ","info")
-	              sendEvent(name: "batteryVoltage", value: 0, unit: "V")
-     	          sendEvent(name: "battery", value:0, unit: "%")   
-                 }
+                logging("${device} : Presence: not present", "warn")    
                 }    
-			} else {
-			logging("${device} : Presence : Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.","info")
-			}
-
-		} else {
-     		sendEvent(name: "presence", value: "present")
-//			logging("${device} : Presence : Last presence report ${secondsElapsed} seconds ago.","debug")
+				logging("${device} : Presence: Not Present! Last report received ${secondsElapsed} seconds ago.", "debug")
+                powerLast = device.currentValue("battery")
+                if (powerLast != 0){ // this does not work well yet
+                    sendEvent(name: "battery", value:0, unit: "%")
+                    logging("${device} : Battery set to 0%", "warn")
+                }
+		} else {logging("${device} : Presence: Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
+        }else {
+            if (LastPresence != "present"){
+			 sendEvent(name: "presence", value: "present")
+			 logging("${device} : Presence: present", "info")
+            }
+            logging("${device} : Presence: Last presence report ${secondsElapsed} seconds ago.", "debug")   
 		}
-		logging("${device} : checkPresence() : ${millisNow} - ${state.presenceUpdated} = ${millisElapsed} (Threshold: ${presenceTimeoutMillis} ms)","trace")
-	} else if (state.presenceUpdated > 0 && state.batteryOkay == false) {
-		sendEvent(name: "presence", value: "not present")
-		logging("${device} : Presence : Battery too low!", "warn")
-	} else {
-		logging("${device} : Presence : Not yet received.", "warn")
+	} else {logging("${device} : Presence: Not yet received. ", "warn")}
+}
+
+def parse(String description) {
+	logging("${device} : Parse : ${description}", "trace")
+	updatePresence()// this updates the timmer not the state
+    if (description?.startsWith('enroll request')) {
+			logging("${device} : Responding to Enroll Request. Likely Battery Change", "info")
+			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"])    
+    }else {
+		Map descriptionMap = zigbee.parseDescriptionAsMap(description)
+	    if (descriptionMap) {processMap(descriptionMap)}
+        else{
+        // we should never get here reportToDev is in processMap above
+            logging("${device} : Error ${description} ${descriptionMap}", "debug")    
+        }
 	}
 }
 
 
-def parse(String description) {
-    clientVersion()
-    updatePresence()
-//    getSoftStatus(status)// for debuging
-    if (description?.startsWith('enroll request')) {// never seen this but just in case
-     logging("${device} : Responding to Enroll Request.", "info")
-	 sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"]) 
-    }else{
-	 Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-        if (descriptionMap) {processMap(descriptionMap)}
-         else{
-          // we should never get here reportToDev is in processMap above
-          logging("${device} : Error ${description} ${descriptionMap}", "debug")    
-        }
-    }
-}
 
 
-
+// =============================main processor=======================
 def processMap(Map map) {
 	logging ("${device} : ${map}","trace")
-	String[] receivedData = map.data	
-    logging("${device} : Cluster:${map.clusterId} CMD:${map.command} MAP:${map.data}","trace")
-  
-   
-    if (map.clusterId == "0013"){
-	logging("${device} : Device announce message (new device?)","warn")   
-	logging("${device} : 0013 CMD:${map.command} MAP:${map.data} Anouncing New Device?","debug")
+	String[] receivedData = map.data
+    size = receivedData.size()// size of data field
+    logging("${device} : processMap clusterId:${map.clusterId} command:${map.command} ${receivedData} ${size}", "debug")
 
-    } else if (map.clusterId == "0006") {
-      logging("${device} : Sending Match Descriptor Response","debug")
-	  sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 
 // Iris KeyPad report cluster 00C0  
-    } else if (map.clusterId == "00C0") {
+   if (map.clusterId == "00C0") {
      if (map.command == "01") {
-         // Reply to our sending commands in raw (undocumented) Wont be seen in normal use
+         // Sends a undocumented error code on bad data May also crash and reboot
          mode1 = receivedData[0]
          mode2 = receivedData[1]
-         logging ("${device} : Error KeyPad Replied with CMD:[${mode1} ${mode2}] ","warn")
+         logging ("${device} : Error report: Cluster:${map.clusterId} CMD:${map.command} [${mode1} ${mode2}] ","warn")
      }
-     
-// KeyPad does not know its state (also armming or alarming)                           
+       
+     // KeyPad is polling asking for the state
      if (map.command == "00" ) {
          state.waiting ++
          state.waitingTo = state.delay
@@ -1496,17 +1613,13 @@ def processMap(Map map) {
         return
         }
         
-        if (requirePIN){ 
-          if (state.validPIN == true){     
-          MyarmAway() 
-          return
-          }
-            
-        }else{
-        defaultLockCode()  
-        MyarmAway()
-        return
-        }
+         if (requirePIN){
+            if (state.validPIN == false){return}
+              }
+           else{ defaultLockCode()}
+         MyarmAway()
+         return   
+
         if (state.validPIN == false){logging("${device} : Invalid PIN Cant Arm","warn")}
         if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
         return   
@@ -1527,18 +1640,13 @@ def processMap(Map map) {
           logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return 
           }
-            
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmNight()
-               return
-               }
+           if (requirePIN){
+            if (state.validPIN == false){return}
               }
-              else{
-              defaultLockCode()
-              MyarmNight()
-              return
-              } 
+           else{ defaultLockCode()}
+         MyarmNight()
+         return 
+
          }
           if (PartSet =="Arm Home"){          
 		  if (state.Command =="home" | state.Command =="armingHome" ){
@@ -1548,18 +1656,14 @@ def processMap(Map map) {
             }  
           logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return }
-            
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmHome()
-               return
-               }
+          
+          if (requirePIN){
+            if (state.validPIN == false){return}
               }
-              else{
-              defaultLockCode()
-              MyarmHome()
-              return
-              } 
+           else{ defaultLockCode()}
+         MyarmHome()
+         return 
+
          }   
       logging("${device} : Invalid PIN Ignoring","warn")   
       if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
@@ -1602,17 +1706,15 @@ def processMap(Map map) {
           }
          logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
-         
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmHome()
-               return
-               }
-              }else{
-              defaultLockCode()    
-              MyarmHome()
-              return
-              }    
+
+         if (requirePIN){
+            if (state.validPIN == false){return}
+              }
+           else{ defaultLockCode()}
+         MyarmHome()
+         return 
+          
+  
          }
        if (StarSet == "Arm Night"){
 		 if (state.Command =="night"| state.Command =="armingNight" ){
@@ -1623,18 +1725,14 @@ def processMap(Map map) {
              
          logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
-         
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmNight()
-               return
-               }
+ 
+          if (requirePIN){
+            if (state.validPIN == false){return}
               }
-              else{
-              defaultLockCode()    
-              MyarmNight()
-              return
-              }    
+           else{ defaultLockCode()}
+         MyarmNight()
+         return 
+  
          } 
         if (StarSet == "Arm Away"){
 		 if (state.Command =="away" | state.Command =="armingAway" ){
@@ -1644,18 +1742,13 @@ def processMap(Map map) {
             }
          logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
-         
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmAway()
-               return
-               }
+ 
+          if (requirePIN){
+            if (state.validPIN == false){return}
               }
-              else{
-              defaultLockCode()    
-              MyarmAway()
-              return
-              }    
+           else{ defaultLockCode()}
+         MyarmAway()
+         return 
          }     
      
      // disabled
@@ -1685,16 +1778,12 @@ def processMap(Map map) {
          }
 
          if (requirePIN){
-           if (state.validPIN == true){
-           MyarmHome()
-           return
-           }
-         }
-              else{
-              defaultLockCode()
-              MyarmHome()
-              return
-              }    
+            if (state.validPIN == false){return}
+              }
+           else{ defaultLockCode()}
+         MyarmHome()
+         return
+                 
          }
        if (PoundSet == "Arm Night"){
 		 if (state.Command =="night" | state.Command =="armingNight" ){
@@ -1705,18 +1794,13 @@ def processMap(Map map) {
          logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
          return
          }
-         
-              if (requirePIN){
-               if (state.validPIN == true){
-               MyarmNight()
-               return
-               }
+ 
+         if (requirePIN){
+            if (state.validPIN == false){return}
               }
-              else{
-              defaultLockCode()    
-              MyarmNight()
-              return
-              }   
+           else{ defaultLockCode()}
+           MyarmNight()
+           return
          } 
         if (PoundSet == "Arm Away"){
 		 if (state.Command =="away" | state.Command =="armingAway"  ){
@@ -1752,8 +1836,7 @@ def processMap(Map map) {
     if (PinEnclosed == "21" ){
      
      if (pinSize != "01" ){// To small for a PIN go to buttons
-        pinSize = receivedData[3]
-        // 4 - 15 digit Pin size supported 
+        pinSize = receivedData[3]// 4 - 15 digit Pin size supported 
         size = receivedData.size() 
         state.validPIN = false
         state.PinName = "NA"
@@ -1761,64 +1844,25 @@ def processMap(Map map) {
         state.pinN    = 0 
         asciiPin = "NA"
         end = size -1 
-         asciiPin = receivedData[4..end].collect{ (char)Integer.parseInt(it, 16) }.join()
-      if (device.currentValue("code1") == asciiPin){
-          name = device.currentValue("code1n")
-          state.validPIN = true 
-          state.pinN = 1
-	   }	     
-      if (device.currentValue("code2") == asciiPin){
-          name = device.currentValue("code2n")
-      	  state.validPIN = true
-          state.pinN = 2
-      }
-      if (device.currentValue("code3") == asciiPin){
-          name = device.currentValue("code3n")
-          state.validPIN = true
-          state.pinN = 3
-      }
-	  if (device.currentValue("code4") == asciiPin){
-          name = device.currentValue("code4n")
-          state.validPIN = true
-          state.pinN = 4
-      }
-      if (device.currentValue("code5") == asciiPin){
-          name = device.currentValue("code5n")
-          state.validPIN = true
-          state.pinN = 5
-      }  
-      if (secure == asciiPin){
-          name ="master"
-          state.validPIN = true
-          state.pinN = 100
-      }  
+        state.PIN  = receivedData[4..end].collect{ (char)Integer.parseInt(it, 16) }.join()
+        checkThePin() // Scan the pins
 
-        if (state.validPIN == true){
-          state.PinName = name
-          state.PIN     = asciiPin 
-          logging("${device} : Action :[PIN] Name:${name} Pin:${asciiPin} Size:${pinSize} [Waiting for Action CMD] State:${state.Command}","info")
-          sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}]")// May be needed by other aps.
-          sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}]")
-          runIn(90, "purgePIN")// Purge time increased to allow button repeating to finish
+      sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")// May be needed by other aps.
+      sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")         
+      logging("${device} : Pin:${asciiPin} Name:${name} Size:${pinSize} valid:${state.validPIN} State:${state.Command}","debug")
+      runIn(97, "purgePIN")// Purge time must allow repeating to finish-Purge even invalid pins
+      if (state.validPIN == true){
+          logging("${device} : [Valid PIN]:${asciiPin} Size:${pinSize} State:${state.Command} [Waiting for Action CMD] ","info")
      	  return  
         }   
+      // The pin was not valid         
       soundCode(13)
-      logging("${device} : Action :[PIN] Pin:${asciiPin} Size:${pinSize} [Invalid PIN] State:${state.Command}","warn")
-      if(tamperPIN){
-      tamper()
-      state.PinName = "Tamper"
-      }
-      else {// if not using tamper use shock alarm
-          shock()
-      state.PinName = "Shock"
-      } 
-      state.validPIN = false
-      state.PIN     = asciiPin 
-      sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}]")// May be needed by other aps.
-      sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}]")
+      logging("${device} : [Invalid PIN]:${asciiPin} Size:${pinSize} State:${state.Command}","warn")
+      if(tamperPIN){tamper()}
+      else {shock()} 
       return	 
     }// Pin size check  
-    }// end pin check       
+  }// end pin check       
 
 // Keypad button matrix 
      
@@ -1836,26 +1880,20 @@ if (keyRec == "30"){push(10)}
      }// end of 0A
 
     
-        
+// General Cluster         
     } else if (map.clusterId == "00F0") {
-      // AlertMe General Cluster 
-
-      if (map.command == "FB") {
-      // FB Only sends bat data on the keypad no temp. 
-      // lqiRec = receivedData[8] //if (lqiRec){ lqi = receivedData[10]}
-          
-      def batteryVoltageHex = "undefined"
-      BigDecimal batteryVoltage = 0
-      batteryVoltageHex = receivedData[5..6].reverse().join()
-      if (batteryVoltageHex == "FFFF") {return} // Sometimes no bat data is sent
-          
-//   batRec = receivedData[0]  This sould be set to [19] but ignoring
-//   if (batRec){ 
-     batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-     batteryVoltage = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
-//   logging( "${device} : Raw Battery  flag:${batRec} Bat:${batteryVoltage}","trace")     
-  
- 
+       if (map.command == "FB") {
+      // lqiRec = receivedData[8] 
+      // if (lqiRec){ lqi = receivedData[10]}
+      // batRec = receivedData[0]  This sould be set to [19] but ignoring
+		def temperatureValue  = "NA"
+        def batteryVoltageHex = "NA"
+        BigDecimal batteryVoltage = 0
+		batteryVoltageHex = receivedData[5..6].reverse().join()
+        temperatureValue = receivedData[7..8].reverse().join()     
+    if (batteryVoltageHex != "FFFF") {
+        batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+        batteryVoltage = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
 // I base this on Battery discharge curves(may need adjustments)
 // Normal batteries slowely discharge others have a sudden drop          
 // Iris source code says 2.1 is min voltage  
@@ -1876,84 +1914,54 @@ if (keyRec == "30"){push(10)}
 		batteryVoltageScaleMin = 2.50
 		batteryVoltageScaleMax = (1.7 * 2)	    
 	    } 	    
-	    
-//	 logging( "${device} : Battery : ${BatType} ${batteryVoltageScaleMin}% (${batteryVoltageScaleMax} )","info")	    
-	    
-//          batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
-	    
      	BigDecimal batteryPercentage = 0
             batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
+          powerLast = device.currentValue("battery")
+        logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V", "debug")
+        if (powerLast != batteryPercentage){
+           sendEvent(name: "battery", value:batteryPercentage, unit: "%")
+           sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
+          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
+          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
+          if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
+         } // end dupe events detection
+         logging("${device} : Temp Report ${temperatureValue}", "trace") 
+        }// end battery report            
         
-        if (state.lastBattery != batteryVoltage){
-    	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-     	 sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-         
-         
-         if (batteryPercentage > 19) {  
-             sendEvent(name: "batteryState", value: "ok")
-             logging( "${device} : Battery : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)","info")
-             state.batteryOkay = true
-             }
-            
-         if (batteryPercentage < 10) {
-             logging("${device} : Battery LOW : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)", "warn")
-             sendEvent(name: "batteryState", value: "low")
-             state.batteryOkay = false
-         }
-  
-	 if (batteryPercentage < 5) {
-            logging("${device} : Battery BAD : ${BatType} ${batteryPercentage}% (${batteryVoltage} V)", "warn") 
-	    state.batteryOkay = false
-	    sendEvent(name: "batteryState", value: "exhausted")
-	}
-        state.lastBattery = batteryVoltage     
-    }
-   //}// end valid bat report
-  }// end FB
-        else {
-        // There are other known commands
-        // F0 FD FA 80 83 00 01 02    
-        reportToDev(map)
-        }       
-        
-        
-} else if (map.clusterId == "00F6") {
- // Discovery cluster. 
-  if (map.command == "FD") {
-   // ranging code based on alertme UK code from  
-   // https://github.com/birdslikewires/hubitat  
-   // Since this is working Im not modifying it.  
-   //   
-   // Ranging is our jam, Hubitat deals with joining on our behalf.
-   def lqiRangingHex = "undefined"
-   int lqiRanging = 0
-   lqiRangingHex = receivedData[0]
-   lqiRanging = zigbee.convertHexToInt(lqiRangingHex)
-   sendEvent(name: "lqi", value: lqiRanging)
-   logging ("${device} : lqiRanging : ${lqiRanging}","debug")
+  }
+       
+}
+    else if (map.clusterId == "00F6") {// Join Cluster 0xF6
+       // Ranging
+		if (map.command == "FD") { // LQI
+			def lqiHex = "na"
+			lqiHex = receivedData[0]
+            int lqiRanging = 0
+			lqiRanging = zigbee.convertHexToInt(lqiHex)
+            lqiLast = device.currentValue("lqi")
+            if(lqiRanging != lqiLast){
+			 sendEvent(name: "lqi", value: lqiRanging)
+			 logging("${device} : LQI: ${lqiRanging}", "info")
+            }   
+		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
+			state.rangingPulses++
+            logging("${device} : Ranging ${state.rangingPulses}", "debug")    
+ 			 if (state.rangingPulses > 14) {
+              normalMode()
+              return   
+             }   
+        } else if (receivedData[1] == "00") { // Ranging during a reboot
+				// when the device reboots.(keypad) Must answer
+				logging("${device} : reboot ranging report received", "info")
+				refresh()
+                return
+			} 
+// End ranging block 
 
-        if (receivedData[1] == "77") {
-           // This is ranging mode, which must be temporary. Make sure we come out of it.
-           state.rangingPulses++
-	   if (state.rangingPulses > 30) {"${state.operatingMode}Mode"()}
 
-	} else if (receivedData[1] == "FF") {
-          // This is the ranging report received every 30 seconds while in quiet mode.
-	  logging ("${device} : quiet ranging","debug")
-
-	} else if (receivedData[1] == "00") {
-          // This is the ranging report received when the device reboots.
-	  // After rebooting a refresh is required to bring back remote control.
-       logging("${device} : >>>--reboot--<<< Keypad is rebooting ","error")// We need to know its rebooted in case of crash.
-       refresh()
-
-	} else {
-          // Something to do with ranging we don't know about!
-          reportToDev(map)
-	} 
 
 } else if (map.command == "FE") {
 	// Device version response.
@@ -1985,39 +1993,45 @@ if (keyRec == "30"){push(10)}
 	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 	}
       logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "debug")
-	updateDataValue("manufacturer", deviceManufacturer)
+        if(!state.Config){
+        state.Config = true    
+        updateDataValue("manufacturer", deviceManufacturer)
         updateDataValue("device", deviceModel)
         updateDataValue("model", "KPD800")
-	updateDataValue("firmware", deviceFirmware)
+	    updateDataValue("firmware", deviceFirmware)
         updateDataValue("fcc", "FU5TSA04")
         updateDataValue("partno", "TSA04-0")
-  
-     } else {
-	// Not a clue what we've received.
-        reportToDev(map)
-       }
-} else if (map.clusterId == "8001") {
-  logging("${device} : Routing and Neighbour Information", "info")	     
-      
-} else if (map.clusterId == "8032" ) {
-        //   8032 arrives with 80 bytes of data, probably routing and neighbour information.
-	logging( "${device} : New join has triggered a routing table reshuffle.","warn")
-} else if (map.clusterId == "0013" ) {
-        // clusterId: 0013, command: 00 [8E, D1, 9F, 2D, 40, BC, 03, 00, 6F, 0D, 00, 80]        
-        // NEW seen 2022 during power falure we see this as repeators go down. 
-		logging("${device} : Re-routeing around dead devices. (power Falure?)", "warn")
-    
-    } else {
-	// Not a clue what we've received.
-	reportToDev(map)
+        }
+     } else { reportToDev(map)}
+
+
+// Standard IRIS USA Cluster detection block
+// Delay to prevent spamming the log on a routing messages    
+    } else if (map.clusterId == "8038") {
+    logging("${device} : ${map.clusterId} Seen before but unknown", "debug")
+	} else if (map.clusterId == "8001" ) {
+        pauseExecution(new Random().nextInt(10) * 3000)
+		logging("${device} : ${map.clusterId} Routing and Neighbour Information", "info")    
+	} else if (map.clusterId == "8032" ) {
+        pauseExecution(new Random().nextInt(10) * 3000)
+		logging("${device} : ${map.clusterId} New join has triggered a routing table reshuffle.", "info")
+    } else if (map.clusterId == "0006") {
+		logging("${device} : Match Descriptor Request. Sending Response","info")
+		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
+	} else if (map.clusterId == "0013" ) {
+        pauseExecution(new Random().nextInt(10) * 3000)
+		logging("${device} : ${map.clusterId} Re-routeing around dead devices. (power Falure?)", "warn")
+	} else {
+		reportToDev(map)// unknown cluster
 	}
-	return null
+
 }
+
+
 
 // this did not work on the keypad.
 void sendZigbeeCommands(List<String> cmds) {
-
-    logging( "${device} : Send Zigbee Cmd :${cmds}","trace")
+    logging("${device} : sending:${cmds}", "trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
@@ -2041,47 +2055,28 @@ private BigDecimal hexToBigDecimal(String hex) {
     return BigDecimal.valueOf(d)
 }
 
-void loggingStatus() {
-	log.info "${device} : Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
 }
-
-
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
 }
-
-
 void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-
-private boolean logging(String message, String level) {
-	boolean didLog = false
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-	return didLog
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
 }
