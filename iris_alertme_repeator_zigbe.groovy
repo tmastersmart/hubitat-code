@@ -61,7 +61,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  * author: "Andrew Davison", 
  */
 def clientVersion() {
-    TheVersion="1.7.0"
+    TheVersion="1.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
