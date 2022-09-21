@@ -21,6 +21,7 @@ to the free service on iris v2 after a few months.
 The Care Pendant would call for help notify you it had called and notify you help was coming.
 This drver duplicates the care service on Hubitat.
 =============================================================================================================
+v1.9 09/21/2022 Adjust ranging code
 v1.8 09/19/2022 Rewrote logging routines.
 v1.7 09/16/2022 Routines copied from contact sensors. Updating iris blockcode
 v1.6 07/29/2022 Minor updates
@@ -49,7 +50,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 
 def clientVersion() {
-    TheVersion="1.8.0"
+    TheVersion="1.9.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -228,10 +229,8 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-	runIn(randomSixty,refresh) // Refresh in random time
+    refresh() 
 }
-
 
 def normalMode() {
     // This is the standard running mode.
@@ -239,25 +238,18 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
-    logging("${device} : Mode: Normal  [FA:00.01]", "info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
+    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
-
 void refresh() {
-	logging("${device} : Refreshing  [FC:01]", "info")
+	logging("${device} : Refreshing", "info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
-
-
-
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-    logging("${device} : Mode : Ranging  [FA:01.01]", "info")
+    logging("${device} : StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
- 
 }
 
 // HELPSTATE_IDLE = 0
@@ -565,9 +557,9 @@ HELP_COMING = 0x04;
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
             logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 7) {
-              logging("${device} : Ranging ${state.rangingPulses} Aborting", "info")    
-              sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+ 			 if (state.rangingPulses > 14) {
+              normalMode()
+              return   
              }  
         } else if (receivedData[1] == "00") { // Ranging during a reboot
 				// when the device reboots.(keypad) Must answer
