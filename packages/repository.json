@@ -40,5 +40,12 @@
   "description": "Iris v1 extender driver",
    }   
 
+     {
+  "name":"Iris v1 Smart Plug",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
+  "description": "Iris v1 Smart Plug driver",
+   }   
+
 
     
