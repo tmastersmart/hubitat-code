@@ -60,4 +60,12 @@
   "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs",
    }  
 
-    
+      {
+  "name":"LeakSmart Water Valve",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
+  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs",
+   }  
+  
+
+
