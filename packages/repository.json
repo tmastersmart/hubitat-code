@@ -53,6 +53,11 @@
   "description": "Radio Thermostat Driver ZWAVE for most any radio thermostat. CT100,CT101,CT30,CT32 and more.",
    }   
 
-
+     {
+  "name":"Everspring Utilitech Water Sensor",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
+  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs",
+   }  
 
     
