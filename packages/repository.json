@@ -46,6 +46,13 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
   "description": "Iris v1 Smart Plug driver",
    }   
+     {
+  "name":"Radio Thermostat Driver",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
+  "description": "Radio Thermostat Driver ZWAVE for most any radio thermostat. CT100,CT101,CT30,CT32 and more.",
+   }   
+
 
 
     
