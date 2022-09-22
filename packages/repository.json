@@ -66,6 +66,11 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
   "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs",
    }  
-  
+     {
+  "name":"HTTP Presence Sensor adjustable schedule",
+  "catagory":"Convenience",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
+  "description": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins",
+   }   
 
 
