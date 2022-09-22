@@ -1,0 +1,24 @@
+{
+  "packageName": "HTTP Presence Sensor adjustable schedule",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
+  "communityLink": "",
+  "version": "2.2.0",
+  "dateReleased": "2022-09-03",
+  "catagory":"Security",
+  "tags": 
+  [
+    "Tools & Utilities",
+    ]
+  "drivers": [
+    {
+      "name":"HTTP Presence Sensor adjustable schedule",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy",
+      "required": "true",
+      "description": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins",
+      "id": "22096152-3a39-11ed-a261-0242ac120002"
+    }
+    ]
+}
