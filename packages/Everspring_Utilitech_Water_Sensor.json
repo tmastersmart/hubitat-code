@@ -1,0 +1,24 @@
+{
+  "packageName": "Everspring_Utilitech_Water_Sensor",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
+  "communityLink": "",
+  "version": "2.4.0",
+  "dateReleased": "2022-09-03",
+  "catagory":"Security",
+  "tags": 
+  [
+    "Safety & Security",
+    ]
+  "drivers": [
+    {
+      "name":"Everspring_Utilitech_Water_Sensor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Everspring_Utilitech_Water_Sensor.groovy",
+      "required": "true",
+      "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs",
+      "id": "93f94eb0-3a36-11ed-a261-0242ac120002"
+    }
+    ]
+}
