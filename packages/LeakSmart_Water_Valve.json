@@ -1,5 +1,5 @@
 {
-  "packageName": "Hubitat LeakSmart Water Valve",
+  "packageName": "LeakSmart Water Valve",
   "author": "Tmaster",
   "releaseNotes": "",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
@@ -13,7 +13,7 @@
     ]
   "drivers": [
     {
-      "name":"Hubitat LeakSmart Water Valve",
+      "name":"LeakSmart Water Valve",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/leaksmart-water-valve.groovy",
       "required": "true",
