@@ -1,0 +1,24 @@
+{
+  "packageName": "Radio Thermostat Driver",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "5.4.0",
+  "dateReleased": "2022-09-03",
+  "catagory":"Control",
+  "tags": 
+  [
+    "Temperature & Humidity",
+    ]
+  "drivers": [
+    {
+      "name":"Radio Thermostat Driver",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/radio_thermostat_zwave.groovy",
+      "required": "true",
+      "description": "Radio Thermostat Driver ZWAVE for most any radio thermostat. CT100,CT101,CT30,CT32 and more.",
+      "id": "51a4f952-3a35-11ed-a261-0242ac120002"
+    }
+    ]
+}
