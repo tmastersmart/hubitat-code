@@ -68,4 +68,7 @@
   "catagory":"Convenience",
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
   "description": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins",
-   }   
+		 }
+	]
+	
+}
