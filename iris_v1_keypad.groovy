@@ -5,8 +5,6 @@ Works with Lock Code Manager (4-15 digit Pin size supported)
 Works with HSM 
 Plays chime codes and alarm strobe
 Button Controller support to map coomands to buttons 1-0
- 
-
 
   _____ _____  _____  _____        __    _  __                          _ 
  |_   _|  __ \|_   _|/ ____|      /_ |  | |/ /                         | |
@@ -18,6 +16,8 @@ Button Controller support to map coomands to buttons 1-0
                                                   |___/|_|   
 
 =================================================================================================
+  v6.8   09/24/2022 Pin code logging bug fixed. Reduce bat events
+  v6.7.1 09/22/2022 New presence routine
   v6.7   09/21/2022 Ranging Adjustments
   v6.6   09/19/2022 Rewrote logging routines.
   v6.5   09/17/2022 Increased database to 10 PINS
@@ -171,13 +171,10 @@ The solution is to reboot the pad by removing batteries.
 
 
 Please Note:
-Lock Code Manager has bugs with no error checking it will dupe and corrup PINS 
-I have also caught it adding line feeds to pins on my locks corrupting them.
-When it sees its duped pin it will crash or create a new user sometimes causing it to crash.
-If you have any problems erase all your codes.Do not reinstall lock manager
-
-
-As a safety enter a master PIN that the lock manager cant touch.
+If you have problems with the lock code manager erase all your pins manualy using the driver. Do not reinstall LCM
+There is no error checking in LCM it will dupe and corrup PINS. Causing it to crash.
+I have added Error corection to prevent corrupting my pin storage. 
+It is possible to use this driver without LCM just add pins using the driver.
 
 
 
@@ -232,9 +229,17 @@ poke 53280,0
 poke 53281,0
 
 
- * ranging code based on alertme UK code from  
-   https://github.com/birdslikewires/hubitat
-   Some fragments of iris format also used.
+ * Includes some opensource code from https://github.com/birdslikewires/hubitat
+   On how to control Iris devices. Much has been rewritten but some orginal
+   code is still contained in these routines. This would have not been possible
+   without this code.
+
+*  Used info from IRIS V2 source code in another language. Now called Arcus
+   This code would not work here and was very hard to follow through many subroutines. 
+   Much of it was never decyphered. But gained sound control cmds.
+   https://github.com/arcus-smart-home/arcusplatform/
+   This code helped with controling tones setting OFF on buttons.
+  
 
 
 GNU General Public License v3.0
@@ -245,7 +250,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.6.0"
+    TheVersion="6.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -348,7 +353,6 @@ preferences {
     input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
 
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
-	input name: "SwitchModes",type: "bool", title: "Switch Modes",description: "Switch to Home when disarming.", defaultValue: false
 
 
 }
@@ -456,7 +460,7 @@ def configure() {
     
 	unschedule()
 
-	// Schedule randon ranging in hrs
+	// Schedule random ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${8} * * ? *", rangeAndRefresh)	
@@ -466,34 +470,29 @@ def configure() {
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
 
-	// Run a ranging report and then switch to normal operating mode.
-	logging("${device} : Configured", "info")
-
-    rangeAndRefresh()
+    
+ 	// Run a ranging report and then switch to normal operating mode.
+    // Randomise so we dont get several running at the same time
+    random = Math.abs(new Random().nextInt() % 33500)
+    logging("${device} : configure pause:${random}", "info")
+    pauseExecution(random)
+	rangeAndRefresh()
 	runIn(12,normalMode)
 }
-
 def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
     loggingUpdate()
     refresh()
 }
-
-
-
-
-// Sample Hubitat pin store code is copyrighted
-// Legaly we cant use it without written permission
-// replacement code
+// Sample Hubitat pin store code is not opensource
+// My custom pin store code
 def setCode(code,pinCode,userCode){
-    
     size = pinCode.size() 
     if (size < 4 || size >15){
         logging( "${device} : Invalid PIN size :${size} Rejected","warn")
         return
     }
-
 	if (code == 1){ save= "code1";}
 	if (code == 2){ save= "code2";}
 	if (code == 3){ save= "code3";}
@@ -527,16 +526,13 @@ def setCode(code,pinCode,userCode){
     
         }
 	}
-     pauseExecution(3000) // We have to wait for database update
+     pauseExecution(3000) // wait for database
      getCodes() 
      sendEvent(name:"codeChanged",value:"added",data:"${codeStore}", isStateChange: true, descriptionText: "code:${pinCode} name:${userCode}" )
-     pauseExecution(3000) // We have to wait for database update
+     pauseExecution(3000) // wait for database
      getCodes() 
 }
-
-
 private upgradeCodes(code){
-    
     store1 = device.currentValue("code1")
     store1n= device.currentValue("code1n")
     store2 = device.currentValue("code2")
@@ -557,12 +553,8 @@ private upgradeCodes(code){
     store9n= device.currentValue("code9n")    
     store10 = device.currentValue("code10")
     store10n= device.currentValue("code10n")
-
 }
-
 def deleteCode(code) { 
-    
-
     if (code == 1){ save= "code1"}
 	if (code == 2){ save= "code2"}
 	if (code == 3){ save= "code3"}
@@ -573,27 +565,28 @@ def deleteCode(code) {
 	if (code == 8){ save= "code8"}
 	if (code == 9){ save= "code9"}	
 	if (code == 10){ save= "code10"}    
-    
     thecode = device.currentValue("${save}")
     thename = device.currentValue("${save}n")
-    
-    
     logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","debug")    
     logging ("${device} : deleteCode  #${code}   code:XXXX name:${thename}","info") 
-    
 	if (code < 11) {
      device.deleteCurrentState("${save}")    
      device.deleteCurrentState("${save}n")
-     pauseExecution(3000) // We have to wait for database update
+     pauseExecution(3000) // wait for database
      getCodes() 
      sendEvent(name:"codeChanged",value:"deleted",data:"${codeStore}", isStateChange: true, descriptionText: "code:${thecode} name:${thename} ")
-     pauseExecution(3000) // We have to wait for database update
+     pauseExecution(3000) // wait for database
      getCodes()    
 }
 }
 // Scan all the pins and return stat
 void checkThePin(code)
 {
+        state.validPIN = false
+        state.PinName = "none"
+        state.pinN    = 0 
+        
+        
       if (device.currentValue("code1") == state.PIN){
           state.PinName = device.currentValue("code1n")
           state.validPIN = true 
@@ -652,9 +645,7 @@ void checkThePin(code)
       }  
   
 }
-
-
-// We create this for lock manager to read.
+// Create jason code for lock manager
 def getCodes(){
     qt= '"'
     needsComma = false 
@@ -735,13 +726,7 @@ def getCodes(){
         end = "${qt}:{${qt}name${qt}:${qt}${name}${qt},${qt}code${qt}:${qt}${code}${qt}}"
         setCode10 = "${qt}10${end}"
         if (needsComma == true){ setCode10 = ",${setCode10}"} 
- 
     }
-    
-    
-    
-    
-    
     codeStore= "{"
     if (setCode1) { codeStore = "${codeStore}${setCode1}" }
     if (setCode2) { codeStore = "${codeStore}${setCode2}" }
@@ -753,8 +738,6 @@ def getCodes(){
     if (setCode8) { codeStore = "${codeStore}${setCode8}" }
     if (setCode9) { codeStore = "${codeStore}${setCode9}" }              
     if (setCode10){ codeStore = "${codeStore}${setCode10}"}
-    
-
     codeStore = "${codeStore}}"
     sendEvent(name: "lockCodes",value: codeStore)
     // Dont show codes in normal log for security
@@ -822,26 +805,17 @@ SendState()
  runIn(20,getSoftStatus)    
 }
 
-// not sure what this log it
 void setPartialFunction(cmd){
 logging ("${device} : HSM sent >> ${cmd}","warn")
 }
-
-
-// ===========================================HSM RECEIVED =======================================
-// Incomming command from HSM Including a delay
-
-
+// =====================Incomming command==HSM RECEIVED =======================================
 def armAway(cmd){
-// state.delayExit  < we use preset delay not cmd  
     state.received = true
     if (state.Command == "armingAway" | state.Command == "away" ){
     logging ("${device} : Ignored HSM CMD [ArmAWAY] State:${state.Command}","info")
     return
     }
- 
-    if (cmd >5){ state.delay =cmd} 
-
+    if (cmd >5){ state.delay =cmd} // use state.delayExit not cmd  
     MakeLockCodeIN()
     data = [armMode:"armed away",armCmd:"armAway"]
     sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "${device} was armed away [digital]")
@@ -853,16 +827,12 @@ def armAway(cmd){
 }
 
 def armHome(cmd){
-//    state.armNightDelay    
-//    state.armHomeDelay
-//    
     state.received = true
     if (state.Command == "armingHome" | state.Command == "home"){
     logging ("${device} : Ignored HSM CMD [ArmHOME] State:${state.Command}","info")
     return
     }
-
-    if (cmd >5){ state.delay =cmd} 
+    if (cmd >5){ state.delay =cmd} // use state.armHomeDelay not cmd  
     MakeLockCodeIN()
     data = [armMode:"armed home",armCmd:"armHome"]
     sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "digital",descriptionText: "${device} was armed home [digital]")
@@ -874,14 +844,12 @@ def armHome(cmd){
     return
 }
 def armNight(cmd){
-
     state.received = true
     if (state.Command == "armingNight" | state.Command == "night"){
         logging ("${device} : Ignored HSM CMD [ArmNight] State:${state.Command}","info")
         return
     }
-
-    if (cmd >5){ state.delay =cmd}
+    if (cmd >5){ state.delay =cmd}// use state.armNightDelay not cmd  
     MakeLockCodeIN()
     data = [armMode:"armed night",armCmd:"armNight"]
     sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "digital",descriptionText: "${device} was armed night [digital]")
@@ -897,14 +865,13 @@ def disarm(cmd) {
     cmd = 0
     state.received = true
     offEvents()
-    
-//    if (state.Command == "off" ){   Stop ignoring dupes
-//        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
-//        return
-//     }    
+   if (state.Command == "off" ){ // Ignore dupes cause a beep
+        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
+        return
+     }    
    
     MakeLockCodeIN()
-      data = [armMode:"disarmed",armCmd:"disarm"]
+    data = [armMode:"disarmed",armCmd:"disarm"]
     sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "${device} was disarmed [digital]")
     sendEvent(name:"armingIn", value: cmd,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd    
     logging ("${device} : Received >> [disarmed]  Our State:${state.Command}  [digital] ", "info")
@@ -912,7 +879,6 @@ def disarm(cmd) {
     SendState()
     runIn(15,getSoftStatus)
 }
-
 def offEvents(){
     alarmTest = device.currentValue("alarm")   
     if(alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
@@ -922,9 +888,7 @@ def offEvents(){
     if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
     alarmTest = device.currentValue("panic") 
     if(alarmTest != "off"){sendEvent(name: "panic",  value: "off")}   
-    
 }
-
 def softOFF(){
   logging ("${device} : Alarm OFF ","info")  
   offEvents() 
@@ -936,8 +900,8 @@ def setNA(){// Alarm Part
     logging ("${device} : Disarmed during Entry. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)    
-    return} 
-    
+    return
+    } 
     state.Command ="alarmingNight"
     SendState() 
     sendEvent(name: "alarm", value: "on")
@@ -1010,7 +974,7 @@ def instantEntry(){
     state.delay = 10
     runIn(60,softOFF) 
  }
-/*=============================================================================================
+/* Old direct HSM cmds no longer needed
 
  sendEvent(name:"armingIn", value: value,data:[armMode:getArmText(armRequest),armCmd:getArmCmd(armRequest)], isStateChange:true)
         case "00": return "disarm"
@@ -1022,7 +986,8 @@ def instantEntry(){
 
 , type: "physical", type: "digital"
 */
-// My arming commands======================================================================
+
+// My arming commands
 
 private MakeLockCode(cmd){
 // more compatibility code
@@ -1127,11 +1092,11 @@ private MyDisarm(cmd) {
 	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "[physical] disarmed", data: lockCode, type: "physical")
     sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
     offEvents() 
-    if(SwitchModes){
-        mode="Home"
-        sendLocationEvent(name: "Mode", value: mode)
-        logging ("${device} : Seting hub mode to ${mode}","info")
-    }
+ //   if(SwitchModes){// will not take cmd
+ //       mode="Home"
+ //       sendLocationEvent(name: "Mode", value: mode)
+ //       logging ("${device} : Seting hub mode to ${mode}","info")
+ //   }
     state.Command = "off"
     SendState()
     runIn(15,getSoftStatus)
@@ -1158,13 +1123,10 @@ if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming P
 }
 
 
-//==================================================== POLL for HSM STATUS =================================================
-// Polls HSM and sets state even if keyboard is not setup in HSM
+// POLL for HSM STATUS =================================================
 
 def getSoftStatus(status){
-// logging routine for debuging HSM status
-//  HSM Sync status HSM:home <> state:armingHome  
-   status = location.hsmStatus
+   status = location.hsmStatus // get status but do nothing
    sendEvent(name: "securityKeypad",value: "GetSoftStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
     if (status == "armedAway" ) {test = "away"}    
     if (status == "armedHome" ) {test = "home"}// not modes IRIS states.
@@ -1175,7 +1137,7 @@ def getSoftStatus(status){
 }
 
 def getStatus(status) {
-   status = location.hsmStatus
+   status = location.hsmStatus // Get status then match it.
    sendEvent(name: "securityKeypad",value: "GetStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
    MakeLockCodeIN() 
    logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
@@ -1231,13 +1193,12 @@ state.PIN = "NA"
 
 
 def siren(cmd){
-    
-if (state.Command == "armingNight" | state.Command == "armingHome"| state.Command == "armingAway" | state.Command == "alarmingNight"| state.Command == "alarmingAway" | state.Command == "alarmingHome"){
-    logging ("${device} : Ignoring second Alarm CMD  ","warn")
-//        runIn(10,siren(cmd))
-        return
-        }
-sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
+    if (state.Command == "armingNight" | state.Command == "armingHome"| state.Command == "armingAway" | state.Command == "alarmingNight"| state.Command == "alarmingAway" | state.Command == "alarmingHome"){
+    logging ("${device} : Unable to Play siren. ${state.Command} overides siren.","warn")
+    sendEvent(name: "status", value: "Inuse")
+    return
+    }
+  sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
   if (AlarmTone == "KEYCLICK"){soundCode(1)}
@@ -1256,7 +1217,7 @@ sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digita
 def strobe(cmd){
     
     if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
-        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
+        logging ("${device} : Unable to Play strobe. ${state.Command} overides strobe.","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }  
@@ -1449,54 +1410,44 @@ def rangeAndRefresh() {
 	runIn(6, normalMode)
 }
 
-
-def updatePresence() {
-	long millisNow = new Date().time
-	state.presenceUpdated = millisNow
-}
-
-
-
 def checkPresence() {
-	// Check how long ago the presence state was updated.
-	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
-	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
-	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
-	presenceTimeoutMinutes = 4 
-    uptimeAllowanceMinutes = 5
-    LastPresence = device.currentValue("presence")// only change state one time..
-	if (state.presenceUpdated > 0 ) {
-		long millisNow = new Date().time
-		long millisElapsed = millisNow - state.presenceUpdated
-		long presenceTimeoutMillis = presenceTimeoutMinutes * 60000
-		BigInteger secondsElapsed = BigDecimal.valueOf(millisElapsed / 1000)
-		BigInteger hubUptime = location.hub.uptime
-		if (millisElapsed > presenceTimeoutMillis) {
-			if (hubUptime > uptimeAllowanceMinutes * 60) {
-                if (LastPresence != "not present"){
-				sendEvent(name: "presence", value: "not present")
-                logging("${device} : Presence: not present", "warn")    
-                }    
-				logging("${device} : Presence: Not Present! Last report received ${secondsElapsed} seconds ago.", "debug")
-                powerLast = device.currentValue("battery")
-                if (powerLast != 0){ // this does not work well yet
-                    sendEvent(name: "battery", value:0, unit: "%")
-                    logging("${device} : Battery set to 0%", "warn")
-                }
-		} else {logging("${device} : Presence: Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
-        }else {
-            if (LastPresence != "present"){
-			 sendEvent(name: "presence", value: "present")
-			 logging("${device} : Presence: present", "info")
-            }
-            logging("${device} : Presence: Last presence report ${secondsElapsed} seconds ago.", "debug")   
-		}
-	} else {logging("${device} : Presence: Not yet received. ", "warn")}
+    // New shorter presence routine.
+    // Runs on every parse and a schedule.
+    def checkMin  = 5  // 5 min warning
+    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("${device} : Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin){ 
+        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+        runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
+        runIn(60,refresh) 
+        }
+    }
 }
 
 def parse(String description) {
 	logging("${device} : Parse : ${description}", "trace")
-	updatePresence()// this updates the timmer not the state
+    state.lastCheckin = now()
+    checkPresence()
     if (description?.startsWith('enroll request')) {
 			logging("${device} : Responding to Enroll Request. Likely Battery Change", "info")
 			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"])    
@@ -1542,13 +1493,11 @@ def processMap(Map map) {
            logging ("${device} : Polling while set to [OFF] Corecting state.","warn") 
            getStatus(status)// verify our state from HSM
            SendState()// Reset the state
-              
            } 
          }    
-             
          if (state.waiting > state.waitingTo){ // Correct lost state after a delay
-             getStatus(status) 
-           SendState()
+          getStatus(status) 
+          SendState()
          }  
      }  
        
@@ -1835,29 +1784,24 @@ def processMap(Map map) {
 //      pinSize     = receivedData[3]// The PIN size + 4 = size   
     if (PinEnclosed == "21" ){
      
-     if (pinSize != "01" ){// To small for a PIN go to buttons
+     if (pinSize != "01" ){// To small for a PIN skip for buttons
         pinSize = receivedData[3]// 4 - 15 digit Pin size supported 
         size = receivedData.size() 
-        state.validPIN = false
-        state.PinName = "NA"
-        state.PIN     = "NA"
-        state.pinN    = 0 
-        asciiPin = "NA"
         end = size -1 
         state.PIN  = receivedData[4..end].collect{ (char)Integer.parseInt(it, 16) }.join()
         checkThePin() // Scan the pins
 
       sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")// May be needed by other aps.
       sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")         
-      logging("${device} : Pin:${asciiPin} Name:${name} Size:${pinSize} valid:${state.validPIN} State:${state.Command}","debug")
+      logging("${device} : valid:${state.validPIN} Pin:${state.PIN} Name:${state.PinName} Size:${pinSize} State:${state.Command}","debug")
       runIn(97, "purgePIN")// Purge time must allow repeating to finish-Purge even invalid pins
       if (state.validPIN == true){
-          logging("${device} : [Valid PIN]:${asciiPin} Size:${pinSize} State:${state.Command} [Waiting for Action CMD] ","info")
+          logging("${device} : [Valid PIN]:Name:${state.PinName} State:${state.Command}","info")
      	  return  
         }   
       // The pin was not valid         
       soundCode(13)
-      logging("${device} : [Invalid PIN]:${asciiPin} Size:${pinSize} State:${state.Command}","warn")
+      logging("${device} : [Invalid PIN]:Pin:${state.PIN} State:${state.Command}","warn")
       if(tamperPIN){tamper()}
       else {shock()} 
       return	 
@@ -1893,11 +1837,12 @@ if (keyRec == "30"){push(10)}
         temperatureValue = receivedData[7..8].reverse().join()     
     if (batteryVoltageHex != "FFFF") {
         batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-        batteryVoltage = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
+        batteryVoltage2 = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
+        batteryVoltage1 = batteryVoltage.setScale(1, BigDecimal.ROUND_HALF_UP)// base % on rounding
 // I base this on Battery discharge curves(may need adjustments)
 // Normal batteries slowely discharge others have a sudden drop          
 // Iris source code says 2.1 is min voltage  
-// testing shows working at 2.25 v 
+
 		BigDecimal batteryVoltageScaleMin = 2.10
 		BigDecimal batteryVoltageScaleMax = (1.50 * 2)	    
 	    
@@ -1915,20 +1860,19 @@ if (keyRec == "30"){push(10)}
 		batteryVoltageScaleMax = (1.7 * 2)	    
 	    } 	    
      	BigDecimal batteryPercentage = 0
-            batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
+            batteryPercentage = ((batteryVoltage1 - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
-          powerLast = device.currentValue("battery")
-        logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V", "debug")
-        if (powerLast != batteryPercentage){
+        powerLast = device.currentValue("battery")
+        
+        logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage2}V", "debug")
+        if (powerLast == batteryPercentage){return}
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-           sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
-          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
-          if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
-         } // end dupe events detection
-         logging("${device} : Temp Report ${temperatureValue}", "trace") 
+           sendEvent(name: "batteryVoltage", value: batteryVoltage2, unit: "V", descriptionText: "Volts:${batteryVoltage2}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
+          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V", "info")}
+          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage2}V", "info")}
+          if ( batteryVoltage2 < state.minVoltTest){state.minVoltTest = batteryVoltage2}  // Record the min volts seen working      
         }// end battery report            
         
   }
@@ -2026,16 +1970,10 @@ if (keyRec == "30"){push(10)}
 	}
 
 }
-
-
-
-// this did not work on the keypad.
 void sendZigbeeCommands(List<String> cmds) {
     logging("${device} : sending:${cmds}", "trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
-
-
 private String[] millisToDhms(int millisToParse) {
 	long secondsToParse = millisToParse / 1000
 	def dhms = []
@@ -2048,8 +1986,6 @@ private String[] millisToDhms(int millisToParse) {
 	dhms.add(secondsToParse % 365)
 	return dhms
 }
-
-
 private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
