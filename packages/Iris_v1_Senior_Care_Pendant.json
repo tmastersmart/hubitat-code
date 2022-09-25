@@ -7,10 +7,7 @@
   "version": "1.9.0",
   "dateReleased": "2022-22-09",
   "category":"Security",
-  "tags": 
-  [
-    "Safety & Security"
-    ]
+  "tags":   [    "Safety & Security"    ],
   "drivers": [
     {
    "id": "029ca37a-f5f0-4df9-8c6a-63f0fdbb24c0",
