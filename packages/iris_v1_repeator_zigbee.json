@@ -4,6 +4,8 @@
   "releaseNotes": "",
   "documentationLink": "",
   "communityLink": "",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "version": "1.8.0",
   "dateReleased": "2022-22-09",
   "category":"Control",
