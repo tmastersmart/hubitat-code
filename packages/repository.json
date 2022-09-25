@@ -5,7 +5,7 @@
   "packages":[
   {
   "name":"Iris v1 keypad",
-	"category": "Control",
+	"category": "Control,Security",
       "tags": [
         "Buttons",
         "Lights & Switches",
@@ -18,7 +18,7 @@
    },
    {
   "name":"Iris v1 Contact Sensor custom",
-"category": "Control",
+"category":  "Control,Security",
       "tags": [
         "Buttons",
         "Doors & Windows",
