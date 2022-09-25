@@ -6,7 +6,7 @@
   "communityLink": "",
   "version": "2.1.0",
   "dateReleased": "2022-22-09",
-  "catagory":"Doors & Windows",
+  "category":"Doors & Windows",
   "tags": 
   [
     "Alarm Systems",
@@ -18,7 +18,9 @@
       "name": "Iris v1 Motion Sensor-custom",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy",
-      "required": true
+      "required": "true",
+      "description": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support",
+      "id": "ab19208a-3c6a-11ed-a261-0242ac120002"
     }
-]
+    ]
 }
