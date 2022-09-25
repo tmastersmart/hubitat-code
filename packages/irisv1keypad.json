@@ -7,7 +7,7 @@
   "version": "6.8.0",
   "dateReleased": "2022-24-09",
   "category":"Safety & Security",
-  "tags": [ "Alarm Systems", "buttons","Locks", ]
+  "tags": [ "Alarm Systems", "buttons","Locks" ],
   "drivers": [
     {
       "name":"Iris v1 keypad",
