@@ -302,7 +302,7 @@ private Map getDoorbellPressResult(cluster) {
 }
 
 def refresh() {
-    logging("${device} : Refresh", "debug")
+    logging("${device} : Refresh", "info")
    
     def refreshCmds = [
         "he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20", "delay 500", 
