@@ -17,7 +17,7 @@
         "Zigbee"
       ],  
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
-  "description": "Iris v1 keypad driver. Adds support for IRIS v1 keypad Provides arm disarm andd button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming"
+  "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. "
    },
    {
   "name":"Iris v1 Contact Sensor custom",
@@ -61,7 +61,7 @@
         "Zigbee"
       ],   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
-  "description": "Simulates iris pay care system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob"
+  "description": "Simulates IRIS v1 pay care level system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob"
    },
     {
   "name":"SmartThings V2 Arrival Sensor Chime",
@@ -95,7 +95,7 @@
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
-  "description": "Iris v1 Smart Plug driver With power monitoring, presence and support for using as a alarm or strobe using low cost strobes and sirens"
+  "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
    },   
     {
   "name":"Radio Thermostat Driver",
@@ -106,7 +106,7 @@
         "ZWave"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
-  "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Supports polling and many extra options, Improved logging to detect errors. Many manual options to force date and set up device options other drivers dont have"
+  "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Supports polling and many extra options, Improved logging to detect errors info,debug,trace . Many manual options to force date and set up device options other drivers dont have"
    },   
    {
   "name":"Everspring Utilitech Water Sensor",
@@ -118,7 +118,7 @@
         "ZWave"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
-  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection."
+  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs"
    },  
    {
   "name":"LeakSmart Water Valve",
@@ -127,23 +127,25 @@
         "Energy Monitoring",
         "Monitoring",
 	"Water", 
-	"Valve",      
+	"Valve",
+	"Misc. Devices",      
         "Safety & Security",
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
-  "description": "Improved LeakSmart driver better battery support, mains detection ,better logging ,Stuck valve detection, fix for valves with broken mains detection firmware, Works with IRIS version also"
+  "description": "Improved LeakSmart driver better battery support, mains detection ,better logging ,Stuck valve detection, fix for valves with broken mains detection firmware, Works with IRIS version also,Supports contact,switch & wet dry with info debug and trace logs"
    },  
     {
   "name":"HTTP Presence Sensor adjustable schedule",
 	    "category": "Control",
       "tags": [
         "Monitoring",
-	"LAN",      
+	"LAN",
+	"Misc. Devices",      
         "Presence & Location"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
-  "description": "Improved HTTP Presence sensor with adjustable chron schedule up to 59 mins. Extra delay prevents overloading, better logs"
+  "description": "Improved HTTP Presence sensor with adjustable chron schedule up to 59 mins. Extra delay prevents overloading enter Endpoint URL and polling time with info debug and trace logs"
 		 }
 	]
 	
