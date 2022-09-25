@@ -134,7 +134,22 @@
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
   "description": "Improved LeakSmart driver (Zigbee) better battery support, mains detection ,better logging ,Stuck valve detection, fix for valves with broken mains detection firmware, Works with IRIS version also,Supports contact,switch & wet dry with info debug and trace logs"
+   }, 
+	  {
+  "name":"Lock Button Monitor",
+	   "category": "Control",
+      "tags": [
+        "Monitoring",
+	"Misc. Devices",
+	"Locks",
+	"buttons",      
+        "Safety & Security"
+        
+      ],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
+   "description": "Lock button monitor. works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. ",
    },  
+  
     {
   "name":"HTTP Presence Sensor adjustable schedule",
 	    "category": "Control",
