@@ -5,13 +5,15 @@
   "packages":[
   {
   "name":"Iris v1 keypad",
-	"category": "Misc. Devices",
+	"category": "Security",
       "tags": [
         "Buttons",
 	"Alarm Systems",      
         "Lights & Switches",
         "Presence & Location",
         "Safety & Security",
+	"Locks",
+	"Misc. Devices",      
         "Zigbee"
       ],  
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
@@ -46,12 +48,13 @@
    },
    {
   "name":"Iris v1 Senior Care Pendant",
-	"category": "Misc. Devices",
+	"category": "Security",
       "tags": [
         "Buttons",
         "Monitoring",
         "Presence & Location",
         "Safety & Security",
+	"Misc. Devices",      
         "Zigbee"
       ],   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
