@@ -7,10 +7,7 @@
   "version": "1.8.0",
   "dateReleased": "2022-22-09",
   "category":"Control",
-  "tags": 
-  [
-    "Repeaters & Extenders",
-    ]
+  "tags": ["Repeaters & Extenders"],
   "drivers": [
     {
    "id": "425e10bd-6e9a-40af-860b-255e1f1b959e",
