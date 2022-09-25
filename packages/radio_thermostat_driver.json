@@ -20,7 +20,7 @@
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/radio_thermostat_zwave.groovy",
       "required": "true",
   "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Polling schedule and many extra options, Improved logging to detect errors info,debug,trace. Many manual options to set up device other drivers dont have. If you have a RT you know what problems other drivers have. This driver will fix your problems. Writen for my thermostats because the other drivers just did not work for me.",
-      "id": "51a4f952-3a35-11ed-a261-0242ac120002"
+	     "id": "51a4f952-3a35-11ed-a261-0242ac120002"
     }
     ]
 }
