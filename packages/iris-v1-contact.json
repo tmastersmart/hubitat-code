@@ -6,7 +6,7 @@
   "communityLink": "",
   "version": "3.0.0",
   "dateReleased": "2022-22-09",
-  "catagory":"Doors & Windows",
+  "category":"Doors & Windows",
   "tags": 
   [
     "Alarm Systems",
@@ -18,7 +18,9 @@
       "name": "Iris v1 Contact Sensor-custom",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy",
-      "required": true
+      "required": "true",
+      "description": "Iris contact sensor custom with presence. Proper battery sensor support",
+      "id": "6390e93c-3c6a-11ed-a261-0242ac120002"
     }
-]
+    ]
 }
