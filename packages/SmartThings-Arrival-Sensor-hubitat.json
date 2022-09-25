@@ -3,6 +3,8 @@
   "author": "Tmaster",
   "releaseNotes": "",
   "documentationLink": "",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "communityLink": "",
   "version": "1.4.0",
   "dateReleased": "2022-09-08",
@@ -15,7 +17,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy",
       "required": "true",
-      "description": "Sart things arival sensor with adjustable chime",
+      "description": "Smart things arival sensor with adjustable chime",
       "id": "74e8b3b3-ca82-400c-b12d-522095aa7415"
     }
     ]
