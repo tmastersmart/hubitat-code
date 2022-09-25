@@ -77,7 +77,7 @@
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_repeator_zigbee.json",
-  "description": "Iris v1 extender driver"
+  "description": "Iris v1 extender driver. Supports battery and presence. Zigbee side"
    },  
      {
   "name":"Iris v1 Smart Plug",
