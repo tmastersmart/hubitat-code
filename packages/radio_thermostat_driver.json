@@ -7,10 +7,8 @@
   "version": "5.4.0",
   "dateReleased": "2022-22-09",
   "catagory":"Control",
-  "tags": 
-  [
-    "Temperature & Humidity",
-    ]
+  "tags":["Temperature & Humidity",]
+  "apps" : [],
   "drivers": [
     {
       "name":"Radio Thermostat Driver",
