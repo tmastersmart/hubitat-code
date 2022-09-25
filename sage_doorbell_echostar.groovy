@@ -256,16 +256,13 @@ private Map parseReportAttributeMessage(String description) {
  
 	Map resultMap = [:]
 	if (descMap.cluster == "0001" && descMap.attrId == "0020") {
-        log.debug descMap.value
-		resultMap = getBatteryResult(Integer.parseInt(descMap.value, 16))
+        battery = Integer.parseInt(descMap.value, 16)
+        logging("${device} : Battery:${battery} FALSE ignored", "debug")
 	}
  
 	return resultMap
 }
 
-private Map getBatteryResult(rawValue) {
-    logging("${device} : Bat value ${rawValue} ignored", "trace")// invalid data
-}
 
 def push(cmd){
     
