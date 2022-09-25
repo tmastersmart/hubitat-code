@@ -7,10 +7,7 @@
   "version": "2.2.0",
   "dateReleased": "2022-09-03",
   "category":"Security",
-  "tags": 
-  [
-    "Tools & Utilities",
-    ]
+  "tags":  [   "Tools & Utilities"   ],
   "drivers": [
     {
       "name":"HTTP Presence Sensor adjustable schedule",
