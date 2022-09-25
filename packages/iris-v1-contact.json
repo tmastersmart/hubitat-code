@@ -7,11 +7,7 @@
   "version": "3.0.0",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
-  "tags": 
-  [
-    "Alarm Systems",
-    "Doors & Windows",
-    ]
+  "tags":  [ "Alarm Systems", "Doors & Windows"],
   "drivers": [
     {
      "id": "c5ae4e00-75ae-4a20-8690-8bb29b8f2403",
