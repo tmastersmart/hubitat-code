@@ -1,5 +1,5 @@
 /**
- *  SAGE Doorbell Echostar Sensor
+ *  SAGE Doorbell Sensor fix
     Hubitat driver. 
     
 
@@ -44,9 +44,18 @@ https://github.com/rbaldwi3/Sage-HVAC-Sensor/edit/master/groovy
  */
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
+def clientVersion() {
+    TheVersion="2.0"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() // Forces config on updates
+ }
+}
+
 
 metadata {
-	definition (name: "SAGE Doorbell Sensor port", namespace: "trunzoc", author: "Craig Trunzo") {
+    definition (name: "Sage Doorbell echostar sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/sage_doorbell_echostar.groovy") {
+
 		capability "Configuration"
         capability "Pushable Button"
 		capability "Refresh"
@@ -69,7 +78,8 @@ metadata {
 
 def updated(){
    setPrefs()
-   loggingUpdate()  
+   loggingUpdate() 
+   clientVersion() 
 }
 
 def configure() {
