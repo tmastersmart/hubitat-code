@@ -19,7 +19,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/sage_doorbell_echostar.groovy",
       "required": "true",
-  "description": "Doorbell driver created to stop false button presses. "
+  "description": "Doorbell driver created to stop false button presses. ",
       "id": "0d59b228-8ff2-469e-b112-8060553a727f"
     }
     ]
