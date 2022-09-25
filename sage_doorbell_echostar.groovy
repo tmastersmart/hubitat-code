@@ -123,7 +123,6 @@ removeDataValue("battery")
 
 
 def updated(){
-   setPrefs()
    loggingUpdate()
    clientVersion() 
 }
@@ -341,9 +340,7 @@ def setPrefs()
 if (!timeBetweenPresses)  {timeBetweenPresses = 10}
 if (timeBetweenPresses <0){timeBetweenPresses = 10}
 state.timeBetweenPresses = timeBetweenPresses
-    logging("${device} :Time Between Presses ${state.timeBetweenPresses}", "info")
- 
-    
+logging("${device} :Time Between Presses ${state.timeBetweenPresses}", "info")
 }
 
 
