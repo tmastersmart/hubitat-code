@@ -1,0 +1,21 @@
+{
+  "packageName": "Lock Button Monitor 2",
+  "author": "Tmaster",
+  "releaseNotes": "",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.2.0",
+  "dateReleased": "2022-24-09",
+  "category":"Safety & Security",
+  "tags": [ "Alarm Systems", "buttons","Locks" ],
+  "apps": [
+    {
+      "name":"Lock Button Monitor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/lock%20button%20monitor.groovy",
+      "required": "true",
+      "description": "Lock button monitor2. For second lock. works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock.",
+      "id": "9382f02b-ceff-4841-b2c9-ca73290b96aa"
+    }
+    ]
+}
