@@ -1,14 +1,22 @@
 /**
  *  SAGE Doorbell Sensor fix
     Hubitat driver. 
-    
+
+Conversion to hubitat so I could find out why im getting false
+button 2 presses on internal drivers which have no debugging logs.
+
+Adds battery support (siulated) if stops reporting bat goes to 0
+
+
+
+================================================================================    
+v2.2  09/25/2022  Cleanup code
 v2.1  09/24/2022  Presence schedule added
 v2.0  09/24/2022  This fixes false button press after last hub update.
                   Simulated battery 
 
 
-Conversion to hubitat so I could find out why im getting false
-button 2 presses on internal drivers which have no debugging logs.
+
 
 
 
@@ -61,7 +69,7 @@ https://github.com/rbaldwi3/Sage-HVAC-Sensor/edit/master/groovy
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
 def clientVersion() {
-    TheVersion="2.1"
+    TheVersion="2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -126,7 +134,10 @@ def configure() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
-    
+
+    buttons = device.currentValue("numberOfButtons")
+    if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
+
     setPrefs()
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("${device} : Configure", "info")
@@ -252,29 +263,26 @@ private Map parseReportAttributeMessage(String description) {
 }
 
 private Map getBatteryResult(rawValue) {
-    logging("${device} : Bat value ${rawValue} ", "trace")
+    logging("${device} : Bat value ${rawValue} ignored", "trace")// invalid data
 }
 
 def push(cmd){
+    
     if (cmd ==1){
-    logging("${device} : ${button1Name} Doorbell Pressed! button 1", "info")
+    logging("${device} : ${button1Name} Doorbell Pressed! [button 1]", "info")
     sendEvent(name: "pushed", value: "1", isStateChange: true)
     }
-    
     if (cmd ==2){
-    logging("${device} : ${button2Name} Doorbell Pressed! Button 2", "info")
+    logging("${device} : ${button2Name} Doorbell Pressed! [Button 2]", "info")
     sendEvent(name: "pushed", value: "2", isStateChange: true)
     }
-    
+  
 }
 
 private Map getDoorbellPressResult(cluster) {
     def linkText = getLinkText(device)
     def buttonNumber = (cluster.command as int)
     def result = [:]
-    
-    // map buttons per Hughes described defaults for green and yellow wires
-    
     switch(buttonNumber) {
         case 0: 
             if (!isDuplicateCall(state.lastButton2Updated, state.timeBetweenPresses) ){
@@ -293,23 +301,19 @@ private Map getDoorbellPressResult(cluster) {
 }
 
 def refresh() {
-    logging("${device} : ${button1Name} Refreshing Battery", "debug")
-    
+    logging("${device} : Refresh", "debug")
+   
     def refreshCmds = [
         "he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20", "delay 500", 
 	]
 
-    sendEvent(name: "numberOfButtons", value: 2, displayed: false)
-    
     setPrefs()
-    
 	return refreshCmds + enrollResponse()
 }
 
 
 
 def enrollResponse() {
-
     logging("${device} : Sending enroll response", "info")
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
 	[
@@ -332,20 +336,12 @@ private isDuplicateCall(lastRun, allowedEverySeconds) {
 
 def setPrefs() 
 {
-logging("${device} : setting preferences", "info")
-
-   if (timeBetweenPresses == null)
-   {
-      state.timeBetweenPresses = 10
-   }
-      else if (timeBetweenPresses < 0)
-   {
-      state.timeBetweenPresses = 0
-   }
-   else
-   {
-      state.timeBetweenPresses = timeBetweenPresses
-   }  
+if (!timeBetweenPresses)  {timeBetweenPresses = 10}
+if (timeBetweenPresses <0){timeBetweenPresses = 10}
+state.timeBetweenPresses = timeBetweenPresses
+    logging("${device} :Time Between Presses ${state.timeBetweenPresses}", "info")
+ 
+    
 }
 
 
