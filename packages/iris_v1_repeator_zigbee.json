@@ -6,7 +6,7 @@
   "communityLink": "",
   "version": "1.8.0",
   "dateReleased": "2022-22-09",
-  "catagory":"Control",
+  "category":"Control",
   "tags": 
   [
     "Repeaters & Extenders",
@@ -17,7 +17,9 @@
       "name": "Iris v1 Repeator Zigbee",
       "namespace": "tmastersmart",
       "location": "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy",
-      "required": true
+      "required": "true",
+      "description": "Iris v1 Repeator Zigbee",
+      "id": "e679fd3e-3c6a-11ed-a261-0242ac120002"
     }
-]
+    ]
 }
