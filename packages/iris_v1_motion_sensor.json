@@ -7,11 +7,7 @@
   "version": "2.1.0",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
-  "tags": 
-  [
-    "Alarm Systems",
-    "Motion Control",
-    ]
+  "tags":   [ "Alarm Systems", "Motion Control" ],
   "drivers": [
     {
     "id": "ae6b018c-59d9-44e6-a9e7-2a88d28390de",
