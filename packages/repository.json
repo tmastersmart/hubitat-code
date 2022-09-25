@@ -98,7 +98,7 @@
   "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
    },   
     {
-  "name":"Radio Thermostat Driver",
+  "name":"Radio Thermostat Zwave",
 	    "category": "Control",
       "tags": [
         "Temperature & Humidity",
