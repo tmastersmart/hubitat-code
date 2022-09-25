@@ -95,7 +95,7 @@
 	    "category": "Control",
       "tags": [
         "Temperature & Humidity",
-        "Zwave"
+        "ZWave"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
   "description": "Radio Thermostat Driver ZWAVE for most any radio thermostat. CT100,CT101,CT30,CT32 and more."
@@ -106,7 +106,7 @@
       "tags": [
         "Monitoring",
         "Safety & Security",
-        "Zwave"
+        "ZWave"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
   "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs"
@@ -117,6 +117,7 @@
       "tags": [
         "Energy Monitoring",
         "Monitoring",
+	"Water",      
         "Safety & Security",
         "Zigbee"
       ],
@@ -128,6 +129,8 @@
 	    "category": "Control",
       "tags": [
         "Monitoring",
+	"Water",
+	"Valves",      
         "Presence & Location"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
