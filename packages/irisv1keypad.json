@@ -2,6 +2,8 @@
   "packageName": "Iris v1 Keypad",
   "author": "Tmaster",
   "releaseNotes": "",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/",
   "communityLink": "",
   "version": "6.8.0",
