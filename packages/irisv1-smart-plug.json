@@ -7,10 +7,7 @@
   "version": "3.7.0",
   "dateReleased": "2022-09-03",
   "category":"Control",
-  "tags": 
-  [
-    "Misc. Devices",
-    ]
+  "tags":["Misc. Devices"],
   "drivers": [
     {
       "name":"Iris v1 Smart Plug",
