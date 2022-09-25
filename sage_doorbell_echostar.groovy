@@ -5,7 +5,7 @@
 Conversion to hubitat so I could find out why im getting false
 button 2 presses on internal drivers which have no debugging logs.
 
-Adds battery support (siulated) if stops reporting bat goes to 0
+Adds battery support (simlated) if stops reporting bat goes to 0
 
 
 
