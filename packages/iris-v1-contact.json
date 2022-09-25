@@ -19,7 +19,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy",
       "required": "true",
-      "description": "Iris contact sensor custom with presence. Proper battery sensor support",
+      "description": "Iris v1 contact sensor custom with presence. Proper battery sensor support",
       "id": "6390e93c-3c6a-11ed-a261-0242ac120002"
     }
     ]
