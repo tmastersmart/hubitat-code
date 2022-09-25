@@ -170,10 +170,11 @@
         "Buttons",
 	"Alarm Systems",      
         "Safety & Security",
+	"Presence & Location",     
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage_doorbell_echostar.json",
-   "description": "Doorbell driver created to stop false button presses. And support debug,trace logs."
+   "description": "Doorbell driver created to stop false button presses. Detect dead bat with presence detection,  And support debug,trace logs."
    },  	  
   
     {
