@@ -6,7 +6,7 @@
   "communityLink": "",
   "version": "1.4.0",
   "dateReleased": "2022-09-08",
-  "catagory":"Convenience",
+  "category":"Convenience",
   "tags": 
   [
    "Presence & Location",
@@ -17,7 +17,9 @@
       "name": "SmartThings V2 Arrival Sensor Chime",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy",
-      "required": true
+      "required": "true",
+      "description": "Sart things arival sensor with adjustable chime",
+      "id": "74e8b3b3-ca82-400c-b12d-522095aa7415"
     }
-]
+    ]
 }
