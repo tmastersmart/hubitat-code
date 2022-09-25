@@ -129,6 +129,8 @@ def updated(){
 }
 
 def configure() {
+    state.remove("ignore01")
+    state.remove("ignore00")
     unschedule()
     // Schedule presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
