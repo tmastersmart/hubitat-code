@@ -6,12 +6,8 @@
   "communityLink": "",
   "version": "6.8.0",
   "dateReleased": "2022-24-09",
-  "catagory":"Safety & Security",
-  "tags": 
-  [
-    "Alarm Systems",
-    "buttons,Locks",
-    ]
+  "category":"Safety & Security",
+  "tags": [ "Alarm Systems", "buttons","Locks", ]
   "drivers": [
     {
       "name":"Iris v1 keypad",
