@@ -7,10 +7,7 @@
   "version": "2.4.0",
   "dateReleased": "2022-09-03",
   "category":"Security",
-  "tags": 
-  [
-    "Safety & Security",
-    ]
+  "tags":   [ "Safety & Security,valve" ]
   "drivers": [
     {
       "name":"Everspring Utilitech Water Sensor",
