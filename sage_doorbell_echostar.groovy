@@ -2,8 +2,10 @@
  *  SAGE Doorbell Sensor fix
     Hubitat driver. 
     
-
+v2.1  09/24/2022  Presence schedule added
 v2.0  09/24/2022  This fixes false button press after last hub update.
+                  Simulated battery 
+
 
 Conversion to hubitat so I could find out why im getting false
 button 2 presses on internal drivers which have no debugging logs.
@@ -59,7 +61,7 @@ https://github.com/rbaldwi3/Sage-HVAC-Sensor/edit/master/groovy
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
 def clientVersion() {
-    TheVersion="2.0"
+    TheVersion="2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -73,8 +75,12 @@ metadata {
 		capability "Configuration"
         capability "Pushable Button"
 		capability "Refresh"
-     
+        capability "Battery"
+        capability "PresenceSensor"
+        
+        command "checkPresence"
         command "enrollResponse"
+        command "uninstall"
  	   
         fingerprint endpointId: "12", inClusters: "0000,0003,0009,0001", outClusters: "0003,0006,0008,0019", model: "Bell", manufacturer: "Echostar"
     }
@@ -89,14 +95,38 @@ metadata {
     input name: "button2Name",type: "text",title: "Doorbell name to be associated with the 'Rear Door' contact...",required: false, defaultValue: "Rear Door",displayDuringSetup: true
    }
  } 
+def installed() {
+	logging("${device} : Paired!", "info")
+    configure()
+    updated()
+    runIn(20,refresh)
+}
+
+
+def uninstall() {
+	unschedule()
+    state.remove("lastCheckInMin") 
+    state.remove("lastCheckin")
+    state.remove("timeBetweenPresses")
+    state.remove("version")
+removeDataValue("presence")    
+removeDataValue("battery")
+}
+
 
 def updated(){
    setPrefs()
-   loggingUpdate() 
+   loggingUpdate()
    clientVersion() 
 }
 
 def configure() {
+    unschedule()
+    // Schedule presence in hrs
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
+    
     setPrefs()
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("${device} : Configure", "info")
@@ -115,9 +145,45 @@ def configure() {
 	]
     return configCmds + refresh() // send refresh cmds as part of config
 }
+def checkPresence() {
+    // New shorter presence routine.
+    // Runs on every parse and a schedule.
+    def checkMin  = 1400 // 24 hrs warning
+    def checkMin2 = 2800 // 48 hrs [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("${device} : Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Estimated ${state.version}", isStateChange: true)    
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin){ 
+        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+        runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Estimated 0 ${state.version}", isStateChange: true) 
+        runIn(60,refresh) 
+        }
+    }
+}
 
 
 def parse(String description) {
+    state.lastCheckin = now()
+    checkPresence()
     logging("${device} : Raw [${description}]", "trace")
     Map descMap = zigbee.parseDescriptionAsMap(description)
     logging("${device} : ${descMap}", "trace")
