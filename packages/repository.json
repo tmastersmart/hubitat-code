@@ -5,16 +5,17 @@
   "packages":[
   {
   "name":"Iris v1 keypad",
-	"category": "Security",
+	"category": "Control","Security","Locks","Misc. Devices",
       "tags": [
         "Buttons",
+	"Alarm Systems",      
         "Lights & Switches",
         "Presence & Location",
         "Safety & Security",
         "Zigbee"
       ],  
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
-  "description": "Iris v1 keypad driver. Adds support for iris keypad v1"
+  "description": "Iris v1 keypad driver. Adds support for IRIS v1 keypad Provides arm disarm andd button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming"
    },
    {
   "name":"Iris v1 Contact Sensor custom",
@@ -88,7 +89,7 @@
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
-  "description": "Iris v1 Smart Plug driver"
+  "description": "Iris v1 Smart Plug driver With power monitoring , presence and alarm strobe"
    },   
     {
   "name":"Radio Thermostat Driver",
