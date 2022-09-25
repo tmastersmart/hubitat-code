@@ -5,7 +5,7 @@
   "packages":[
   {
   "name":"Iris v1 keypad",
-	"category": "Control","Security","Locks","Misc. Devices",
+	"category": "Misc. Devices",
       "tags": [
         "Buttons",
 	"Alarm Systems",      
@@ -46,7 +46,7 @@
    },
    {
   "name":"Iris v1 Senior Care Pendant",
-	"category": "Control",
+	"category": "Misc. Devices",
       "tags": [
         "Buttons",
         "Monitoring",
