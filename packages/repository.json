@@ -5,56 +5,131 @@
   "packages":[
   {
   "name":"Iris v1 keypad",
+	"category": "Control",
+      "tags": [
+        "Buttons",
+        "Lights & Switches",
+        "Presence & Location",
+        "Safety & Security",
+        "Zigbee"
+      ],  
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
   "description": "Iris v1 keypad driver. Adds support for iris keypad v1"
    },
    {
   "name":"Iris v1 Contact Sensor custom",
+"category": "Control",
+      "tags": [
+        "Buttons",
+        "Doors & Windows",
+        "Presence & Location",
+        "Safety & Security",
+        "Temperature & Humidity",
+        "Zigbee"
+      ],	   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
   "description": "Iris v1 Contact Sensor custom better bat"
    },
    {
   "name":"Iris v1 Motion Sensor custom",
+"category": "Control",
+      "tags": [
+        "Lights & Switches",
+        "Presence & Location",
+        "Safety & Security",
+        "Temperature & Humidity",
+        "Zigbee"
+      ],	   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_motion_sensor.json",
   "description": "Iris v1 Motion Sensor custom better bat"
    },
    {
   "name":"Iris v1 Senior Care Pendant",
+	"category": "Control",
+      "tags": [
+        "Buttons",
+        "Monitoring",
+        "Presence & Location",
+        "Safety & Security",
+        "Zigbee"
+      ],   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
   "description": "Simulates iris pay care system. Pressing button triggers alarm on dashboard and when turned off notifies pendant holder by beeping green"
    },
     {
   "name":"SmartThings V2 Arrival Sensor Chime",
+	    "category": "Control",
+      "tags": [
+        "Monitoring",
+        "Presence & Location",
+        "Safety & Security",
+        "Zigbee"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/SmartThings-Arrival-Sensor-hubitat.json",
   "description": "SmartThings arrival sensor v2 with adjustable chimes."
    },
      {
   "name":"iris v1 repeator zigbee",
+	     "category": "Control",
+      "tags": [
+        "Repeaters & Extenders",
+        "Zigbee"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_repeator_zigbee.json",
   "description": "Iris v1 extender driver"
    },  
      {
   "name":"Iris v1 Smart Plug",
+	     "category": "Control",
+      "tags": [
+        "Lights & Switches",
+	"Energy Monitoring",      
+        "Presence & Location",
+        "Zigbee"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
   "description": "Iris v1 Smart Plug driver"
    },   
     {
   "name":"Radio Thermostat Driver",
+	    "category": "Control",
+      "tags": [
+        "Temperature & Humidity",
+        "Zwave"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
   "description": "Radio Thermostat Driver ZWAVE for most any radio thermostat. CT100,CT101,CT30,CT32 and more."
    },   
    {
   "name":"Everspring Utilitech Water Sensor",
+	   "category": "Control",
+      "tags": [
+        "Monitoring",
+        "Safety & Security",
+        "Zwave"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
   "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs"
    },  
    {
   "name":"LeakSmart Water Valve",
+	   "category": "Control",
+      "tags": [
+        "Energy Monitoring",
+        "Monitoring",
+        "Safety & Security",
+        "Zigbee"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
   "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs"
    },  
     {
   "name":"HTTP Presence Sensor adjustable schedule",
+	    "category": "Control",
+      "tags": [
+        "Monitoring",
+        "Presence & Location"
+      ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
   "description": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins"
 		 }
