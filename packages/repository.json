@@ -122,7 +122,7 @@
         "Zigbee"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
-  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings&logs"
+  "description": "Improved LeakSmart driver better battery support and better logging,Mains detection,Stuck valve detection ",
    },  
     {
   "name":"HTTP Presence Sensor adjustable schedule",
