@@ -1,7 +1,7 @@
 {
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat?locale.x=en_US",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat?locale.x=en_US",
   "packages":[
   {
   "name":"Iris v1 Keypad",
