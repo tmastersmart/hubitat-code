@@ -1,10 +1,10 @@
 {
-  "packageName": "SmartThings V2 Arrival Sensor Chime",
-  "author": "Tmaster",
-  "releaseNotes": "",
-  "documentationLink": "",
+  "packageName": "SmartThings Arrival Sensor Chime V2",
+  "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "Smart things arival sensor with adjustable chime",
+  "documentationLink": "",
   "communityLink": "",
   "version": "1.4.0",
   "dateReleased": "2022-09-08",
@@ -13,7 +13,7 @@
   "drivers": [
     {
     "id": "0dcca261-efd0-4389-9b05-bd11d3c108b3",
-      "name": "SmartThings V2 Arrival Sensor Chime",
+      "name": "SmartThings Arrival Sensor Chime V2",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy",
       "required": "true",
