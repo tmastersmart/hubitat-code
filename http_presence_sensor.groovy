@@ -8,6 +8,7 @@ This fixes the orginal version
 
 
 =================================================================
+  v2.3  09/25/2022 404 and 401 errors added
   v2.2  09/21/2022 Better logging 
   v2.1.1 09/14/2021
   v2.0 09/12/2021
@@ -109,14 +110,20 @@ def httpGetCallback(response, data) {
   
     def st = response.getStatus()
     logging("${device} : Presence check status =${st}  Tries:${state.tryCount}", "debug")
-	if (st == 200) {
-        logging("${device} : Presence:[Present] Tries:${state.tryCount} ", "info")
+	if (st == 200 || st == 401 || st == 404) {
+		if(st == 200){code="ok"}
+		if(st == 401){code="Unauthorized"}
+		if(st == 404){code="File Not Found"}
+		logging("${device} : Presence:[Present] Tries:${state.tryCount} ${code}", "info")
 		state.tryCount = 0
-		if (device.currentValue('presence') != "present") {
+	if (device.currentValue('presence') != "present") {
         logging("${device} : Presence: [Present] Tries:${state.tryCount} ", "debug")
-        sendEvent(name: "presence", value: "present", descriptionText: "[Present] Tries:${state.tryCount} ")
+	sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
             
 		}
+	
+		
+		
 	}
 }
 
