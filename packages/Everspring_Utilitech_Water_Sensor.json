@@ -1,22 +1,22 @@
 {
-  "packageName": "Everspring Utilitech Water Sensor",
-  "author": "Tmaster",
-  "releaseNotes": "",
+  "packageName": "Utilitech Water Sensor",
+    "author": "TheMaster",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "Improved Drop Out detection and bat fixes.",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
   "communityLink": "",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",	
   "version": "2.4.0",
   "dateReleased": "2022-09-03",
   "category":"Security",
   "tags":   [ "Safety & Security,valve" ],
   "drivers": [
     {
-      "name":"Everspring Utilitech Water Sensor",
+      "name":"Utilitech Water Sensor",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Everspring_Utilitech_Water_Sensor.groovy",
       "required": "true",
-      "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs",
+      "description": "Improved Everspring/Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs",
       "id": "7b776b82-3a37-11ed-a261-0242ac120002"
     }
     ]
