@@ -1,6 +1,6 @@
 {
   "packageName": "Radio Thermostat Zwave",
-  "author": "Tmaster",
+  "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Polling schedule and many extra options, Improved logging. This driver will fix your problems.",
