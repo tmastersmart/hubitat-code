@@ -1,22 +1,22 @@
 {
   "packageName": "Iris v1 Keypad",
   "author": "Tmaster",
-  "releaseNotes": "",
+  "releaseNotes": "IRIS v1 keypad driver. The best keypad ever now has a driver.",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/",
-  "communityLink": "",
+  "communityLink": "https://community.hubitat.com/t/release-iris-v1-keypad-driver/80247",
   "version": "6.8.0",
   "dateReleased": "2022-24-09",
   "category":"Safety & Security",
   "tags": [ "Alarm Systems", "buttons","Locks" ],
   "drivers": [
     {
-      "name":"Iris v1 keypad",
+      "name":"Iris v1 Keypad",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy",
       "required": "true",
-      "description": "Iris v1 keypad driver. ",
+      "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. ",
       "id": "f2aaf002-149e-403c-b225-6ece63729781"
     }
     ]
