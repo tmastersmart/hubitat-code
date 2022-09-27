@@ -1,18 +1,16 @@
 {
-  "packageName": "HTTP Presence Sensor adjustable schedule",
-  "author": "Tmaster",
-  "releaseNotes": "",
-  "documentationLink": "",
-  "communityLink": "",
+  "packageName": "HTTP Presence Sensor with schedule",
+  "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins",
   "version": "2.2.0",
   "dateReleased": "2022-09-25",
   "category":"Security",
   "tags":  [   "Tools & Utilities"   ],
   "drivers": [
     {
-      "name":"HTTP Presence Sensor adjustable schedule",
+      "name":"HTTP Presence Sensor with schedule",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy",
       "required": "true",
