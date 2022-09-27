@@ -1,16 +1,18 @@
 {
   "packageName": "Lock Button Monitor 2",
-  "author": "Tmaster",
-  "releaseNotes": "",
+  "author": "TheMaster",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "This is a second copy in case you have 2 locks. Temp until I get child installs to work",
   "documentationLink": "",
-  "communityLink": "",
+  "communityLink": "https://community.hubitat.com/t/release-lock-button-monitor-arm-hsm-from-outside-door-lock/98010",
   "version": "1.2.0",
   "dateReleased": "2022-24-09",
   "category":"Safety & Security",
   "tags": [ "Alarm Systems", "buttons","Locks" ],
   "apps": [
     {
-      "name":"Lock Button Monitor",
+      "name":"Lock Button Monitor 2",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/lock%20button%20monitor.groovy",
       "required": "true",
