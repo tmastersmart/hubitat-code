@@ -1,11 +1,11 @@
 {
-  "packageName": "Iris v1 Motion Sensor-custom",
-  "author": "Tmaster",
-  "releaseNotes": "",
+  "packageName": "Iris v1 Motion Detector Custom",
+  "author": "TheMaster",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support, Remember to Init and Cfg after changing to driver",
   "documentationLink": "",
   "communityLink": "",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "version": "2.1.0",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
@@ -13,7 +13,7 @@
   "drivers": [
     {
     "id": "ae6b018c-59d9-44e6-a9e7-2a88d28390de",
-      "name": "Iris v1 Motion Sensor-custom",
+      "name": "Iris v1 Motion Detector Custom",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy",
       "required": "true",
