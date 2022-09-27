@@ -1,22 +1,21 @@
 {
-  "packageName": "Iris v1 Smart Plug",
-  "author": "Tmaster",
-  "releaseNotes": "",
-  "documentationLink": "",
-  "communityLink": "",
+  "packageName": "Iris v1 Smart Plug custom",
+  "author": "TheMaster",
+  "releaseNotes":   "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe",
+  "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
   "version": "3.7.0",
   "dateReleased": "2022-09-03",
   "category":"Control",
   "tags":["Misc. Devices"],
   "drivers": [
     {
-      "name":"Iris v1 Smart Plug",
+      "name":"Iris v1 Smart Plug custom",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy",
       "required": "true",
-      "description": "Iris v1 Smart Plug driver. ",
+        "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens",
       "id": "e1b333ef-ee41-48a1-8227-69ff0ef85838"
     }
     ]
