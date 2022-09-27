@@ -31,6 +31,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.2.1 09/27/2022   Wet/Dry optional
     3.2   09/05/2022   Decoding events rewritten. New alert added from iris source code.
     3.1   09/01/2022   Stoped repeated open close events.
     3.0   08/31/2022   Upgraded Logs and Events to current standards. Reduced event traffic
@@ -110,7 +111,7 @@ def final short CLUSTER_APPLIANCE_ALERTS            = 0x0B02
  *
  */
 def clientVersion() {
-    TheVersion="3.2"
+    TheVersion="3.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -152,10 +153,13 @@ fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02",
 	
     
 	preferences {
-  	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+        
+
 	input name: "calBat",       type: "bool", title: "Calculate Bat%", description: "If you do not receive bat% reports create them", defaultValue: true
+	input name: "reportWD",     type: "bool", title: "Report WET/DRY", description: "Send the wet dry signal", defaultValue: false,required: true
     }
 	
 
@@ -172,9 +176,8 @@ def updated() {
     state.supplyPresent = true
     state.badSupplyFlag = false
     if (!state.configured) {	return response(configure())}
-	loggingStatus()
-	runIn(3600,debugLogOff)
-	runIn(3500,traceLogOff)
+	loggingUpdate()
+
 }
 
 // CLUSTER_APPLIANCE_ALERTS            = 0x0B02
@@ -263,9 +266,8 @@ def processEvt(evt) {
            if(state.valve != val2){
             sendEvent(name: "contact",value: val2, isStateChange: true, displayed: true)
             sendEvent(name: "valve", value: val2, isStateChange: true, displayed: true,descriptionText: "${val2} last state:${state.valve} v${state.version}")
-            sendEvent(name: "water", value: val3, isStateChange: true, displayed: true)
             sendEvent(name: "switch", value: evt.value, isStateChange: true, displayed: true) 
-            
+            if(reportWD){sendEvent(name: "water", value: val3, isStateChange: true, displayed: true)}
             logging ("${device} : Event Valve: ${val2}","info")
             state.valve = val2
             return   
@@ -396,10 +398,8 @@ def configure() {
     logging ("${device} : Configuring","info") 
 
 //    unschedule()
-	// Default logging preferences.
-	device.updateSetting("infoLogging",[value:"true",type:"bool"])
-	device.updateSetting("debugLogging",[value:"true",type:"bool"])
-	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+
+    if(reportWD){removeDataValue("water")}
  	state.configured = true
 	state.supplyPresent = true
     state.badSupplyFlag = false
@@ -467,49 +467,30 @@ def getBatteryReport3() {
     zigbee.readAttribute(0x0001, 0x0033)  //Read BatteryQuantity
 }
 
-void loggingStatus() {
-	log.info "${device} : Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
 }
-
-
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
 }
-
-
 void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-
-private boolean logging(String message, String level) {
-	boolean didLog = false
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-	return didLog
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
 }
 
 
