@@ -4,7 +4,7 @@
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
   "packages":[
   {
-  "name":"Iris v1 keypad",
+  "name":"Iris v1 Keypad",
 	"category": "Security",
       "tags": [
         "Buttons",
@@ -20,7 +20,7 @@
   "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. "
    },
    {
-  "name":"Iris v1 Contact Sensor custom",
+  "name":"Iris v1 Contact Sensor-custom",
 "category":  "Security",
       "tags": [
         "Buttons",
@@ -35,7 +35,7 @@
   "description": "Iris v1 Contact Sensor custom. With presence and proper battery support. No more negative battery readings. Includes option to use as a mains detection swith with a relay.Note relay must have time delay so it renergised after hub has powered up. "
    },
    {
-  "name":"Iris v1 Motion Sensor custom",
+  "name":"Iris v1 Motion Detector Custom",
 "category": "Control",
       "tags": [
         "Lights & Switches",
@@ -64,7 +64,7 @@
   "description": "Simulates IRIS v1 pay care level system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob"
    },
     {
-  "name":"SmartThings V2 Arrival Sensor Chime",
+  "name":"SmartThings Arrival Sensor Chime V2",
 	    "category": "Control",
       "tags": [
         "Monitoring",
@@ -76,7 +76,7 @@
   "description": "SmartThings arrival sensor v2 with adjustable chimes. Can play chimes of diffrent legenths."
    },
      {
-  "name":"iris v1 repeator zigbee",
+  "name":"Iris v1 Repeator Zigbe",
 	     "category": "Control",
       "tags": [
         "Repeaters & Extenders",
@@ -86,7 +86,7 @@
   "description": "Iris v1 extender driver. Supports battery and presence. Zigbee side"
    },  
      {
-  "name":"Iris v1 Smart Plug",
+  "name":"Iris v1 Smart Plug custom",
 	     "category": "Control",
       "tags": [
         "Lights & Switches",
@@ -109,7 +109,7 @@
   "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Polling schedule and many extra options, Improved logging to detect errors info,debug,trace. Many manual options to set up device other drivers dont have. Option to use only heat or cool. Prevents dashboard getting out of sync with thermostat. If you have a RT you know all the problems other drivers have. This driver will fix your problems. Writen for my thermostats because the other drivers just did not work for me."
    },   
    {
-  "name":"Everspring Utilitech Water Sensor",
+  "name":"Utilitech Water Sensor",
 	   "category": "Control",
       "tags": [
         "Monitoring",
@@ -118,7 +118,7 @@
         "ZWave"
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
-  "description": "Improved Everspring Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs"
+  "description": "Improved Everspring/Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs"
    },  
    {
   "name":"LeakSmart Water Valve",
@@ -178,7 +178,7 @@
    },  	  
   
     {
-  "name":"HTTP Presence Sensor adjustable schedule",
+  "name":"HTTP Presence Sensor with schedule",
 	    "category": "Control",
       "tags": [
         "Monitoring",
