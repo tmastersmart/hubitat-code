@@ -1,11 +1,11 @@
 {
-  "packageName": "Iris v1 Repeator Zigbee",
-  "author": "Tmaster",
-  "releaseNotes": "",
+  "packageName": "Iris v1 Repeator Zigbe",
+  "author": "TheMaster",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "Iris v1 Repeator Zigbee",
   "documentationLink": "",
   "communityLink": "",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "version": "1.8.0",
   "dateReleased": "2022-22-09",
   "category":"Control",
@@ -13,11 +13,11 @@
   "drivers": [
     {
    "id": "425e10bd-6e9a-40af-860b-255e1f1b959e",
-      "name": "Iris v1 Repeator Zigbee",
+      "name": "Iris v1 Repeator Zigbe",
       "namespace": "tmastersmart",
       "location": "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy",
       "required": "true",
-      "description": "Iris v1 Repeator Zigbee",
+      "description": "Iris v1 Repeator Zigbee. Basicaly lets you monitor bat and presence and stats that its working",
       "id": "e679fd3e-3c6a-11ed-a261-0242ac120002"
     }
     ]
