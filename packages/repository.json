@@ -195,7 +195,7 @@
   "category":"Utility",
   "tags":   [    "ZWave"    ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/basic_zwave_tool.json",
-  "description": "a very basic Z-Wave tool for setting device parameters for all the tweakers out there..."
+  "description": "Basic Z-Wave tool for setting device parameters for all the tweakers out there...By Mike Maxwel. Installs from Hubitat library"
 	      }
 	]
 	
