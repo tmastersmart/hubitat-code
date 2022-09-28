@@ -16,7 +16,7 @@ Yellow wire: doorbell 2  rear
 
 
 ================================================================================ 
-v2.5  09/28/2022  Code cleanup.
+v2.4  09/28/2022  Code cleanup.
 v2.3  09/27/2022  Total rewrite of parse code.
 v2.2  09/25/2022  Cleanup code
 v2.1  09/24/2022  Presence schedule added
