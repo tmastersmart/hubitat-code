@@ -1,7 +1,8 @@
 /**
    Hubitat LeakSmart Water Valve driver for hubitat
    Hubitat Iris Water Valve driver
-   with mains detection,Appliance Alerts
+   with mains detection,Appliance Alerts,Test system,
+   Test schedule.
 
    leaksmart driver hubitat 
 
@@ -31,6 +32,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.2.2 09/27/2022   bug in bat logging. Added test function, Added test schedule
     3.2.1 09/27/2022   Wet/Dry optional
     3.2   09/05/2022   Decoding events rewritten. New alert added from iris source code.
     3.1   09/01/2022   Stoped repeated open close events.
@@ -103,6 +105,9 @@ def final short CLUSTER_POLL_CONTROL                = 0x0020
 def final short CLUSTER_APPLIANCE_ALERTS            = 0x0B02
 
 
+
+Much of this code is my own but parts will contain code from 
+
  *  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
  *  Author:Kevin LaFramboise (krlaframboise)(from 1.3 orginal)    (Mode: 8830000L)
  *
@@ -111,7 +116,7 @@ def final short CLUSTER_APPLIANCE_ALERTS            = 0x0B02
  *
  */
 def clientVersion() {
-    TheVersion="3.2.1"
+    TheVersion="3.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -132,7 +137,8 @@ metadata {
 		capability "Valve"
 		capability "Polling"
         capability "Power Source"
-        
+     
+        command "test"   
 
 //    attribute "lastPollD", "string"
 	attribute "batteryVoltage", "string"
@@ -160,8 +166,12 @@ fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02",
 
 	input name: "calBat",       type: "bool", title: "Calculate Bat%", description: "If you do not receive bat% reports create them", defaultValue: true
 	input name: "reportWD",     type: "bool", title: "Report WET/DRY", description: "Send the wet dry signal", defaultValue: false,required: true
+    input(  "testMonths", "enum", title: "Test every x months", description: "set Chron for a valve test every x months. Events are hidden during test to stop scripts from running. Valve may still run its own internal 1 year test. Press save then config", options: ["1","2","3","4","5","6","7","8","9","10"],defaultValue: 6,required: true)
+    input(  "testHr", "enum", title: "Test Hour", description: "The hr of the day to run the test", options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","14","15","16","17","18","19","20","21","22","23"],defaultValue: 0,required: true)
+     
+        
     }
-	
+//testMonths	
 
 }
 private getCLUSTER_BASIC() { 0x0000 }
@@ -184,7 +194,7 @@ def updated() {
 def parse(String description) {
     logging ("${device} : ${description}","trace") 
 	clientVersion()
-    state.lastPoll = new Date().format("MM/dd/yyyy", location.timeZone)
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     def evt = zigbee.getEvent(description)
     if (evt) {
         processEvt(evt)// if its a known event get out
@@ -196,8 +206,7 @@ def parse(String description) {
         logging ("${device} : MAP: clusterId:${map.clusterId} clusterInt:${map.clusterInt} options:${map.options} command:${map.command} data:${map.data}","debug")  
  
 
-// reverse engenered from iris source code (no one else has this working)
-// clusterId:0B02 clusterInt:2818 options:0040 command:01 data:[00, 00, 86]
+
        
 if (map.clusterId == "0001"){
     if(map.command == "07"){
@@ -212,18 +221,19 @@ if (map.clusterId == "0000"){ logging ("${device} : Replying to Set PowerSource 
 if (map.clusterId == "8021"){ logging ("${device} : Replying to Set reporting times. command:${map.command} Int:${clusterInt} data:${map.data}","debug")}
 
 
-
-        
+// reverse engenered from iris source code (no one else has this working) We have only seen yearly test not monthly
+// clusterId:0B02 clusterInt:2818 options:0040 command:01 data:[00, 00, 86]     
 if (map.clusterId == "0B02"){
         logging ("${device} : Alerts clusterInt:${map.clusterInt} options:${map.options} command:${map.command} data:${map.data}","debug")  
         msgId = map.command // We dont have a msgID value use command?
 //        msgId = map.data[0] 
         dataByte = map.data[1]
-        logging ("${device} : Alerts msgId:${msgId} dataByte:${dataByte} data:${map.data}","info")  
-        sendEvent(name: "Alert",value: map.data,descriptionText: "command:${map.command} data:${map.data}", isStateChange: true, displayed: true) 
+        logging ("${device} : Alerts msgId:${msgId} dataByte:${dataByte} data:${map.data}","debug")  
+//      sendEvent(name: "Alert",value: map.data,descriptionText: "command:${map.command} data:${map.data}", isStateChange: true, displayed: true) 
         if (msgId == "00" || msgId == "01"){
           if (dataByte == "00") {
-              logging ("${device} : Status: Clear","info")				
+              logging ("${device} : Status: Clear","info")
+              sendEvent(name: "Alert",value: "clear" ,descriptionText: "clear command:${map.command} data:${map.data}", isStateChange: true, displayed: true)
 		 } else {
          logging ("${device} : Valve Operation Failure Alert","warn") 
           sendEvent(name: "Alert",value: "fail",descriptionText: "Valve Operation Failure Alert", isStateChange: true, displayed: true)
@@ -263,7 +273,7 @@ def processEvt(evt) {
 		 def val3 = (evt.value == "on") ? "wet" : "dry"
          logging ("${device} : Valve: ${val2} Water:${val3} Switch:${evt.value} Contact:${val2}","debug")
            // Prevent repeaded events
-           if(state.valve != val2){
+           if(state.valve != val2 && !state.test ){
             sendEvent(name: "contact",value: val2, isStateChange: true, displayed: true)
             sendEvent(name: "valve", value: val2, isStateChange: true, displayed: true,descriptionText: "${val2} last state:${state.valve} v${state.version}")
             sendEvent(name: "switch", value: evt.value, isStateChange: true, displayed: true) 
@@ -283,7 +293,8 @@ def processEvt(evt) {
             if(!calBat){
             sendEvent(name: "battery", value: val3,unit:"%",isStateChange: true,displayed: true) 
             }
-            logging ("${device} : Rec Battery:${value}%","info")
+      logging ("${device} : Rec Battery:${val3}%   ${evt}","info")
+            state.BatRec = val3
         }
 //  We will get 2 bat% readings (some devices dont report % so we do it also)        
 //  voltage status      
@@ -296,7 +307,7 @@ def processEvt(evt) {
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-      
+        state.BatCal = batteryPercentage
       if(state.lastBatteryVoltage != batteryVoltage){
         if(calBat){sendEvent(name: "battery",        value: batteryPercentage ,unit:"%",isStateChange: true,displayed: true)}
         sendEvent(name: "batteryVoltage", value: batteryVoltage    ,unit:"V",descriptionText: "Last${state.lastBatteryVoltage}v  v${state.version}",isStateChange: true,displayed: true) 
@@ -317,7 +328,7 @@ def processEvt(evt) {
             }
           }
 // if 6v it is on mains or full battery		
-        if (batteryVoltage > 5.99){
+        if (batteryVoltage == 6){
          if(!state.supplyPresent){
            state.supplyPresent = true
            state.badSupplyFlag = false
@@ -334,25 +345,22 @@ def processEvt(evt) {
 // Some models give false reports so we have create our own mains flags based on voltage   
    if (evt.name == "powerSource"){
         def val4 = evt.value
+       logging ("${device} : Received powerSource: ${val4}","info")
 		if (val4=="mains"){
 		  if (device.data.firmwareMT == "113B-03E8-0000001D"){logging ("${device} : This model reports false mains flag..","debug")}
           if (state.badSupplyFlag){logging ("${device} : Bat discharging/False mains report","info")}
 		  if (!state.badSupplyFlag){
               state.supplyPresent = true
               sendEvent(name: "powerSource",value: "mains",descriptionText: "mains ${state.version}", isStateChange: true)
-              logging ("${device} : Received powerSource: mains","info")
 		  }
 		}	
 		else {
 		  state.supplyPresent = false
 		  state.badSupplyFlag= false
           sendEvent(name: "powerSource",value: "battery",descriptionText: "${val4} battery ${state.version}", isStateChange: true)  
-          logging ("${device} : Received powerSource: ${val4}/battery","info")
 		  }
          }// end powersource
-    
-  logging ("${device} : Event: ${evt}","debug")  
- }// end evt
+  }// end evt
 
 
 
@@ -376,13 +384,27 @@ def poll() {
     return refresh()
 }
 
+def testF(){
+state.lastTest =  new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+state.test = false
+logging ("${device} : Test finished.","info")  
+}
+
+def test(){
+   state.test = true
+   logging ("${device} : Testing the valve. Supressing events.","info")  
+   runIn(1,close)
+   runIn(32,open)  
+   runIn(45,testF)
+   runIn(60,getApplianceAlerts)       
+}
 
 
 def refresh() {
     logging ("${device} : Refreshing","info") 
 // Fixed This is the only way polling will work.
 // None of the other drivers work
-// Otherwise only the last command is honored.   
+// device needs lots of time to process cmds
 runIn(5,getSwitchReport)    // valve
 runIn(10,getBatteryReport)  // v 
 runIn(15,getBatteryReport2) // mains
@@ -396,13 +418,20 @@ runIn(35,getApplianceAlerts)
 def configure() {
 
     logging ("${device} : Configuring","info") 
+    // Poll the device every x min    0 0 23 ? 1/6 * *   0 0 1 */6 *
+  //0 24 1 1-7/6 *
+    unschedule()
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+    schedule("0 ${randomSixty} ${testHr} 1 1/${testMonths} ?", test)
 
-//    unschedule()
+    logging("${device} :Setting Chron Test: ${testHr}:${randomSixty}am every ${testMonths} months.", "info")
+
 
     if(reportWD){removeDataValue("water")}
  	state.configured = true
 	state.supplyPresent = true
     state.badSupplyFlag = false
+    state.test = false
 	state.lastBatteryVoltage = 0 // force a new event
 
 	state.logo ="<img src='data:image/jpeg;base64,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'>"
