@@ -6,7 +6,7 @@
   "payPalUri": "http://www.winnfreenet.com/donate.php?product=driver",
   "documentationLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
   "communityLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "dateReleased": "2022-25-09",
 	"category": "Security",
       "tags": [
