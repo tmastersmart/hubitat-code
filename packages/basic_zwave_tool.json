@@ -1,0 +1,20 @@
+{
+  "packageName": "Basic Z-Wave tool",
+  "author": "Mike Maxwel",
+  "gitHubUri": "https://github.com/hubitat/HubitatPublic",
+  "communityLink": "https://community.hubitat.com/t/super-basic-z-wave-parameter-tool/3477",
+  "version": "4.0.0",
+  "dateReleased": "2020-14-08",
+  "category":"Utility",
+  "tags":   [    "ZWave"    ],
+  "drivers": [
+    {
+      "name": "Basic Z-Wave tool",
+      "namespace": "hubitat",
+      "location": "https://raw.githubusercontent.com/hubitat/HubitatPublic/master/examples/drivers/basicZWaveTool.groovy",
+      "required": "true",
+  "description": "a very basic Z-Wave tool for setting device parameters for all the tweakers out there...",
+      "id": "bfe01481-dfdf-45b4-b4cd-31c79fdc3cb4"
+    }
+    ]
+}
