@@ -1,15 +1,23 @@
 /**
- *  SAGE Doorbell Sensor fix
+ *  SAGE Doorbell Sensor 
+    Presence and bat support
     Hubitat driver. 
 
-Conversion to hubitat so I could find out why im getting false
-button 2 presses on internal drivers which have no debugging logs.
+
 
 Adds battery support (simlated) if stops reporting bat goes to 0
 
+White wire:  common
+Green wire:  doorbell 1  front
+Yellow wire: doorbell 2  rear
+
+ Factory reset:
+ Press and hold the RESET button until the red LED blinks.
 
 
-================================================================================    
+================================================================================ 
+v2.5  09/28/2022  Code cleanup.
+v2.3  09/27/2022  Total rewrite of parse code.
 v2.2  09/25/2022  Cleanup code
 v2.1  09/24/2022  Presence schedule added
 v2.0  09/24/2022  This fixes false button press after last hub update.
@@ -37,39 +45,17 @@ limitations under the License.
 
 
 
-
-Orginal here
-https://github.com/trunzoc/Hubitat/blob/master/Drivers/Sage_Doorbell/Sage_Doorbell.groovy
-Ported to hubitat here
+Main routines totaly rewritten but uses some source code from. 
+https://github.com/trunzoc/Hubitat/blob/master/Drivers/Sage_Doorbell/Sage_Doorbell.groovy (11/27/2019)
 https://github.com/rbaldwi3/Sage-HVAC-Sensor/edit/master/groovy
- *
- *  darwinsden.com/sage-doorbell
- *
- *  White wire: common
- *  Green wire: doorbell 1 / front
- *  Yellow wire: doorbell 2 / rear
- *
- * Factory reset:
- * Remove the plastic cover and the battery.
- * Press and hold the tiny RESET button (next to where the wires attach to the circuit board) while you reinstall the battery.
- * Continue holding RESET until the red LED blinks.
- *
- *	Author: Darwin@DarwinsDen.com
- *  HE Conversion: CraigTrunzo
- *	Date: 2019-11-23
- *
- *	Changelog:
- *
- *  1.0.0 (11/27/2019) - Converted to a standardized HE Driver and added parameter names for buttons
- *  0.40 (03/23/2017) - set numberOfButtons attribute for those smart apps that rely on this
- *  0.30 (11/20/2016) - Removed non-operational battery capability; was preventing device display on 2.2.2 mobile app
- *  0.20 (08/02/2016) - Added preference option for allowed time between presses to eliminate duplicate notifications on some systems
- *  0.10 (06/13/2016) - Initial 0.1 pre-beta Test Code
+
  */
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
+import hubitat.helper.HexUtils
+
 def clientVersion() {
-    TheVersion="2.2"
+    TheVersion="2.4.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -82,6 +68,7 @@ metadata {
 
 		capability "Configuration"
         capability "Pushable Button"
+        capability "ReleasableButton"
 		capability "Refresh"
         capability "Battery"
         capability "PresenceSensor"
@@ -89,16 +76,17 @@ metadata {
         command "checkPresence"
         command "enrollResponse"
         command "uninstall"
+
  	   
         fingerprint endpointId: "12", inClusters: "0000,0003,0009,0001", outClusters: "0003,0006,0008,0019", model: "Bell", manufacturer: "Echostar"
     }
-      
+//  fingerprint model:" Bell", manufacturer:" Echostar", profileId:"0104", endpointId:"12", inClusters:"0000,0003,0009,0001", outClusters:"0003,0006,0008,0019", application:"02"    
     preferences {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-	input name: "timeBetweenPresses",type: "number",title: "Seconds allowed between presses (increase this value to eliminate duplicate notifications)",required: false,displayDuringSetup: true,defaultValue: 10
+	input name: "timeBetweenPresses",type: "number",title: "Seconds allowed between presses (increase this value to eliminate duplicate notifications)",required: true,displayDuringSetup: true,defaultValue: 10
 	input name: "button1Name",type: "text",title: "Doorbell name to be associated with the 'Front Door' contact...",required: false,defaultValue: "Front Door",displayDuringSetup: true
     input name: "button2Name",type: "text",title: "Doorbell name to be associated with the 'Rear Door' contact...",required: false, defaultValue: "Rear Door",displayDuringSetup: true
    }
@@ -130,6 +118,12 @@ def updated(){
 def configure() {
     state.remove("ignore01")
     state.remove("ignore00")
+    state.remove("waitForGetInfo")
+    state.remove("timeBetweenPresses")
+    removeDataValue("softwareBuild")//00000009
+    removeDataValue("firmwareMT")//1014-0002-00000009
+
+    
     unschedule()
     // Schedule presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -139,7 +133,7 @@ def configure() {
     buttons = device.currentValue("numberOfButtons")
     if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
 
-    setPrefs()
+    if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("${device} : Configure", "info")
 
@@ -192,119 +186,102 @@ def checkPresence() {
     }
 }
 
-
 def parse(String description) {
     state.lastCheckin = now()
     checkPresence()
     logging("${device} : Raw [${description}]", "trace")
     Map descMap = zigbee.parseDescriptionAsMap(description)
     logging("${device} : ${descMap}", "trace")
-    logging("${device} : clusterId:${descMap.clusterId} command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
-	Map map = [:]
-	if (description?.startsWith('catchall:')) {	
-        map = parseCatchAllMessage(description)	
-        logging("${device} : catchall map ${map}", "trace")
-       
-    }
+    logging("${device} : profileId:${descMap.profileId} clusterId:${descMap.clusterId} clusterInt:${descMap.clusterInt} sourceEndpoint${descMap.sourceEndpoint} destinationEndpoint${descMap.destinationEndpoint} options:${descMap.options} command:${descMap.command} data:${descMap.data}", "trace")
+//profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[25, 00, 00, 04, 01, 01, 19, 00, 00]    
+if (descMap.profileId == "0000" && descMap.clusterId == "0006" ){logging("${device} : Ping", "debug")}
+//profileId:0104 clusterId:0006 clusterInt:6 sourceEndpoint12 destinationEndpoint01 options:0040 command:00 data:[]    
+else  if (descMap.profileId == "0104" && descMap.clusterId == "0006" ){
+            def buttonNumber = (descMap.command as int)
+            if (buttonNumber == 1 && !isDuplicateCall(state.lastButton1Updated, timeBetweenPresses)){	
+                push(1)
+                state.lastButton1Updated = new Date().time 
+            }
+            if (buttonNumber == 0 && !isDuplicateCall(state.lastButton2Updated, timeBetweenPresses)){ 
+                push(2)
+                state.lastButton2Updated = new Date().time	
+            }
+           
+        }
+// profileId:0104 clusterId:0500 clusterInt:1280 sourceEndpoint12 destinationEndpoint01 options:0040 command:04 data:[86, 10, 00] 
+else  if (descMap.profileId == "0104" && descMap.clusterId == "0500" ){logging("${device} : IAS Zone", "debug")}   
+//[raw:F7F61200010A20002000, dni:F7F6, endpoint:12, cluster:0001, size:0A, attrId:0020, encoding:20, command:01, value:00, clusterInt:1, attrInt:32]    
+else if (descMap.cluster == "0001" && descMap.attrId == "0020") {//Power configuration
+        battery = Integer.parseInt(descMap.value, 16)
+        logging("${device} : Battery:${battery} FALSE data ignored", "debug")
+	}
     
-    else if (description?.startsWith('read attr -')) {
-        map = parseReportAttributeMessage(description)
-        logging("${device} : read attr map ${map}", "trace")
-    }
     
+else if (descMap.cluster == "0000" && descMap.attrId == "0004") {
+    logging("${device} : Manufacturer:${descMap.value} ", "info")
+    updateDataValue("manufacturer", descMap.value)
+}
+else if (descMap.cluster == "0000" && descMap.attrId == "0005") {
+    logging("${device} : device:${descMap.value} ", "info")
+    updateDataValue("device", descMap.value)
+    updateDataValue("partNo", "206612")
+    updateDataValue("model", "DRBELL")
+    updateDataValue("fcc", "DKN-401DM")
+}    
     
-	def result = map ? createEvent(map) : null
-    
+// Raw [catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 B500]
+//else if (descMap.cluster == "0000" && descMap.attrId == "8021") {logging("${device} : Unknown Event ", "debug")}
+else if (descMap.cluster == "0000" && descMap.attrId == "8031") {logging("${device} : Link Quality Cluster Event ", "debug")}
+else if (descMap.cluster == "0000" && descMap.attrId == "8032") {logging("${device} : Routing Table Cluster Event ", "debug")}
+else {logging("${device} : Unknown profileId:${descMap.profileId} clusterId:${descMap.clusterId} clusterInt:${descMap.clusterInt} sourceEndpoint${descMap.sourceEndpoint} destinationEndpoint${descMap.destinationEndpoint} options:${descMap.options} command:${descMap.command} data:${descMap.data}", "debug")    }
+
     if (description?.startsWith('enroll request')) {
     	List cmds = enrollResponse()
         logging("${device} : enroll request ${cmds}", "trace")
         result = cmds?.collect { new hubitat.device.HubAction(it) }
+        return result
     }
-    return result
+    
 }
- 
-private Map parseCatchAllMessage(String description) {
-    Map resultMap = [:]
-    def cluster = zigbee.parse(description)
-    if (shouldProcessMessage(cluster)) { 
-        logging("${device} : cluster:${cluster}", "debug")
-        switch(cluster.clusterId) {
-            case 0x0006:
-            	resultMap = getDoorbellPressResult(cluster)
-                break
-        }
+
+def release(cmd){
+    if (cmd ==1){
+    logging("${device} : ${button1Name} Doorbell [button 1] released", "debug")
+    sendEvent(name: "released", value: "1", isStateChange: true)
     }
-    return resultMap
-}
-
-private boolean shouldProcessMessage(cluster) {
-    // 0x0B is default response indicating message got through
-    // 0x07 is bind message
-    boolean ignoredMessage = cluster.profileId != 0x0104 || 
-        cluster.command == 0x0B ||
-        cluster.command == 0x07 ||
-        (cluster.data.size() > 0 && cluster.data.first() == 0x3e)
-    return !ignoredMessage
-}
-
-private Map parseReportAttributeMessage(String description) {
-	Map descMap = (description - "read attr - ").split(",").inject([:]) { map, param ->
-		def nameAndValue = param.split(":")
-		map += [(nameAndValue[0].trim()):nameAndValue[1].trim()]
-	}
-    logging("${device} : Desc Map ${descMap}", "debug")
- 
-	Map resultMap = [:]
-	if (descMap.cluster == "0001" && descMap.attrId == "0020") {
-        battery = Integer.parseInt(descMap.value, 16)
-        logging("${device} : Battery:${battery} FALSE ignored", "debug")
-	}
- 
-	return resultMap
-}
-
+    if (cmd ==2){
+    logging("${device} : ${button2Name} Doorbell [Button 2] released", "debug")
+    sendEvent(name: "released", value: "2", isStateChange: true)
+    }
+} 
 
 def push(cmd){
     
     if (cmd ==1){
-    logging("${device} : ${button1Name} Doorbell Pressed! [button 1]", "info")
+    logging("${device} : ${button1Name} Doorbell [button 1] Pressed!", "info")
     sendEvent(name: "pushed", value: "1", isStateChange: true)
+    pauseExecution(6000)
+    release(cmd)
     }
     if (cmd ==2){
-    logging("${device} : ${button2Name} Doorbell Pressed! [Button 2]", "info")
+    logging("${device} : ${button2Name} Doorbell [Button 2] Pressed!", "info")
     sendEvent(name: "pushed", value: "2", isStateChange: true)
+    pauseExecution(6000)
+    release(cmd)   
     }
-  
+    
+ 
+    
 }
 
-private Map getDoorbellPressResult(cluster) {
-    def linkText = getLinkText(device)
-    def buttonNumber = (cluster.command as int)
-    def result = [:]
-    switch(buttonNumber) {
-        case 0: 
-            if (!isDuplicateCall(state.lastButton2Updated, state.timeBetweenPresses) ){
-                push(2)
-            }
-            state.lastButton2Updated = new Date().time	
-            break
-
-        case 1: 
-            if (!isDuplicateCall(state.lastButton1Updated, state.timeBetweenPresses) ){		
-                push(1)
-            }
-            state.lastButton1Updated = new Date().time
-    }
-    return result
-}
 
 def refresh() {
     logging("${device} : Refresh", "info")
-   
     def refreshCmds = [
-        "he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20", "delay 500", 
+        "he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20", "delay 500",
+        "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 04 00}", "delay 2000",
+        "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 05 00}", "delay 2000", 
 	]
-
     setPrefs()
 	return refreshCmds + enrollResponse()
 }
@@ -332,13 +309,6 @@ private isDuplicateCall(lastRun, allowedEverySeconds) {
 	result
 }
 
-def setPrefs() 
-{
-if (!timeBetweenPresses)  {timeBetweenPresses = 10}
-if (timeBetweenPresses <0){timeBetweenPresses = 10}
-state.timeBetweenPresses = timeBetweenPresses
-logging("${device} :Time Between Presses ${state.timeBetweenPresses}", "info")
-}
 
 
 
