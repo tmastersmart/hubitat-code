@@ -25,6 +25,7 @@ Create a Outdoor and indoor sensor using this driver
 Give permission in the API maker then enter the 
 ID #s for the sensors and API in the script.
 
+v1.8        09/28/2022 Updated logging
 v1.7        09/02/2022  attribute "WU" added
 v1.6        08/18/2022  Fix numeric varables so scripts can use math 
 v1.5        06-10-2021
@@ -35,6 +36,14 @@ v1.2 beta   06/02/2021
     
 
 */
+def clientVersion() {
+    TheVersion="1.8"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() // Forces config on updates
+ }
+}
+
 
 metadata {
     definition (name: "PWS Observer IP Link", namespace: "tmastersmart", author: "tmaster",importUrl: "https://github.com/tmastersmart/hubitat-code/raw/main/observer_ip_link.groovy") {
@@ -126,15 +135,14 @@ metadata {
       
     }
     preferences {
-        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-        input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: true
+         input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	     input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	     input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+
     }
 }
 
-def logsOff(){
-    log.warn "debug logging disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
-}
+
 
 def installed() {
     log.warn "installed..."
@@ -153,10 +161,12 @@ def initialize() {
     
 
 def updated() {
-    log.info "updated..."
-    log.warn "debug logging is: ${logEnable == true}"
-    log.warn "description logging is: ${txtEnable == true}"
-    if (logEnable) runIn(1800,logsOff)
+    logging("${device} : updated..", "info")
+    clientVersion()
+    loggingUpdate()
+}
+def  configure(){
+    
 }
 
 def parse(String description) {
@@ -164,186 +174,166 @@ def parse(String description) {
 }
 
 def setBattery(battery) {
-    def descriptionText = "${device.displayName} Battery is ${battery} %"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "battery", value: battery, descriptionText: descriptionText, unit: "%")
+    logging("${device} : Battery is ${battery} %", "debug")
+    sendEvent(name: "battery", value: battery, unit: "%")
 }
-def setVersion(version) {
-    def descriptionText = "${device.displayName} Firmware is ${version} "
-//    if (txtEnable) log.info "${descriptionText}"
-    updateDataValue("firmware", version)
-//    sendEvent(name: "firmware", value: version, descriptionText: descriptionText, unit: "")
-}
+def setVersion(version) { updateDataValue("firmware", version)}
+def setModel(version)   { updateDataValue("model", version)}
+def setAgent(agent)     { updateDataValue("agent", agent)}
 
-def setModel(version) {
-    def descriptionText = "${device.displayName} Model is ${version} "
-//    if (txtEnable) log.info "${descriptionText}"
-    updateDataValue("model", version)
-//    sendEvent(name: "firmware", value: version, descriptionText: descriptionText, unit: "")
-}
-
-def setAgent(agent) {
-    def descriptionText = "${device.displayName} Software is ${agent} "
-//    if (txtEnable) log.info "${descriptionText}"
-    updateDataValue("agent", agent)
-//  This is the version of MMPWS running on another PC
-}
 
 def setWeather(weather) {
-    def descriptionText = "${device.displayName} Weather status ${weather}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "weather", value: weather, descriptionText: descriptionText, unit: "text")
+    logging("${device} : Weather status ${weather}", "debug")
+    sendEvent(name: "weather", value: weather, unit: "text")
 }
 def setIlluminance(lux) {
-    def descriptionText = "${device.displayName} Illuminance is ${lux} lux"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "illuminance", value: lux, descriptionText: descriptionText, unit: "Lux")
+    logging("${device} : Illuminance is ${lux} lux", "debug")
+    sendEvent(name: "illuminance", value: lux,  unit: "Lux")
 }
 
 def setUVI(uvi) {
-    def descriptionText = "${device.displayName} UVI Index is ${uvi} "
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "ultraviolet", value: uvi, descriptionText: descriptionText, unit: "uvi")
-    sendEvent(name: "uvi", value: uvi, descriptionText: descriptionText, unit: "uvi")
+    logging("${device} : UVI Index is ${uvi} ", "debug")
+    sendEvent(name: "ultraviolet", value: uvi, unit: "uvi")
+    sendEvent(name: "uvi", value: uvi,  unit: "uvi")
 }
 def setRAD(solarrad) {
-    def descriptionText = "${device.displayName} Solar Rad is ${solarrad} "
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "solarrad", value: solarrad, descriptionText: descriptionText, unit: "wm2")
+    logging("${device} : Solar Rad is ${solarrad} wm2", "debug")
+    sendEvent(name: "solarrad", value: solarrad, unit: "wm2")
 	sendEvent(name: "energy", value: solarrad, unit: "wm2")
     sendEvent(name: "power", value: solarrad, unit: "wm2")
 }
 
 
 def setRelativeHumidity(humid) {
-    def descriptionText = "${device.displayName} RelativeHumidity is ${humid}% humidity"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "humidity", value: humid, descriptionText: descriptionText, unit: "RH%")
+    logging("${device} : RelativeHumidity is ${humid}% humidity", "debug")
+    sendEvent(name: "humidity", value: humid, unit: "RH%")
 }
 
 def setTemperature(temp) {
     def unit = "°${location.temperatureScale}"
-    def descriptionText = "${device.displayName} Temperature is ${temp}${unit}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "temperature", value: temp, descriptionText: descriptionText, unit: unit)
+    logging("${device} : Temperature is ${temp}${unit}", "info")
+    sendEvent(name: "temperature", value: temp, descriptionText: "Temperature is ${temp}${unit}", unit: unit)
 }
 
 def setPressure(Pressure) {
-    def descriptionText = "${device.displayName}  Relative Pressure in inga is ${Pressure}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "pressure", value: Pressure, descriptionText: descriptionText, unit: "inga")
+    logging("${device} : Relative Pressure in inga is ${Pressure}", "debug")
+    sendEvent(name: "pressure", value: Pressure,  unit: "inga")
 }
 
 def setName(name) {
-    def descriptionText = "${device.displayName}  Station Name is ${name}"
-    if (txtEnable) log.info "${descriptionText}"
+    logging("${device} : Station Name is ${name}", "debug")
     updateDataValue("WU", name)
-    sendEvent(name: "name", value: name, descriptionText: descriptionText, unit: "text")
+    sendEvent(name: "name", value: name, unit: "text")
 }
 def setCWOP(name) {
-    def descriptionText = "${device.displayName}  CWOP Name is ${name}"
-    if (txtEnable) log.info "${descriptionText}"
+    logging("${device} : CWOP Name is ${name}", "debug")
     updateDataValue("CWOP", name)
-    sendEvent(name: "CWOP", value: name, descriptionText: descriptionText, unit: "text")
+    sendEvent(name: "CWOP", value: name,  unit: "text")
 }
 def setPWS(name) {
-    def descriptionText = "${device.displayName}  PWS Name is ${name}"
-    if (txtEnable) log.info "${descriptionText}"
+    logging("${device} : PWS Name is ${name}", "debug")
     updateDataValue("PWS", name)
-    sendEvent(name: "PWS", value: name, descriptionText: descriptionText, unit: "text")
+    sendEvent(name: "PWS", value: name, unit: "text")
 }
 def setAltemeter(Altemeter) {
-    def descriptionText = "${device.displayName}  Altemeter in Mbar is ${Altemeter}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "Altemeter", value: Altemeter, descriptionText: descriptionText, unit: "mbar")
+    logging("${device} : Altemeter in Mbar is ${Altemeter}", "debug")
+    sendEvent(name: "Altemeter", value: Altemeter,  unit: "mbar")
 }
 def setRainR(Rain) {
-    def descriptionText = "${device.displayName}  Rain Rate is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "RainRate", value: Rain, descriptionText: descriptionText, unit: "Inches")
+    logging("${device} : Rain Rate is ${Rain}", "debug")
+    sendEvent(name: "RainRate", value: Rain,  unit: "Inches")
 }
 def setRainD(Rain) {
-    def descriptionText = "${device.displayName}  Daily Rain is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "RainDaily", value: Rain, descriptionText: descriptionText, unit: "Inches")
-    sendEvent(name: "Rain", value: Rain, descriptionText: descriptionText, unit: "Inches")
+    logging("${device} : Daily Rain is ${Rain}", "debug")
+    sendEvent(name: "RainDaily", value: Rain, unit: "Inches")
+    sendEvent(name: "Rain", value: Rain,  unit: "Inches")
 
 }
 def setRainH(Rain) {
-    def descriptionText = "${device.displayName}  Hourly Rain is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}"
+    logging("${device} : Hourly Rain is ${Rain}", "debug")
     sendEvent(name: "RainHour", value: Rain, descriptionText: descriptionText, unit: "Inches")
 }
 def setRainM(Rain) {
-    def descriptionText = "${device.displayName}  Monthly is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "RainMonth", value: Rain, descriptionText: descriptionText, unit: "Inches")
+    logging("${device} : Monthly is ${Rain}", "debug")
+    sendEvent(name: "RainMonth", value: Rain,  unit: "Inches")
 }
 def setRainY(Rain) {
-    def descriptionText = "${device.displayName}  Yearly Rain is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}'"
-    sendEvent(name: "RainYear", value: Rain, descriptionText: descriptionText, unit: "Inches")
+    logging("${device} : Yearly Rain is ${Rain}", "debug")
+    sendEvent(name: "RainYear", value: Rain,  unit: "Inches")
 }
 
 def setRain24(Rain) {
-    def descriptionText = "${device.displayName}  Last 24 Hrs Rain is ${Rain}"
-    if (txtEnable) log.info "${descriptionText}'"
-    sendEvent(name: "Rain24", value: Rain, descriptionText: descriptionText, unit: "Inches")
+    logging("${device} : Last 24 Hrs Rain is ${Rain}", "debug")
+    sendEvent(name: "Rain24", value: Rain, unit: "Inches")
 }
 
 def setWind(Wind) {
-    def descriptionText = "${device.displayName}  Current Wind is ${Wind}"
-    if (txtEnable) log.info "${descriptionText}"
+    logging("${device} : Current Wind is ${Wind}", "debug")
     sendEvent(name: "Wind", value: Wind, descriptionText: descriptionText, unit: "mph")
     sendEvent(name: "WindSpeed", value: Wind, descriptionText: descriptionText, unit: "mph")
 }
 def setGust(Gust) {
-    def descriptionText = "${device.displayName}  Wind Gusting at ${Gust}"
-    if (txtEnable) log.info "${descriptionText}"
-    
-    sendEvent(name: "WindGust", value: Gust, descriptionText: descriptionText, unit: "mph")
-    sendEvent(name: "Gust", value: Gust, descriptionText: descriptionText, unit: "mph")
+    logging("${device} : Wind Gusting at ${Gust}", "debug")
+    sendEvent(name: "WindGust", value: Gust,  unit: "mph")
+    sendEvent(name: "Gust", value: Gust,  unit: "mph")
 }
 
 def setDGust(Gust) {
-    def descriptionText = "${device.displayName}  Daily Wind Gust is ${Gust}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "WindDGust", value: Gust, descriptionText: descriptionText, unit: "mph")
+    logging("${device} : Daily Wind Gust is ${Gust}", "debug")
+    sendEvent(name: "WindDGust", value: Gust, unit: "mph")
 }
 
 def setWindDirection(windDirection) {
-    def descriptionText = "${device.displayName}  Wind Direction is ${windDirection}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "WindDirection", value: windDirection, descriptionText: descriptionText, unit: "dir")
+    logging("${device} : Wind Direction is ${windDirection}", "debug")
+    sendEvent(name: "WindDirection", value: windDirection, unit: "dir")
 }
 def setWind_cardinal(wind_cardinal) {
-    def descriptionText = "${device.displayName}  Wind cardinal is ${wind_cardinal}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "Wind_cardinal", value: wind_cardinal, descriptionText: descriptionText, unit: "dir")
+    logging("${device} : Wind cardinal is ${wind_cardinal}", "debug")
+    sendEvent(name: "Wind_cardinal", value: wind_cardinal,  unit: "dir")
 }
-
-
-
-
+// Date is last value posted. 
 def setPWSDate(PWSDate) {
-    def descriptionText = "${device.displayName}  Date is ${PWSDate}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "PWSDate", value: PWSDate, descriptionText: descriptionText, unit: "")
+    logging("${device} : Date is ${PWSDate}", "debug")
+    sendEvent(name: "PWSDate", value: PWSDate,  unit: "")
 }
 def setDew(Dew) {
-    def descriptionText = "${device.displayName}  Dewpoint is ${Dew}"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "Dew", value: Dew, descriptionText: descriptionText, unit: "deg")
+    logging("${device} : Dewpoint is ${Dew}", "debug")
+    sendEvent(name: "Dew", value: Dew,  unit: "deg")
 }
 
 def wet() {
-    def descriptionText = "${device.displayName} water wet"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "water", value: "wet", descriptionText: descriptionText)
+    logging("${device} : wet", "debug")
+    sendEvent(name: "water", value: "wet")
 }
 
 def dry() {
-    def descriptionText = "${device.displayName} water dry"
-    if (txtEnable) log.info "${descriptionText}"
-    sendEvent(name: "water", value: "dry", descriptionText: descriptionText)
+    logging("${device} : dry", "debug")
+    sendEvent(name: "water", value: "dry")
 }
+
+// Logging block 
+//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
+}
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+void traceLogOff(){
+	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+	log.trace "${device} : Trace Logging : Automatically Disabled"
+}
+void debugLogOff(){
+	device.updateSetting("debugLogging",[value:"false",type:"bool"])
+	log.debug "${device} : Debug Logging : Automatically Disabled"
+}
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
+}
+
