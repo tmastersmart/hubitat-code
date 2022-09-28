@@ -189,14 +189,7 @@
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
   "description": "Improved HTTP Presence sensor with adjustable chron schedule up to 59 mins. Extra delay prevents overloading enter Endpoint URL and polling time with info debug and trace logs"
-		 },
-	      {
-  "name":"Basic Z-Wave tool",
-  "category":"Utility",
-  "tags":   [    "ZWave", "Tools & Utilities"   ],
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/basic_zwave_tool.json",
-  "description": "Basic Z-Wave tool for setting device parameters for all the tweakers out there...By Mike Maxwel. Installs from Hubitat library"
-	      }
+		 }
 	]
 	
 }
