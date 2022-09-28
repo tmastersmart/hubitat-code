@@ -16,11 +16,12 @@ Yellow wire: doorbell 2  rear
 
 
 ================================================================================ 
-v2.4  09/28/2022  Code cleanup.
-v2.3  09/27/2022  Total rewrite of parse code.
-v2.2  09/25/2022  Cleanup code
-v2.1  09/24/2022  Presence schedule added
-v2.0  09/24/2022  This fixes false button press after last hub update.
+v2.5.0  09/28/2022  Debug logs not auto disabling/Bug on line 285
+v2.4.0  09/28/2022  Code cleanup.
+v2.3    09/27/2022  Total rewrite of parse code.
+v2.2    09/25/2022  Cleanup code
+v2.1    09/24/2022  Presence schedule added
+v2.0    09/24/2022  This fixes false button press after last hub update.
                   Simulated battery 
 
 
@@ -55,7 +56,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.4.0"
+    TheVersion="2.5.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -125,6 +126,7 @@ def configure() {
 
     
     unschedule()
+    loggingUpdate()
     // Schedule presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
@@ -282,7 +284,6 @@ def refresh() {
         "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 04 00}", "delay 2000",
         "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 05 00}", "delay 2000", 
 	]
-    setPrefs()
 	return refreshCmds + enrollResponse()
 }
 
