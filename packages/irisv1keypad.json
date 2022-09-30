@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "IRIS v1 keypad driver. Detection for new firmware, Autopair is now working, The best keypad ever now has a driver.",
+  "releaseNotes": "Detection for new firmware, Autopair is now working, The best keypad ever now has a driver.",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/",
   "communityLink": "https://community.hubitat.com/t/release-iris-v1-keypad-driver/80247",
   "version": "6.8.1",
