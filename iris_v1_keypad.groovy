@@ -18,6 +18,7 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
+  v6.8.2 09/30/2022 STROBE added to alarm setting to fix alt firmware problems. 
   v6.8.1 09/30/2022 Fingerprint adjusted Finaly have autopair working 
    Firmware 2012-06-11 does not autorepeate the alarm tone fixed. Redirected to strobe.
    if your firmware doesnt repeat alarm tones I need to know. 
@@ -255,7 +256,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.8.1"
+    TheVersion="6.8.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -355,9 +356,7 @@ preferences {
 
     input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline",required: true  
 
-    if (state.AltTones == false){
-     input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone", options: ["KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "ALARM",required: true
-    }
+    input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone. Some firmware may only work with STROBE", options: ["STROBE","KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "STROBE",required: true
     input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
     
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
@@ -380,7 +379,7 @@ def installed() {	// Runs after first pairing.
 def initialize() {
 /// Runs on reboot also    
 // Testing is this needed? Because its not set right by default   
-state.AltTones = false  
+
 state.delayExit = 30
 state.armNightDelay = 30
 state.armHomeDelay = 30
@@ -417,11 +416,8 @@ sendEvent(name: "codeLength", value:15)
 
 sendEvent(name: "tamper", value: "clear")
 sendEvent(name: "status", value: "ok")    
-//sendEvent(name: "lastCodeName", value: "none", descriptionText: "Initialised")
-//sendEvent(name: "lastCodePIN",  value: "0000", descriptionText: "Initialised") 
-  
 offEvents()    
-    
+  
 state.remove("switch")	
 state.remove("uptime")
 state.remove("logo")
@@ -433,6 +429,7 @@ state.remove("iriscmd")
 state.remove("alertST")
 state.remove("armingMode")
 state.remove("waitForGetInfo")
+state.remove("AltTones")  
     
 removeDataValue("image")
 device.deleteCurrentState("alarm")    
@@ -1211,14 +1208,11 @@ def siren(cmd){
     sendEvent(name: "status", value: "Inuse")
     return
     }
-    if (state.AltTones == true){ // some firmware does not repeat.
-        strobe()
-        return
-    }
     
   sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
+  if (AlarmTone == "STROBE")  {strobe()}
   if (AlarmTone == "KEYCLICK"){soundCode(1)}
   if (AlarmTone == "LOSTHUB") {soundCode(2)}
   if (AlarmTone == "ARMING")  {soundCode(3)}
@@ -1943,12 +1937,8 @@ if (keyRec == "30"){push(10)}
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
         reportFirm = "unknown"
-        state.AltTones = false    
       if(deviceFirmware == "2012-06-08" ){reportFirm = "v1 Ok"}
-      if(deviceFirmware == "2012-06-11" ){
-          reportFirm = "v1.1 Ok"
-          state.AltTones = true
-      } // Tones are diffrent    
+      if(deviceFirmware == "2012-06-11" ){reportFirm = "v1.1 Ok"} // Tones are diffrent    
       if(deviceFirmware == "2012-12-11" ){reportFirm = "v2 Ok"}
       if(deviceFirmware == "2013-06-28" ){reportFirm = "v3 Ok"}
   
@@ -1975,7 +1965,7 @@ if (keyRec == "30"){push(10)}
      } else { reportToDev(map)}
 
 
-// Standard IRIS USA Cluster detection block
+// Standard IRIS USA Cluster detection block v2 9/30/2022
 // Delay to prevent spamming the log on a routing messages    
 	} else if (map.clusterId == "8001" ) {
         pauseExecution(new Random().nextInt(10) * 3000)
