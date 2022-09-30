@@ -1977,14 +1977,16 @@ if (keyRec == "30"){push(10)}
 
 // Standard IRIS USA Cluster detection block
 // Delay to prevent spamming the log on a routing messages    
-    } else if (map.clusterId == "8038") {
-    logging("${device} : ${map.clusterId} Seen before but unknown", "debug")
 	} else if (map.clusterId == "8001" ) {
         pauseExecution(new Random().nextInt(10) * 3000)
-		logging("${device} : ${map.clusterId} Routing and Neighbour Information", "info")    
+		logging("${device} : ${map.clusterId} Routing and Neighbour Information", "info")  
 	} else if (map.clusterId == "8032" ) {
         pauseExecution(new Random().nextInt(10) * 3000)
 		logging("${device} : ${map.clusterId} New join has triggered a routing table reshuffle.", "info")
+    } else if (map.clusterId == "8034" ) {
+		logging("${device} : ${map.clusterId} Seen during REMOVE. ", "warn")
+    } else if (map.clusterId == "8038") {
+        logging("${device} : ${map.clusterId} Seen before but unknown", "debug")    
     } else if (map.clusterId == "0006") {
 		logging("${device} : Match Descriptor Request. Sending Response","info")
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
