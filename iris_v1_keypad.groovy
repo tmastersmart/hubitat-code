@@ -2,7 +2,7 @@
 Hubitat Iris v1 KeyPad driver 
 Supports keypad disarm arm functions (all modes)
 Works with Lock Code Manager (4-15 digit Pin size supported)
-Works with HSM 
+Works with Hubitat® Safety Monitor
 Plays chime codes and alarm strobe
 Button Controller support to map coomands to buttons 1-0
 
@@ -15,7 +15,12 @@ Button Controller support to map coomands to buttons 1-0
                                                    __/ | |                
                                                   |___/|_|   
 
+Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
+
 =================================================================================================
+  v6.8.1 09/30/2022 Fingerprint adjusted Finaly have autopair working 
+   Firmware 2012-06-11 does not autorepeate the alarm tone fixed. Redirected to strobe.
+   if your firmware doesnt repeat alarm tones I need to know. 
   v6.8   09/24/2022 Pin code logging bug fixed. Reduce bat events
   v6.7.1 09/22/2022 New presence routine
   v6.7   09/21/2022 Ranging Adjustments
@@ -250,7 +255,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.8.0"
+    TheVersion="6.8.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -288,7 +293,7 @@ command "entry"
 command "SendState"
 command "getStatus"
 command "unschedule"        
-        
+command "installed"        
 
 attribute "armingIn", "NUMBER"
 attribute "batteryState", "string"
@@ -317,12 +322,12 @@ attribute "code9n", "string"
 attribute "code10", "string"
 attribute "code10n", "string"        
         
-        
-        
-        
-attribute "lockCodes", "string"		
+    
+attribute "lockCodes", "string"	
 
-fingerprint profileId:"C216", inClusters: "00F0,00C0,00F3,00F5", endpointId:"02",outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
+// shares clusters with care fob causing wrong pairing.
+fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0",           outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
+fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0,00F3,00F5", outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 	}
 }
 
@@ -349,28 +354,33 @@ preferences {
     input name: "StarSet" ,type: "enum", title: "* Button", description: "Customize Star Button",  options:  ["Disabled","Arm Night", "Arm Home", "Arm Away"], defaultValue: "Disabled",required: true 
 
     input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline",required: true  
-    input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone", options: ["KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "ALARM",required: true  
-    input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
 
+    if (state.AltTones == false){
+     input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone", options: ["KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "ALARM",required: true
+    }
+    input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
+    
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
 
 
 }
 
 
-def installed() {
-	// Runs after first pairing. this may never run internal drivers overide pairing.
+def installed() {	// Runs after first pairing. 
+    infoLogging=true
+    debugLogging=false
+    traceLogging=false
 	logging("${device} : Paired!", "info")
+    loggingUpdate()
     initialize()
-    configure()
-    
+    getStatus()
 }
 
  
 def initialize() {
 /// Runs on reboot also    
 // Testing is this needed? Because its not set right by default   
-  
+state.AltTones = false  
 state.delayExit = 30
 state.armNightDelay = 30
 state.armHomeDelay = 30
@@ -455,8 +465,8 @@ def configure() {
     state.remove("batteryState") 
     state.remove("armMode")
     
-    updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
-    updateDataValue("outClusters", "00C0")
+//    updateDataValue("inClusters", "00F0,00C0,00F3,00F5")
+//    updateDataValue("outClusters", "00C0")
     
 	unschedule()
 
@@ -1133,7 +1143,10 @@ def getSoftStatus(status){
     if (status == "armedNight") {test = "night"}
     if (status == "disarmed"  | status == "allDisarmed"){test = "off"}
     if (test == state.Command){logging ("${device} : Verified in state with HSM No problems","info") }
-    else {logging ("${device} : HSM Sync status HSM:${test} <> state:${state.Command}","info")}          
+    else {
+        logging ("${device} : HSM Sync status HSM:${test} <> state:${state.Command}","error")
+        logging ("${device} : Did you add the keypad in Hubitat Safety Monitor under Configure automatic arm/disarm?","warn")
+    }          
 }
 
 def getStatus(status) {
@@ -1198,6 +1211,11 @@ def siren(cmd){
     sendEvent(name: "status", value: "Inuse")
     return
     }
+    if (state.AltTones == true){ // some firmware does not repeat.
+        strobe()
+        return
+    }
+    
   sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
   sendEvent(name: "siren", value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true) 
@@ -1228,7 +1246,7 @@ def strobe(cmd){
   state.Command = "panic"  
   SendState()  
 }
-def both(cmd){siren(cmd)}
+def both(cmd){strobe(cmd)}
 
 def off(cmd){
    
@@ -1284,7 +1302,9 @@ def playSound(cmd){
  
 soundCode(cmd)
     
+    
     if (chimeTime > 10){ 
+        if (state.AltTones == true){logging ("${device} : This firmware may not support this tone","warn")}
         logging ("${device} : Chime Delay ${chimeTime}","info")    
     pauseExecution(chimeTime)
     soundCode(0)
@@ -1923,9 +1943,15 @@ if (keyRec == "30"){push(10)}
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
         reportFirm = "unknown"
+        state.AltTones = false    
       if(deviceFirmware == "2012-06-08" ){reportFirm = "v1 Ok"}
+      if(deviceFirmware == "2012-06-11" ){
+          reportFirm = "v1.1 Ok"
+          state.AltTones = true
+      } // Tones are diffrent    
       if(deviceFirmware == "2012-12-11" ){reportFirm = "v2 Ok"}
       if(deviceFirmware == "2013-06-28" ){reportFirm = "v3 Ok"}
+  
       
 	if(reportFirm == "unknown"){state.reportToDev="Report Unknown firmware [${deviceFirmware}] " }
     else{state.remove("reportToDev")}
