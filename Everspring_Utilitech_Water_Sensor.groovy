@@ -16,6 +16,7 @@
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
+v2.5.1 10/07/2022 Auto debug logs off fixed
 v2.5  09/25/2022 timming change in presence events
 v2.4  09/19/2022 Rewrote logging routines.
 v2.3  09/17/2022 Bug in presence code. Error in raw github import url
@@ -53,7 +54,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.5.0"
+    TheVersion="2.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -132,7 +133,7 @@ state.donate="<img src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACZCA
 def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
-	loggingStatus()
+	loggingUpdate()
     randomSixty = Math.abs(new Random().nextInt() % 60)
 	runIn(randomSixty,refresh) // Refresh in random time
 }
@@ -319,7 +320,6 @@ void loggingUpdate() {
     if (debugLogging){runIn(3600,debugLogOff)}
     if (traceLogging){runIn(1800,traceLogOff)}
 }
-void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
