@@ -8,7 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
-v2.2  10/10/2020 Changes in bat lower limit and config delay
+v2.2.1 10/10/2020 Changes in bat lower limit and config delay
 v2.1  09/21/2022 Ranging adjustments
 v2.0  09/19/2022 Rewrote logging routines.
 v1.9  09/17/2022 Presence routine rewrote from scratch
@@ -57,7 +57,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.2.0"
+    TheVersion="2.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -180,6 +180,13 @@ def configure() {
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
 	// Remove state variables from old versions.
+	
+	// upgrade to new min values
+	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.3 ){ 
+		state.minVoltTest= 2.30 
+		logging("${device} : Reset min voltage to ${state.minVoltTest}", "info")
+	}
+	
     state.remove("operatingMode")
     state.remove("LQI")
     state.remove("batteryOkay")
