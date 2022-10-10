@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support, Remember to Init and Cfg after changing to driver",
+  "releaseNotes": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support, Auto config delays changed,Lower bat limit changed",
   "documentationLink": "",
   "communityLink": "",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
   "tags":   [ "Alarm Systems", "Motion Control" ],
@@ -17,7 +17,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy",
       "required": "true",
-      "description": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support",
+      "description": "Iris v1 Motion Sensor custom with presence. Proper battery sensor support. Use uninstall before going back to internal driver",
       "id": "ab19208a-3c6a-11ed-a261-0242ac120002"
     }
     ]
