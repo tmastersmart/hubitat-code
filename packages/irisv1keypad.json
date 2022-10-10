@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "Autopair is now working, STROBE added to alarm options, The best keypad ever now has a driver.",
+  "releaseNotes": "Autopair is now working, STROBE added to alarm options, Many improvments, The best keypad ever now has a driver.",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-v1-keyboard-driver-for-hubitat/",
   "communityLink": "https://community.hubitat.com/t/release-iris-v1-keypad-driver/80247",
-  "version": "6.8.2",
+  "version": "6.8.4",
   "dateReleased": "2022-24-09",
   "category":"Safety & Security",
   "tags": [ "Alarm Systems", "buttons","Locks" ],
@@ -16,7 +16,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v1_keypad.groovy",
       "required": "true",
-      "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. ",
+      "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. The best keypad ever now has a driver.",
       "id": "f2aaf002-149e-403c-b225-6ece63729781"
     }
     ]
