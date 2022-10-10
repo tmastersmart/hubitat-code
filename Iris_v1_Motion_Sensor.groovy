@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.2  10/10/2020 Changes in bat lower limit and config delay
 v2.1  09/21/2022 Ranging adjustments
 v2.0  09/19/2022 Rewrote logging routines.
 v1.9  09/17/2022 Presence routine rewrote from scratch
@@ -56,7 +57,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.1.0"
+    TheVersion="2.2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -202,11 +203,8 @@ def configure() {
 
 	// Run a ranging report and then switch to normal operating mode.
     // Randomise so we dont get several running at the same time
-    random = Math.abs(new Random().nextInt() % 33500)
-    logging("${device} : configure pause:${random}", "info")
-    pauseExecution(random)
-	rangeAndRefresh()
-	runIn(12,normalMode)
+    runIn(randomSixty,rangeAndRefresh)
+    logging("${device} : configure", "info")
 	
 }
 
@@ -364,8 +362,8 @@ def processMap(Map map) {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  minimumVolts:2.2, nominalVolts:3.0  
-        if (state.minVoltTest < 2.19){ 
-            state.minVoltTest= 2.40 
+        if (state.minVoltTest < 2.1){ 
+            state.minVoltTest= 2.30 
             logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
         }
         if (batteryVoltage < state.minVoltTest){
