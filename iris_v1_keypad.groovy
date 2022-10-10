@@ -18,6 +18,14 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
+
+  v6.8.4 10/08/2022 Cancel/Disarm code rewritten. Switch capability added. Routines can now turn off/on
+   alarm by switch. 2 new tones added depends on your firmware if they work. 
+   Rewrote HSM send cmd code. Rewrote HSM delay code.
+   Changes in arming from keypad now sends arm to HSM and waits for HSM to send ARM. 
+   Was arming first. Should help keep the countdown timer in sync with slugish hubs.
+   BadPin tone setting added. 
+
   v6.8.2 09/30/2022 STROBE added to alarm setting to fix alt firmware problems. 
   v6.8.1 09/30/2022 Fingerprint adjusted Finaly have autopair working 
    Firmware 2012-06-11 does not autorepeate the alarm tone fixed. Redirected to strobe.
@@ -28,9 +36,8 @@ Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to 
   v6.6   09/19/2022 Rewrote logging routines.
   v6.5   09/17/2022 Increased database to 10 PINS
   v6.4   09/16/2022 Allow HSM to send more than 1 off cmd. Bug in panic timeout fixed.
-                    Rewrite of ranging code. Rewrite of battery logging code.
-                    Updating iris block code on all my iris drivers.
-                    Pin logging rewritten. Hide pin from log
+  Rewrite of ranging code. Rewrite of battery logging code. Updating iris block code on all my iris drivers.
+  Pin logging rewritten. Hide pin from log.
   v6.3   09/10/2022 Reversing v.61 update
   v6.2   09/04/2022 Updating iris block code on all my iris drivers.
   v6.1   09/03/2022 ---
@@ -256,7 +263,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.8.2"
+    TheVersion="6.8.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -284,6 +291,7 @@ capability "Tone"
 capability "ShockSensor"
 capability "Chime"
 capability "Alarm"
+capability "Switch"
 
 
 command "checkPresence"
@@ -297,6 +305,7 @@ command "unschedule"
 command "installed"        
 
 attribute "armingIn", "NUMBER"
+attribute "battery2", "NUMBER"        
 attribute "batteryState", "string"
 attribute "lastCodeName", "string"
 attribute "lastCodePIN", "string"        
@@ -326,7 +335,7 @@ attribute "code10n", "string"
     
 attribute "lockCodes", "string"	
 
-// shares clusters with care fob causing wrong pairing.
+// HUB has hardwired any iris device with 00C0 as a care fob so we have to fake carefob fingerprint.
 fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0",           outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0,00F3,00F5", outClusters: "00C0", manufacturer: "Iris/AlertMe", model: "KeyPad Device", deviceJoinName: "Iris V1 Keypad"
 	}
@@ -356,7 +365,9 @@ preferences {
 
     input name: "BatType", type: "enum", title: "Battery Type", options: ["Lithium", "Alkaline", "NiMH", "NiCad"], defaultValue: "Alkaline",required: true  
 
-    input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone. Some firmware may only work with STROBE", options: ["STROBE","KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","BADPIN","GAME","CPU"], defaultValue: "STROBE",required: true
+    input name: "AlarmTone",type:"enum", title: "Alarm Tone",description: "Customize Alarm Tone. Some firmware may only work with STROBE", options: ["STROBE","KEYCLICK","LOSTHUB","ARMING","ARMED","HOME","NIGHT","ALARM","PANIC","OPENDOOR","LOCKED","BADPIN","GAME","CPU"], defaultValue: "STROBE",required: true
+    input name: "BadPinTone",type:"enum",title: "Bad Pin Tone",description: "Customize Bad Pin Tone. some firmware may not play all tones", options: ["ERROR","BADPIN","GAME","CPU","LOCKED","LOSTHUB"], defaultValue: "ERROR",required: true
+
     input("chimeTime",  "number", title: "Chime Timeout", description: "Chime Timeout timer. Sends stop in ms 0=disable",defaultValue: 5000,required: true)
     
     input("secure",  "text", title: "Master password", description: "4 to 11 digit Overide PIN. Not stored in Lock Code Manager Database 0=disable",defaultValue: 0,required: false)
@@ -378,35 +389,28 @@ def installed() {	// Runs after first pairing.
  
 def initialize() {
 /// Runs on reboot also    
-// Testing is this needed? Because its not set right by default   
-
-state.delayExit = 30
-state.armNightDelay = 30
-state.armHomeDelay = 30
-state.delayEntry = 30  
-    
+logging("${device} : initialize", "info")
+// Set defaults they will be updated by HSM
+// Survive a reboot    
+if (!state.armNightDelay){state.armNightDelay = 30}
+if (!state.armHomeDelay){state.armHomeDelay  = 30}
+if (!state.delayEntry){state.delayEntry    = 30}
+if (!state.delayExit){state.delayExit     = 30}
+if (!state.Command){state.Command = "unknown"} 
+state.delay = 40 
+state.waiting = 0    
 state.message = "Enable [${device}] in HSM"
-state.waiting = 0 // Out of state timer
-state.delay = 10  // hub sends this on every arm
-
 state.batteryOkay = true
 state.Panic = false
-state.validPIN = false
-    
-//state.operatingMode = "normal"
 state.presenceUpdated = 0
 state.rangingPulses = 0
-    
-// Survive a reboot
-if (!state.Command){state.Command = "unknown"} 
-
+state.validPIN = false  
 state.PinName = "NA"
 state.PIN = "NA"
-state.icon ="<img src='data:image/jpeg;base64,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'>"
-
-state.donate="<img src='data:image/png;base64,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'>"
+state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-keypad.jpg'>"
+state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
     
-state.message = "Keypad supports 13 diffrent chimes under play command"
+state.message = "Keypad supports 14 diffrent chimes under play command. Not supported on all Firmware"
     
 sendEvent(name: "operation", value: "normal", isStateChange: false)
 sendEvent(name: "presence", value: "present", isStateChange: false)
@@ -429,7 +433,8 @@ state.remove("iriscmd")
 state.remove("alertST")
 state.remove("armingMode")
 state.remove("waitForGetInfo")
-state.remove("AltTones")  
+state.remove("AltTones")
+  
     
 removeDataValue("image")
 device.deleteCurrentState("alarm")    
@@ -440,16 +445,15 @@ device.deleteCurrentState("HSMAlert")
   
 // Stagger init refreshes On reboot
 randomSixty = Math.abs(new Random().nextInt() % 60)
-runIn(randomSixty,refresh)
-logging("${device} : Initialised Refreash in ${randomSixty}sec", "info")
+logging("${device} : refresh in ${randomSixty}sec", "info")
+runIn(randomSixty,refresh)    
 randomSixty = Math.abs(new Random().nextInt() % 60)
+logging("${device} : getStatus in ${randomSixty}sec", "info")    
 runIn(randomSixty,getStatus)
-
 randomSixty = Math.abs(new Random().nextInt() % 60)
+logging("${device} : getCodes in ${randomSixty}sec", "info")    
 runIn(randomSixty,getCodes)    
-  
-clientVersion()
- 
+//clientVersion()
 }
 
 
@@ -476,15 +480,9 @@ def configure() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
-
     
- 	// Run a ranging report and then switch to normal operating mode.
-    // Randomise so we dont get several running at the same time
-    random = Math.abs(new Random().nextInt() % 33500)
-    logging("${device} : configure pause:${random}", "info")
-    pauseExecution(random)
-	rangeAndRefresh()
-	runIn(12,normalMode)
+    runIn(randomSixty,rangeAndRefresh)
+//	runIn(12,normalMode)
 }
 def updated() {
 	// Runs whenever preferences are saved.
@@ -754,22 +752,23 @@ def getCodes(){
 
 // using state.delayExit 
 void setExitDelay(Map delays){
-    logging("${device} : setExitDelay ${delays}", "debug")
     state.delayExit = (delays?.awayDelay ?: 0).toInteger()
     state.armNightDelay = (delays?.nightDelay ?: 0).toInteger()
     state.armHomeDelay = (delays?.homeDelay ?: 0).toInteger()
-    state.delay = state.delayExit 
+    state.delay = state.delayExit
+    logging("${device} : setExitDelay ${delays}", "info")
 }
 def setEntryDelay(cmd){
-    state.delayEntry =cmd
-    state.delay = cmd  
-    logging("${device} : setEntryDelay ${cmd}", "debug")
+    state.delayEntry = (cmd ?: 0).toInteger()
+    logging("${device} : setEntryDelay ${cmd}", "info")
     }
-// reserved later use
-def setExitDelay(cmd){return}
+
+def setExitDelay(cmd){
+    logging("${device} : setExitDelay ${cmd} Not used", "debug")
+}
 
 def setCodeLength(cmd){
-    logging("${device} : setCodeLength ${cmd} ignored set to 15", "info")
+    logging("${device} : setCodeLength ${cmd} ignored we us 15", "debug")
 }
 
 // Arming commands
@@ -789,7 +788,7 @@ if (state.Command == "off"){
     return}    
 state.Command = "away"
 SendState()
- runIn(20,getSoftStatus) 
+ runIn(40,getSoftStatus) 
 }
 def setHome(){
 if (state.Command == "off"){
@@ -799,7 +798,7 @@ if (state.Command == "off"){
     return}     
 state.Command = "home"
 SendState()
- runIn(20,getSoftStatus)   
+ runIn(40,getSoftStatus)   
 }
 def setNight(){
 if (state.Command == "off"){
@@ -809,7 +808,7 @@ if (state.Command == "off"){
     return}     
 state.Command = "night"
 SendState()
- runIn(20,getSoftStatus)    
+ runIn(40,getSoftStatus)    
 }
 
 void setPartialFunction(cmd){
@@ -817,54 +816,63 @@ logging ("${device} : HSM sent >> ${cmd}","warn")
 }
 // =====================Incomming command==HSM RECEIVED =======================================
 def armAway(cmd){
+    delay = (cmd ?: 0).toInteger()
+    if (delay != state.delayExit){
+      state.delayExit = delay 
+      logging ("${device} : Received >> new Delay:${state.delayExit} for delayExit", "info")
+    }
     state.received = true
     if (state.Command == "armingAway" | state.Command == "away" ){
     logging ("${device} : Ignored HSM CMD [ArmAWAY] State:${state.Command}","info")
     return
     }
-    if (cmd >5){ state.delay =cmd} // use state.delayExit not cmd  
     MakeLockCodeIN()
-    data = [armMode:"armed away",armCmd:"armAway"]
-    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "${device} was armed away [digital]")
-    sendEvent(name:"armingIn", value: state.delayExit,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd    
+    state.delay = state.delayExit // state.delay used by the timeout loop also
+    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "armed away [digital] Delay:${state.delayExit}")
     logging ("${device} : Received >> [ArmAWAY] Delay:${state.delayExit}  Our State:${state.Command}  [digital] SilentArm${SilentArmAway}", "info")
     state.Command = "armingAway"
     if (SilentArmAway == false){SendState()}
-    runIn(state.delayExit,setAway)
+    runIn(state.delay,setAway)
 }
 
 def armHome(cmd){
+    delay = (cmd ?: 0).toInteger()
+    if (delay != state.armHomeDelay){
+    state.armHomeDelay = delay    
+    logging ("${device} : Received >> new Delay:${state.armHomeDelay} for armHomeDelay", "info")
+    }
     state.received = true
     if (state.Command == "armingHome" | state.Command == "home"){
     logging ("${device} : Ignored HSM CMD [ArmHOME] State:${state.Command}","info")
     return
     }
-    if (cmd >5){ state.delay =cmd} // use state.armHomeDelay not cmd  
     MakeLockCodeIN()
-    data = [armMode:"armed home",armCmd:"armHome"]
-    sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "digital",descriptionText: "${device} was armed home [digital]")
-    sendEvent(name:"armingIn", value: state.armHomeDelay,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd    
+    state.delay = state.armHomeDelay 
+    sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "digital",descriptionText: "armed home [digital] Delay:${state.armHomeDelay}")
     logging ("${device} : Received >> [ArmHome] Delay:${state.armHomeDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmHome}", "info")
     state.Command = "armingHome"
     if (SilentArmHome == false){SendState()}
-    runIn(state.armHomeDelay,setHome)
+    runIn(state.delay,setHome)
     return
 }
 def armNight(cmd){
+    delay = (cmd ?: 0).toInteger()
+    if (delay != state.armNightDelay){
+    state.armNightDelay = delay    
+    logging ("${device} : Received >> new Delay:${state.armNightDelay} for armNightDelay", "info")
+    }
     state.received = true
     if (state.Command == "armingNight" | state.Command == "night"){
         logging ("${device} : Ignored HSM CMD [ArmNight] State:${state.Command}","info")
         return
     }
-    if (cmd >5){ state.delay =cmd}// use state.armNightDelay not cmd  
     MakeLockCodeIN()
-    data = [armMode:"armed night",armCmd:"armNight"]
-    sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "digital",descriptionText: "${device} was armed night [digital]")
-    sendEvent(name:"armingIn", value: state.armNightDelay,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd    
+    state.delay = state.armNightDelay // state.delay used by the timeout loop also
+    sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "digital",descriptionText: "armed night [digital] Delay:${state.armNightDelay}")
     logging ("${device} : Received >> [ArmNight] Delay:${state.armNightDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmNight}", "info")
     state.Command = "armingNight"
     if (SilentArmNight == false){SendState()}
-    runIn(state.armNightDelay,setNight)
+    runIn(state.delay,setNight)
 }
 
 // HUB says DISARM
@@ -876,12 +884,9 @@ def disarm(cmd) {
         logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
         return
      }    
-   
     MakeLockCodeIN()
-    data = [armMode:"disarmed",armCmd:"disarm"]
-    sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "${device} was disarmed [digital]")
-    sendEvent(name:"armingIn", value: cmd,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd    
-    logging ("${device} : Received >> [disarmed]  Our State:${state.Command}  [digital] ", "info")
+    sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "disarmed [digital]")
+    logging ("${device} : Received >> [disarm]  Our State:${state.Command}  [digital] ", "info")
     state.Command = "off"
     SendState()
     runIn(15,getSoftStatus)
@@ -894,7 +899,10 @@ def offEvents(){
     alarmTest = device.currentValue("strobe") 
     if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
     alarmTest = device.currentValue("panic") 
-    if(alarmTest != "off"){sendEvent(name: "panic",  value: "off")}   
+    if(alarmTest != "off"){sendEvent(name: "panic",  value: "off")} 
+    alarmTest = device.currentValue("switch")
+    if(alarmTest != "off"){sendEvent(name: "switch", value: "off")} 
+    sendEvent(name: "status", value: "off")  
 }
 def softOFF(){
   logging ("${device} : Alarm OFF ","info")  
@@ -902,7 +910,7 @@ def softOFF(){
   getStatus() // Are we armed or not Reset state
 }
 
-def setNA(){// Alarm Part
+def setNA(){// Alarm Part button
     if (state.Command == "off"){
     logging ("${device} : Disarmed during Entry. Abort","warn")
     SendState()
@@ -911,12 +919,14 @@ def setNA(){// Alarm Part
     } 
     state.Command ="alarmingNight"
     SendState() 
-    sendEvent(name: "alarm", value: "on")
     logging ("${device} : Alarm on ","info")
+    sendEvent(name: "strobe",value: "on", displayed: true) 
+    sendEvent(name: "alarm", value: "on", displayed: true)
+    sendEvent(name: "switch",value: "on", displayed: true)
     runIn(60,softOFF) // Times out the alarm to save bat. 1 min  
 }
 
-def setAA(){// Alarm ON 
+def setAA(){// Alarm ON button
     if (state.Command == "off"){
     logging ("${device} : Disarmed during Entry. Abort","warn")
     SendState()
@@ -925,62 +935,39 @@ def setAA(){// Alarm ON
     
     state.Command ="alarmingAway"    
     SendState()
-    sendEvent(name: "alarm", value: "on")
     logging ("${device} : Alarm on ","info")
+    sendEvent(name: "strobe",value: "on", displayed: true) 
+    sendEvent(name: "alarm", value: "on", displayed: true)
+    sendEvent(name: "switch",value: "on", displayed: true)
     runIn(60,softOFF) // Times out the alarm to save bat. 1 min  
 }
 //=========================================ENTRY====================================================
-def entry(cmd){ 
-    if (cmd >5){ state.delay =cmd} 
-    // create a entry event.
-    sendEvent(name: "securityKeypad",value: "Entry",data: lockCode, type: "digital",descriptionText: "${device} Entry ${state.delay} ")
-
-// no longer using the input here using the set delay
-    if (state.delayEntry < 3){
-     instantEntry()
-     return
+def entry(cmd){
+    delay = (cmd ?: 0).toInteger()
+    if (delay != state.delayEntry){
+    state.delayEntry = delay    
+    logging ("${device} : Received >> new Delay:${state.delayEntry} for delayEntry", "info")
     }
+    sendEvent(name: "securityKeypad",value: "Entry",data: lockCode, type: "digital",descriptionText: "Entry delay:${state.delayEntry} state:${state.Command}")
 
-    if (state.Command == "off"){ 
-    logging ("${device} : Entry while in OFF (We are out of Sync forcing Resync ","warn")
-    getStatus()     
-    } 
-    
     if (state.Command == "night"){
         state.Command = "armingNight"
-        SendState()
+        if (state.delayEntry >5){SendState()}//dont do a short countdown
         runIn(state.delayEntry+1,setNA) // Night ALARM
     }
     if (state.Command == "home"){ 
         state.Command = "armingHome"
-        SendState()
+        if (state.delayEntry >5){SendState()}//dont do a short countdown
         runIn(state.delayEntry+1,setAA)// ALARM
     }
-    if (state.Command == "away"){ 
+    if (state.Command == "away" | state.Command == "off"){//assume away even if we are off 
         state.Command = "armingAway"
-        SendState()
+        if (state.delayEntry >5){SendState()}
         runIn(state.delayEntry+1,setAA)// ALARM
     }
 logging ("${device} : ENTRY in progress delay:${state.delayEntry} state:${state.Command} ","warn")
-   
-   
-
 }    
         
-def instantEntry(){    
-    logging ("${device} : Entry in Progress INSTANT  ","warn")    
-    if (state.Command == "night"){
-        state.Command = "armingNight"
-        setNA()
-    }
-    else {
-       state.Command = "armingHome"
-        setAA()
-    }
-    // how long the alarm lasts. 10Polls ~ 40sec app
-    state.delay = 10
-    runIn(60,softOFF) 
- }
 /* Old direct HSM cmds no longer needed
 
  sendEvent(name:"armingIn", value: value,data:[armMode:getArmText(armRequest),armCmd:getArmCmd(armRequest)], isStateChange:true)
@@ -1016,52 +1003,38 @@ def isInitiator = false
 def lockCode = JsonOutput.toJson(["${state.pinN}":["name":"${state.PinName}", "code":"${state.PIN}", "isInitiator":"${isInitiator}"]] )
 logging ("${device} : lockCode:${lockCode}]","trace")
 }
-//defaultLockCode()
-//MakeLockCode()
+
 
 private MyarmAway() {
-    if (!state.delayExit){state.delayExit =30 }
-    cmd = state.delayExit 
-    MakeLockCode()
-    data = [armMode:"armed away",armCmd:"armAway"]
-    sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "physical",descriptionText: "[physical] away")
-    sendEvent(name:"armingIn", value: cmd,data: data, isStateChange:true,descriptionText: data ) // The actual armming cmd
+    logging ("${device} : arming away in ${state.delayExit}","info")
+    HSMarmingIn("armed away")
     state.received = false
-    logging ("${device} : was armed away [physical] by [${state.PinName}] Delay:${cmd} SilentArm:${SilentArmAway}","info")
-    state.Command = "armingAway"
-    if (SilentArmAway == false){SendState()}
-    runIn(cmd+2,setAway)
-   
 }
 private MyarmHome() {
-    if (!state.armHomeDelay){state.armHomeDelay =30 }
-    cmd = state.armHomeDelay 
-    MakeLockCode()
-    data = [armMode:"armed home",armCmd:"armHome"]
-	sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "physical",descriptionText: "[physical] home")
-    sendEvent(name:"armingIn", value: cmd,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
+    logging ("${device} : arming home in ${state.armHomeDelay}","info")
+    HSMarmingIn("armed home")
     state.received = false
-    logging ("${device} : was armed home [physical] by [${state.PinName}] Delay:${cmd} SilentArm:${SilentArmHome}","info")
-    state.Command = "armingHome"
-    if (SilentArmHome == false){SendState()}
-    runIn(cmd+2,setHome)
-  
-    
 }
 private MyarmNight() {
-    if (!state.armNightDelay){state.armNightDelay =30 }
-    cmd = state.armNightDelay  
-    MakeLockCode()
-    data = [armMode:"armed night",armCmd:"armNight"]
-	sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "physical",descriptionText: "[physical] night")
-    sendEvent(name:"armingIn", value: cmd,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
+    logging ("${device} : arming night in ${state.armNightDelay}","info")
+    HSMarmingIn("armed night")
     state.received =false
-    logging ("${device} : was armed night [physical] by [${state.PinName}]  Delay:${cmd} SilentArm:${SilentArmNight}","info")
-    state.Command = "armingNight"
-    if (SilentArmNight == false){SendState()}
-    runIn(cmd+2,setNight)
-    
 }
+private MyDisarm(cmd) {
+    if (state.validPIN == false){return}//safety it should never get this far
+    if (state.Command == "panic") {
+        logging ("${device} : Panic cancled by [${state.PinName}]","info")
+        sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
+     }
+    if (state.Command == "off") {HSMarmingIn("cancel alerts")}
+    HSMarmingIn("disarmed")
+    offEvents() 
+    state.Command = "off"
+    SendState()
+    runIn(15,getSoftStatus)
+}
+
+
 
 def panic() {
 	logging ("${device} : Panic Pressed","warn")
@@ -1073,43 +1046,35 @@ def panic() {
     // has to be longer than timeout on PANIC triplits or it will restart
 }
 
-private cancelAlert(){
-	logging ("${device} : Sending CancelAlerts by [${state.PinName}]","info")
-    data = [armMode:"cancel alerts",armCmd:"CancelAlerts"]
-	sendEvent(name: "securityKeypad",value: "cancel alerts",data: lockCode, type: "physical",descriptionText: "[physical] ${lockCode}")
-    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
-}
-
-private MyDisarm(cmd) {
-    if (state.validPIN == false){
-        logging ("${device} : Untrapped ERROR Disarm with NO PIN.", "warn")
-        return
-    } 
-
-    if (state.Command == "panic") {
-        logging ("${device} : Panic cancled by [${state.PinName}]","info")
-        sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
-     }
-    
+// ============================================================================================
+// Driver sends HSM commands 
+private HSMarmingIn(cmd){
     MakeLockCode()
-
-    if (state.Command == "off") {cancelAlert()}// if OFF may be trying to cancel a alert
-    logging ("${device} : was disarmed [physical] by [${state.PinName}] state:${state.Command}","info")
-    data = [armMode:"disarmed",armCmd:"disarm"]
-	sendEvent(name: "securityKeypad", value: "disarmed", descriptionText: "[physical] disarmed", data: lockCode, type: "physical")
-    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
-    offEvents() 
- //   if(SwitchModes){// will not take cmd
- //       mode="Home"
- //       sendLocationEvent(name: "Mode", value: mode)
- //       logging ("${device} : Seting hub mode to ${mode}","info")
- //   }
-    state.Command = "off"
-    SendState()
-    runIn(15,getSoftStatus)
-    
-
+    delay = 0
+    if (cmd=="disarmed"){data = [armMode:"disarmed",armCmd:"disarm"]}
+    else if (cmd=="cancel alerts"){data = [armMode:"cancel alerts",armCmd:"CancelAlerts"]}
+    else if (cmd=="armed night"){
+        data = [armMode:"armed night",armCmd:"armNight"]
+        delay = state.armNightDelay
+    }
+    else if (cmd=="armed home"){
+        data = [armMode:"armed home",armCmd:"armHome"]
+        delay = state.armHomeDelay 
+    }
+    else if (cmd=="armed away"){
+        data = [armMode:"armed away",armCmd:"armAway"]
+        delay = state.delayExit
+    }
+                               
+    if(data){                           
+    logging ("${device} : ${cmd} [physical] by [${state.PinName}] state:${state.Command} Delay:${delay}","info")
+	sendEvent(name: "securityKeypad", value: cmd, descriptionText: "[physical] ${cmd} by [${state.PinName}] Delay:${delay}", data: lockCode, type: "physical")
+    sendEvent(name:"armingIn", value: delay, data:data, isStateChange:true,descriptionText: data) // The actual armming cmd                             
+    }
 }
+
+
+
 def SendState(cmd){
 // Iris KeyPad states not HSM
 // Iris only has 2 armed states  
@@ -1131,27 +1096,28 @@ if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming P
 
 
 // POLL for HSM STATUS =================================================
-
+// HSM Sync status HSM:night <> state:armingNight
 def getSoftStatus(status){
-   status = location.hsmStatus // get status but do nothing
-   sendEvent(name: "securityKeypad",value: "GetSoftStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
-    if (status == "armedAway" ) {test = "away"}    
-    if (status == "armedHome" ) {test = "home"}// not modes IRIS states.
-    if (status == "armedNight") {test = "night"}
-    if (status == "disarmed"  | status == "allDisarmed"){test = "off"}
+if (state.Command =="armingAway" |state.Command =="armingHome"|state.Command =="armingNight"){return}// we got here to early
+   status = location.hsmStatus
+   test = "NA" 
+    if (status == "armedAway" | status == "armingAway" ) {test = "away"}// this is the state   
+    if (status == "armedHome" | status == "armingHome")  {test = "home"}
+    if (status == "armedNight"| status == "armingNight") {test = "night"}
+    
+    if (status == "disarmed"  | status == "allDisarmed") {test = "off"}
     if (test == state.Command){logging ("${device} : Verified in state with HSM No problems","info") }
     else {
-        logging ("${device} : HSM Sync status HSM:${test} <> state:${state.Command}","error")
-        logging ("${device} : Did you add the keypad in Hubitat Safety Monitor under Configure automatic arm/disarm?","warn")
+        logging ("${device} : Problem found HSM:${test} is <> State:${state.Command}","error")
+        logging ("${device} : Waiting for any events to finish Polling HSM in 50","info")
+        runIn(50, getStatus) 
     }          
 }
 
 def getStatus(status) {
-   status = location.hsmStatus // Get status then match it.
-   sendEvent(name: "securityKeypad",value: "GetStatus:${status}",data: lockCode, type: "digital",descriptionText: "${device} HSM ${status}")
+   status = location.hsmStatus // Get status then match it. Polled HSM:armingNight state:armingNight
+   logging ("${device} : Polled HSM:${status} state:${state.Command}","debug") 
    MakeLockCodeIN() 
-   logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
-    
     if (status == "armedAway" | status == "armingAway" ){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "${device} was armed away [digital]")
@@ -1192,6 +1158,8 @@ def getStatus(status) {
         }
         return
     }
+  logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
+    
 }
 
 def purgePIN(){
@@ -1211,19 +1179,25 @@ def siren(cmd){
     
   sendEvent(name: "securityKeypad",value: "siren ON",data: lockCode, type: "digital",descriptionText: "${device} alarm siren ON ${status}")
   sendEvent(name: "siren", value: "on", displayed: true) 
-  sendEvent(name: "alarm", value: "on", displayed: true) 
+  sendEvent(name: "alarm", value: "on", displayed: true)
+  sendEvent(name: "switch",value: "on", displayed: true)
+  
   if (AlarmTone == "STROBE")  {strobe()}
   if (AlarmTone == "KEYCLICK"){soundCode(1)}
   if (AlarmTone == "LOSTHUB") {soundCode(2)}
   if (AlarmTone == "ARMING")  {soundCode(3)}
-  if (AlarmTone == "ARMED")   {soundCode(4)}
-  if (AlarmTone == "HOME")    {soundCode(5)}
-  if (AlarmTone == "NIGHT")   {soundCode(6)}
-  if (AlarmTone == "ALARM")   {soundCode(7)}
-  if (AlarmTone == "PANIC")   {soundCode(8)}
+  if (AlarmTone == "ARMED")   {soundCode(4)}// alarm
+  if (AlarmTone == "HOME")    {soundCode(5)}// entry
+  if (AlarmTone == "NIGHT")   {soundCode(6)}// alarm
+  if (AlarmTone == "ALARM")   {soundCode(7)}// entry
+  if (AlarmTone == "PANIC")   {soundCode(8)}// alarm
   if (AlarmTone == "BADPIN")  {soundCode(9)}
-  if (AlarmTone == "GAME")    {soundCode(11)}
-  if (AlarmTone == "CPU")     {soundCode(12)}  
+  if (AlarmTone == "OPENDOOR"){soundCode(11)}
+  if (AlarmTone == "LOCKED")  {soundCode(12)}   
+  if (AlarmTone == "GAME")    {soundCode(13)}
+  if (AlarmTone == "CPU")     {soundCode(14)}  
+  
+    
   logging ("${device} : Siren ${AlarmTone} ON", "warn")  
 }
 def strobe(cmd){
@@ -1235,15 +1209,23 @@ def strobe(cmd){
         }  
     
   logging ("${device} : Panic Strobe ON","info")  
-  sendEvent(name: "strobe", value: "on", displayed: true) 
-  sendEvent(name: "alarm", value: "on")
+  sendEvent(name: "strobe",value: "on", displayed: true) 
+  sendEvent(name: "alarm", value: "on", displayed: true)
+  sendEvent(name: "switch",value: "on", displayed: true)
+  sendEvent(name: "soundName", value: "strobe")   
+  sendEvent(name: "status", value: "playing")    
+    
   state.Command = "panic"  
   SendState()  
 }
 def both(cmd){strobe(cmd)}
 
+def on(cmd){
+siren()
+}
+
 def off(cmd){
-   
+  sendEvent(name: "status", value: "off")   
   sendEvent(name: "securityKeypad",value: "siren OFF",data: lockCode, type: "digital",descriptionText: "${device} alarm siren OFF ${status}")  
   logging ("${device} : OFF siren/strobe","info")
   offEvents()  
@@ -1256,6 +1238,19 @@ def off(cmd){
 //if (state.Command == "armingNight"){  sendIrisCmd (0x07)}// Arming Part
 //if (state.Command == "alarmingHome"){ sendIrisCmd (0x06)}// alarming ON
 //if (state.Command == "alarmingNight"){sendIrisCmd (0x08)}// alarming Part
+
+//input name: "BadPinTone",type:"enum",title: "Bad Pin Tone",description: "Customize Bad Pin Tone.", options: ["ERROR","BADPIN"], defaultValue: "ERROR",required: true
+
+private BadPinTone(){
+    if (BadPinTone == "BADPIN"){ playSound(9)}
+    if (BadPinTone == "GAME")  { playSound(13)}
+    if (BadPinTone == "LOCKED"){ playSound(12)}
+    if (BadPinTone == "LOSTHUB"){playSound(2)} 
+    if (BadPinTone == "CPU"){    playSound(14)}
+    if (BadPinTone == "ERROR") { playSound(15)}
+        pauseExecution(1000)
+        soundCodeOff(0)
+}
 
 
 def playSound(cmd){
@@ -1277,35 +1272,33 @@ def playSound(cmd){
   if (cmd ==7){ sound = "ALARM"}
   if (cmd ==8){ sound = "PANIC"}
   if (cmd ==9){ sound = "BADPIN"}
-  if (cmd ==10){ sound = "Door Chime"}  
-  if (cmd ==11){ sound = "GAME"}
-  if (cmd ==12){ sound = "CPU"}
-  if (cmd ==13){ sound = "Error Tone"}  
+  if (cmd ==10){ sound = "Door Chime"} 
+  if (cmd ==11){ sound = "OPENDOOR"}
+  if (cmd ==12){ sound = "LOCKED"}    
+  if (cmd ==13){ sound = "GAME"}
+  if (cmd ==14){ sound = "CPU"}
+  if (cmd ==15){ sound = "Error Tone"}  
 
     
   sendEvent(name: "soundName", value: sound)   
   sendEvent(name: "status", value: "playing")  
     
-    if (cmd == 10){ 
+    if (cmd == 10 ){ 
          beep()
          pauseExecution(2000)
          sendEvent(name: "status", value: "stopped")
-         device.deleteCurrentState("soundName") 
          return    
     }
  
 soundCode(cmd)
     
-    
-    if (chimeTime > 10){ 
-        if (state.AltTones == true){logging ("${device} : This firmware may not support this tone","warn")}
+    if (chimeTime > 12){ 
         logging ("${device} : Chime Delay ${chimeTime}","info")    
-    pauseExecution(chimeTime)
-    soundCode(0)
+        pauseExecution(chimeTime)
+        soundCodeOff(0)
     }    
    
 sendEvent(name: "status", value: "stopped") 
-device.deleteCurrentState("soundName")     
 }    
 
    
@@ -1322,58 +1315,88 @@ logging ("${device} : KeyPad set to [${state.Command}]","info")
 } 
 
 def stop(){
-    soundCode(0x00)
+    soundCodeOff(0)
     off()
 }
 
 def beep(){
-
    status = location.hsmStatus
    if (status != "disarmed" ){
         logging ("${device} : ${status} overides entry chime. Ignored","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }
-    
     logging ("${device} : Door Chime/Beep >> Send KeyPad CMD:${state.Command}","info")
     SendState()
-    
-    
-    
 }    
 
-def soundCodeOff(cmd){soundCode(0x00)}
+def soundCodeOff(cmd){soundCode(0)}
 def soundCode(cmd){
 value = 0x00
-    if (cmd == 1){value = 0x01}
-    if (cmd == 2){value = 0x02}
-    if (cmd == 3){value = 0x03}
-    if (cmd == 4){value = 0x04}
-    if (cmd == 5){value = 0x05}
-    if (cmd == 6){value = 0x06}
-    if (cmd == 7){value = 0x07}
-    if (cmd == 8){value = 0x08}
-    if (cmd == 9){value = 0x09}
-    if (cmd == 11){value = 0x0C}// Undocumented GAME
-    if (cmd == 12){value = 0x0D}// CPU
-    if (cmd == 13){value = 0x0E}// Bad Pin
+name = "STOP"    
+    if (cmd == 1){
+        value = 0x01
+        name = "KEYCLICK"
+    }
+    if (cmd == 2){
+        value = 0x02
+        name = "LOSTHUB"
+    }
+    if (cmd == 3){
+        value = 0x03
+        name = "ARMING"
+    }
+    if (cmd == 4){
+        value = 0x04
+        name = "ARMED"
+    }
+    if (cmd == 5){
+        value = 0x05
+        name = "HOME"
+    }
+    if (cmd == 6){
+        value = 0x06
+        name = "NIGHT"
+    }
+    if (cmd == 7){
+        value = 0x07
+        name = "ALARM"
+    }
+    if (cmd == 8){
+        value = 0x08
+        name = "PANIC"
+    }
+    if (cmd == 9){
+        value = 0x09
+        name = "BADPIN"
+    }
+    if (cmd == 11){
+        value = 0x0A
+        name = "OPENDOOR"
+    }
+    if (cmd == 12){
+        value = 0x0B
+        name = "LOCKED"
+    }
+    if (cmd == 13){
+        value = 0x0C
+        name = "GAME"
+    }
+    if (cmd == 14){
+        value = 0x0D
+        name = "CPU"
+    }
+    if (cmd == 15){
+        value = 0x0E
+        name = "Error Tone"
+    }
 cluster = 0x00C0
 attributeId = 0x26
 dataType = DataType.ENUM8
  
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
-    logging ("${device} : Playing Sound code ${value} ","info")
+    logging ("${device} : Playing Sound code ${name} - ${value} ","info")
 }
-//def on() {
-//cluster = 0x00C0
-//attributeId = 0x20
-//dataType = DataType.ENUM8
-////value = 0x01
-
-//sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
-//   
-//return
-//}
 
 def shock(){
 sendEvent(name: "shock", value: "detected")    
@@ -1470,7 +1493,7 @@ def parse(String description) {
 	    if (descriptionMap) {processMap(descriptionMap)}
         else{
         // we should never get here reportToDev is in processMap above
-            logging("${device} : Error ${description} ${descriptionMap}", "debug")    
+            logging("${device} : Error ${description} ${descriptionMap}", "error")    
         }
 	}
 }
@@ -1510,6 +1533,7 @@ def processMap(Map map) {
            } 
          }    
          if (state.waiting > state.waitingTo){ // Correct lost state after a delay
+          logging ("${device} : Requesting a Poll we lost state. waiting:${state.waiting}","warn")   
           getStatus(status) 
           SendState()
          }  
@@ -1524,10 +1548,9 @@ def processMap(Map map) {
 	  buttonNumber = 0 
       status = "Unknown"   
 	  size = receivedData.size()// size of data field
-    if (PinEnclosed  =="28" ){ logging ("${device} : Action :[${status} MAP:${map.data}","error")}
-// This indicates a error in mode change it should auto correct  
-         
-// action button pressed see if it has a IRIS command included-Logging Only
+    if (PinEnclosed  =="28" ){ logging ("${device} : Mode Change Error","error")}// should auto correct
+        
+// action button Logging. 
      if (PinEnclosed == "22"){ 
        if (size == 10){ 
        hexcmd = receivedData[4..9]  
@@ -1541,8 +1564,7 @@ def processMap(Map map) {
           if (irsCMD == "P") {irsCMD1= "PANIC"}
           if (irsCMD == "#") {irsCMD1= "POUND"}
           if (irsCMD == "*") {irsCMD1= "STAR"}
-           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "trace")} 
-
+           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "debug")} 
     }     
          
 
@@ -1584,7 +1606,7 @@ def processMap(Map map) {
          return   
 
         if (state.validPIN == false){logging("${device} : Invalid PIN Cant Arm","warn")}
-        if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
+        if (PinEnclosed  =="22" ){BadPinTone()}
         return   
         }
 //=============================================PARTIAL================================	 
@@ -1629,7 +1651,7 @@ def processMap(Map map) {
 
          }   
       logging("${device} : Invalid PIN Ignoring","warn")   
-      if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
+      if (PinEnclosed  =="22" ){BadPinTone()}
       return   
 	 }          
 
@@ -1648,7 +1670,7 @@ def processMap(Map map) {
          }
              
          logging("${device} : Invalid PIN Ignoring","warn")
-         if (PinEnclosed  =="22" ){soundCode(13)} // beep once     
+         if (PinEnclosed  =="22" ){BadPinTone()}  
          return  
 	 }         
          
@@ -1716,7 +1738,7 @@ def processMap(Map map) {
      
      // disabled
      logging("${device} :${StarSet} Valid PIN:${state.validPIN} Ignoring","info")   
-     if (PinEnclosed  =="22" ){soundCode(13)} // beep once 
+     if (PinEnclosed  =="22" ){BadPinTone()}
      return
      }        
         
@@ -1788,7 +1810,7 @@ def processMap(Map map) {
          }     
      
      logging("${device} : ${PoundSet} Valid PIN:${state.validPIN} Ignoring","info")   
-     if (PinEnclosed  =="22" ){   soundCode(13)}     
+     if (PinEnclosed  =="22" ){BadPinTone()}     
      return
      } 
 
@@ -1798,7 +1820,7 @@ def processMap(Map map) {
 //      pinSize     = receivedData[3]// The PIN size + 4 = size   
     if (PinEnclosed == "21" ){
      
-     if (pinSize != "01" ){// To small for a PIN skip for buttons
+     if (pinSize != "01" ){// To small for a PIN skip to buttons
         pinSize = receivedData[3]// 4 - 15 digit Pin size supported 
         size = receivedData.size() 
         end = size -1 
@@ -1808,13 +1830,13 @@ def processMap(Map map) {
       sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")// May be needed by other aps.
       sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")         
       logging("${device} : valid:${state.validPIN} Pin:${state.PIN} Name:${state.PinName} Size:${pinSize} State:${state.Command}","debug")
-      runIn(97, "purgePIN")// Purge time must allow repeating to finish-Purge even invalid pins
+      runIn(97, "purgePIN")// Purge time must allow repeating to finish
       if (state.validPIN == true){
           logging("${device} : [Valid PIN]:Name:${state.PinName} State:${state.Command}","info")
      	  return  
         }   
       // The pin was not valid         
-      soundCode(13)
+      BadPinTone()
       logging("${device} : [Invalid PIN]:Pin:${state.PIN} State:${state.Command}","warn")
       if(tamperPIN){tamper()}
       else {shock()} 
@@ -1822,8 +1844,8 @@ def processMap(Map map) {
     }// Pin size check  
   }// end pin check       
 
-// Keypad button matrix 
-     
+// Keypad button matrix * # are in logic above
+ 
 if (keyRec == "31"){push(1)}
 if (keyRec == "32"){push(2)}
 if (keyRec == "33"){push(3)}
@@ -1843,12 +1865,12 @@ if (keyRec == "30"){push(10)}
        if (map.command == "FB") {
       // lqiRec = receivedData[8] 
       // if (lqiRec){ lqi = receivedData[10]}
-      // batRec = receivedData[0]  This sould be set to [19] but ignoring
-		def temperatureValue  = "NA"
+        batRec = receivedData[0] // This sould be set to [19]
+//        def temperatureValue = "NA"
         def batteryVoltageHex = "NA"
         BigDecimal batteryVoltage = 0
 		batteryVoltageHex = receivedData[5..6].reverse().join()
-        temperatureValue = receivedData[7..8].reverse().join()     
+//        temperatureValue = receivedData[7..8].reverse().join()     
     if (batteryVoltageHex != "FFFF") {
         batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
         batteryVoltage2 = batteryVoltage.setScale(2, BigDecimal.ROUND_HALF_UP)
@@ -1879,19 +1901,34 @@ if (keyRec == "30"){push(10)}
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
         powerLast = device.currentValue("battery")
+        powerLast2 = device.currentValue("battery2")
+        
+        if ( batteryVoltage2 < state.minVoltTest){state.minVoltTest = batteryVoltage2}  // Record the min volts seen working 
+
+        // beta trying to detect the 2nd bat report
+        if (batteryPercentage == state.bat2 && batteryPercentage != powerLast) { 
+            logging("${device} : battery2: now:${batteryPercentage}% Last:${state.lastBat}% ${batteryVoltage2}V  Possible bat 2 report", "debug")
+            if (powerLast2 != batteryPercentage ){ 
+                sendEvent(name: "battery2", value:batteryPercentage, unit: "%")
+                logging("${device} : Battery2 :${batteryPercentage}% ${batteryVoltage2}V Battery 2 report", "info")
+            }
+        state.bat2 = powerLast2
+        return
+        }
+
         
         logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage2}V", "debug")
         if (powerLast == batteryPercentage){return}
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
            sendEvent(name: "batteryVoltage", value: batteryVoltage2, unit: "V", descriptionText: "Volts:${batteryVoltage2}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V", "info")}
+          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V code#${batRec} ${receivedData}", "info")}
           else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage2}V", "info")}
-          if ( batteryVoltage2 < state.minVoltTest){state.minVoltTest = batteryVoltage2}  // Record the min volts seen working      
-        }// end battery report            
-        
-  }
-       
-}
+            
+          state.bat2 = powerLast
+          state.bat1 = batteryPercentage
+        }// end battery           
+  }// FB
+}// 00F0
     else if (map.clusterId == "00F6") {// Join Cluster 0xF6
        // Ranging
 		if (map.command == "FD") { // LQI
@@ -1912,7 +1949,7 @@ if (keyRec == "30"){push(10)}
               return   
              }   
         } else if (receivedData[1] == "00") { // Ranging during a reboot
-				// when the device reboots.(keypad) Must answer
+				// when the keypad reboots we must answer
 				logging("${device} : reboot ranging report received", "info")
 				refresh()
                 return
@@ -1965,13 +2002,13 @@ if (keyRec == "30"){push(10)}
      } else { reportToDev(map)}
 
 
-// Standard IRIS USA Cluster detection block v2 9/30/2022
+// Standard IRIS USA Cluster detection block v3 10/7/2022
 // Delay to prevent spamming the log on a routing messages    
 	} else if (map.clusterId == "8001" ) {
-        pauseExecution(new Random().nextInt(10) * 3000)
+        pauseExecution(new Random().nextInt(10) * 1000)
 		logging("${device} : ${map.clusterId} Routing and Neighbour Information", "info")  
 	} else if (map.clusterId == "8032" ) {
-        pauseExecution(new Random().nextInt(10) * 3000)
+        pauseExecution(new Random().nextInt(10) * 1000)
 		logging("${device} : ${map.clusterId} New join has triggered a routing table reshuffle.", "info")
     } else if (map.clusterId == "8034" ) {
 		logging("${device} : ${map.clusterId} Seen during REMOVE. ", "warn")
@@ -1981,7 +2018,7 @@ if (keyRec == "30"){push(10)}
 		logging("${device} : Match Descriptor Request. Sending Response","info")
 		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
 	} else if (map.clusterId == "0013" ) {
-        pauseExecution(new Random().nextInt(10) * 3000)
+        pauseExecution(new Random().nextInt(10) * 1000)
 		logging("${device} : ${map.clusterId} Re-routeing around dead devices. (power Falure?)", "warn")
 	} else {
 		reportToDev(map)// unknown cluster
@@ -2010,14 +2047,12 @@ private BigDecimal hexToBigDecimal(String hex) {
 }
 
 // Logging block 
-//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 void loggingUpdate() {
     logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
     if (debugLogging){runIn(3600,debugLogOff)}
     if (traceLogging){runIn(1800,traceLogOff)}
 }
-void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
