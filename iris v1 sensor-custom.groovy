@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.0.1 10/10/2022 Min voltage reset
 v3.0.0 09/21/2022 Ranging adjustments
 v2.9   09/19/2022 Rewrote logging routines.
 v2.8.0 09/17/2022 Presence routine rewrote from scratch
@@ -75,7 +76,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  */
 
 def clientVersion() {
-    TheVersion="3.0.0"
+    TheVersion="3.0.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -430,7 +431,7 @@ def processMap(Map map) {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  minimumVolts:2.2, nominalVolts:3.0  
-        if (state.minVoltTest < 2.19){ 
+        if (state.minVoltTest < 2.1){ 
             state.minVoltTest= 2.40 
             logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
         }
