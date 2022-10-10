@@ -22,7 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
-v3.0.1 10/10/2022 Min voltage reset
+v3.0.2 10/10/2022 Min voltage reset, Config delays changed
 v3.0.0 09/21/2022 Ranging adjustments
 v2.9   09/19/2022 Rewrote logging routines.
 v2.8.0 09/17/2022 Presence routine rewrote from scratch
@@ -76,7 +76,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  */
 
 def clientVersion() {
-    TheVersion="3.0.1"
+    TheVersion="3.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -246,17 +246,10 @@ def configure() {
 //	randomSixty = Math.abs(new Random().nextInt() % 60)
 //	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
 
-	// Run a ranging report and then switch to normal operating mode.
-    // Randomise so we dont get several running at the same time
-    random = Math.abs(new Random().nextInt() % 33500)
-    logging("${device} : configure pause:${random}", "info")
-    pauseExecution(random)
-	rangeAndRefresh()
-	runIn(12,normalMode)
-    
-    
-
-	
+// Run a ranging report and then switch to normal operating mode.
+// Randomise so we dont get several running at the same time
+    runIn(randomSixty,rangeAndRefresh)
+    logging("${device} : configure", "info")
 }
 
 
@@ -432,7 +425,7 @@ def processMap(Map map) {
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  minimumVolts:2.2, nominalVolts:3.0  
         if (state.minVoltTest < 2.1){ 
-            state.minVoltTest= 2.40 
+            state.minVoltTest= 2.30 
             logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
         }
         if (batteryVoltage < state.minVoltTest){
