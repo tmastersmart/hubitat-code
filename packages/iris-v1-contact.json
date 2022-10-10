@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "Proper battery sensor support. Press Init and Cfg after switching to driver. Use uninstall if you want to switch back to internal.Min voltage adjusted",
+  "releaseNotes": "Proper battery sensor support. Min voltage adjusted",
   "documentationLink": "",
   "communityLink": "",
   "version": "3.0.1",
@@ -16,7 +16,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris%20v1%20sensor-custom.groovy",
       "required": "true",
-      "description": "Iris v1 contact sensor custom with presence. Proper battery sensor support",
+      "description": "Iris v1 contact sensor custom with presence. Proper battery sensor support. Press Init and Cfg after switching to driver. Use uninstall if you want to switch back to internal",
       "id": "6390e93c-3c6a-11ed-a261-0242ac120002"
     }
     ]
