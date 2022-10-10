@@ -6,7 +6,7 @@
   "releaseNotes": "Proper battery sensor support. Min voltage adjusted. Config delays changed",
   "documentationLink": "",
   "communityLink": "",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
   "tags":  [ "Alarm Systems", "Doors & Windows"],
