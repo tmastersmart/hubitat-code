@@ -18,8 +18,8 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
-
-  v6.8.4 10/08/2022 Cancel/Disarm code rewritten. Switch capability added. Routines can now turn off/on
+  v6.8.5 10/10/2022 Bat 2 detection removed more work needed.
+  v6.8.4 10/10/2022 Cancel/Disarm code rewritten. Switch capability added. Routines can now turn off/on
    alarm by switch. 2 new tones added depends on your firmware if they work. 
    Rewrote HSM send cmd code. Rewrote HSM delay code.
    Changes in arming from keypad now sends arm to HSM and waits for HSM to send ARM. 
@@ -263,7 +263,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.8.4"
+    TheVersion="6.8.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -305,7 +305,7 @@ command "unschedule"
 command "installed"        
 
 attribute "armingIn", "NUMBER"
-attribute "battery2", "NUMBER"        
+     
 attribute "batteryState", "string"
 attribute "lastCodeName", "string"
 attribute "lastCodePIN", "string"        
@@ -422,7 +422,6 @@ sendEvent(name: "tamper", value: "clear")
 sendEvent(name: "status", value: "ok")    
 offEvents()    
   
-state.remove("switch")	
 state.remove("uptime")
 state.remove("logo")
 state.remove("irisKeyPad")
@@ -434,7 +433,6 @@ state.remove("alertST")
 state.remove("armingMode")
 state.remove("waitForGetInfo")
 state.remove("AltTones")
-  
     
 removeDataValue("image")
 device.deleteCurrentState("alarm")    
@@ -1901,31 +1899,18 @@ if (keyRec == "30"){push(10)}
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
 
         powerLast = device.currentValue("battery")
-        powerLast2 = device.currentValue("battery2")
         
         if ( batteryVoltage2 < state.minVoltTest){state.minVoltTest = batteryVoltage2}  // Record the min volts seen working 
-
-        // beta trying to detect the 2nd bat report
-        if (batteryPercentage == state.bat2 && batteryPercentage != powerLast) { 
-            logging("${device} : battery2: now:${batteryPercentage}% Last:${state.lastBat}% ${batteryVoltage2}V  Possible bat 2 report", "debug")
-            if (powerLast2 != batteryPercentage ){ 
-                sendEvent(name: "battery2", value:batteryPercentage, unit: "%")
-                logging("${device} : Battery2 :${batteryPercentage}% ${batteryVoltage2}V Battery 2 report", "info")
-            }
-        state.bat2 = powerLast2
-        return
-        }
-
-        
+       
         logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage2}V", "debug")
         if (powerLast == batteryPercentage){return}
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
            sendEvent(name: "batteryVoltage", value: batteryVoltage2, unit: "V", descriptionText: "Volts:${batteryVoltage2}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V code#${batRec} ${receivedData}", "info")}
+          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V", "info")}
           else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage2}V", "info")}
             
-          state.bat2 = powerLast
-          state.bat1 = batteryPercentage
+          state.bat2 = state.bat1
+          state.bat1 = powerLast
         }// end battery           
   }// FB
 }// 00F0
