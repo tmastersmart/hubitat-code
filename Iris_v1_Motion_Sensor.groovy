@@ -8,7 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
-v2.2.1 10/10/2020 Changes in bat lower limit and config delay
+v2.2.2 10/10/2020 Changes in bat lower limit and config delay
 v2.1  09/21/2022 Ranging adjustments
 v2.0  09/19/2022 Rewrote logging routines.
 v1.9  09/17/2022 Presence routine rewrote from scratch
@@ -57,7 +57,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.2.1"
+    TheVersion="2.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -182,7 +182,7 @@ def configure() {
 	// Remove state variables from old versions.
 	
 	// upgrade to new min values
-	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.3 ){ 
+	if (state.minVoltTest < 2.17 | state.minVoltTest > 2.3 ){ 
 		state.minVoltTest= 2.30 
 		logging("${device} : Reset min voltage to ${state.minVoltTest}", "info")
 	}
@@ -368,14 +368,13 @@ def processMap(Map map) {
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
-        // Auto adjustment like iris hub did it  minimumVolts:2.2, nominalVolts:3.0  
-        if (state.minVoltTest < 2.1){ 
-            state.minVoltTest= 2.30 
-            logging("${device} : Min Voltage Reset to ${state.minVoltTest}v", "info") 
-        }
+        // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
+        // what is the lowest voltage this device can work on. 
         if (batteryVoltage < state.minVoltTest){
-            state.minVoltTest = batteryVoltage
-            logging("${device} : Min Voltage Lowered to ${state.minVoltTest}v", "info")  
+            if (state.minVoltTest > 2.17){ 
+                state.minVoltTest = batteryVoltage
+                logging("${device} : Min Voltage Lowered to ${state.minVoltTest}v", "info")  
+            }                             
         } 
 		BigDecimal batteryPercentage = 0
         BigDecimal batteryVoltageScaleMin = state.minVoltTest 
