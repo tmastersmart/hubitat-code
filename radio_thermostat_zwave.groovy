@@ -36,7 +36,8 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
- v5.4.1 10/10/2022 Split info logs 
+ v5.4.2 10/10/2022 Split info logs 
+ v5.4.1 09/28/2022 Loging for chron human form
  v5.4   09/19/2022 Rewrote logging routines.
  v5.3.5 08/17/2022 Bug fix Last update broke the clock fixed
  v5.3.4 08/16/2022 Added Recovery mode
@@ -85,8 +86,10 @@ limitations under the License.
 
 
 
+Contains a lot of orginal code and
 
-May use some open source code (Apache License, Version 2.0) from many drivers. 
+May use some open source code from sources listed here. 
+https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_links.txt
 
 Orginal driver:
 https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/ct100-thermostat.src/ct100-thermostat.groovy
@@ -98,7 +101,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.4.1"
+    TheVersion="5.4.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -227,8 +230,7 @@ void cleanState(){
     state.remove("precision")
 	state.remove("scale")
     state.remove("size")
-    state.remove("version")
-
+    state.remove("version") 
     
 	state.remove("supportedFanModes")
     state.remove("supportedModes")
@@ -321,7 +323,7 @@ def updated() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
     schedule("${randomSixty} 0 12 * * ? *", setTheClock)
-    logging("${device} :Setting Chron Poll:${randomSixty} 0/${checkEveryMinutes} * * * ? *  Clock:${randomSixty} 0 12 * * ? *  ", "info")
+    logging("${device} :Setting Chron Poll: every ${checkEveryMinutes}mins  Clock: 12:${randomSixty}", "info")
 
     loggingUpdate()
     
@@ -578,7 +580,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 			break
 	}
 	
-    logging("${device} : E5 ${map.name} - ${map.value} ", "info2")
+    logging("${device} : E5 ${map.name} - ${map.value} ", "info")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
     
 	map
@@ -664,11 +666,11 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
 //      state.cwire = cmd.configurationValue[0]
         state.cwire = cmd.scaledConfigurationValue
         if (state.cwire == 1){
-            logging("${device} : E10-4 C-Wire :TRUE PowerSouce :mains", "info")
+            logging("${device} : E10-4 C-Wire :TRUE PowerSouce :mains", "info2")
             sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         }
         if (state.cwire == 2){
-            logging("${device} : E10-4 C-Wire :FALSE PowerSouce :battery", "info") 
+            logging("${device} : E10-4 C-Wire :FALSE PowerSouce :battery", "info2") 
             sendEvent(name: "powerSource", value: "battery",descriptionText: "Power Battery ${state.version}", isStateChange: true)
         }
     }    
@@ -763,7 +765,7 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
     
 // have yet to see data here
 def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
-    logging("${device} : Received E12 ${cmd}", "info2")
+    logging("${device} : Received E12 ${cmd}", "info")
     device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
     device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
     device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
