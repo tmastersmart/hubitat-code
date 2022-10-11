@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "Split the info logs into info & info2 so you can turn off some of the non temp data.",
+  "releaseNotes": "Split the info logs into info & info2 so you can turn off some of the non temp data. Chron log human readable",
   "documentationLink": "http://www.winnfreenet.com/wp/2022/08/radio-thermostat-zwave-hubitat-driver-ct101-ct30/",
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
-  "version": "5.4.1",
+  "version": "5.4.2",
   "dateReleased": "2022-22-09",
 	    "category": "Control",
       "tags": [
