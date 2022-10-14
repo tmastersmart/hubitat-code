@@ -16,6 +16,8 @@ Yellow wire: doorbell 2  rear
 
 
 ================================================================================ 
+v2.5.1  10/14/2022  Adjusted uninstall to remove some left overs
+                    Changed sending zigbee routines and delays
 v2.5.0  09/28/2022  Debug logs not auto disabling/Bug on line 285
 v2.4.0  09/28/2022  Code cleanup.
 v2.3    09/27/2022  Total rewrite of parse code.
@@ -56,7 +58,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.5.0"
+    TheVersion="2.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -105,7 +107,12 @@ def uninstall() {
     state.remove("lastCheckInMin") 
     state.remove("lastCheckin")
     state.remove("timeBetweenPresses")
+    state.remove("lastButton2Updated")
+    state.remove("lastButton1Updated")
     state.remove("version")
+    
+device.deleteCurrentState("presence")
+device.deleteCurrentState("battery")     
 removeDataValue("presence")    
 removeDataValue("battery")
 }
@@ -138,20 +145,27 @@ def configure() {
     if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("${device} : Configure", "info")
+    
+    
+   delayBetween([
+            sendZigbeeCommands(["zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}"]),
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
+       
+            sendZigbeeCommands(["zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 1 {${device.zigbeeId}} {}"]),
+            sendZigbeeCommands(["zcl global send-me-a-report 1 0x20 0x20 30 21600 {01}"]),		//checkin time 6 hrs
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
+                                
+            sendZigbeeCommands(["zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 0x402 {${device.zigbeeId}} {}"]),
+            sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 21600 {6400}"]),   //checkin time 6 hrs
+//            sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 3600 {6400}"]),
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
+                            
+   ], 300)
+//  “send-me-a-report” cluster, attribute, data type, min report, max report,       
+runIn(8,refresh)     
+runIn(12,enrollResponse)    
 
-	def configCmds = [
-		"zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}", "delay 200",
-		"send 0x${device.deviceNetworkId} 1 1", "delay 500",
 
-		"zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 1 {${device.zigbeeId}} {}", "delay 500",
-		"zcl global send-me-a-report 1 0x20 0x20 30 21600 {01}",		//checkin time 6 hrs
-		"send 0x${device.deviceNetworkId} 1 1", "delay 500",
-
-		"zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 0x402 {${device.zigbeeId}} {}", "delay 500",
-		"zcl global send-me-a-report 0x402 0 0x29 30 3600 {6400}",
-		"send 0x${device.deviceNetworkId} 1 1", "delay 500"
-	]
-    return configCmds + refresh() // send refresh cmds as part of config
 }
 def checkPresence() {
     // New shorter presence routine.
@@ -187,7 +201,6 @@ def checkPresence() {
         }
     }
 }
-
 def parse(String description) {
     state.lastCheckin = now()
     checkPresence()
@@ -230,17 +243,18 @@ else if (descMap.cluster == "0000" && descMap.attrId == "0005") {
     updateDataValue("model", "DRBELL")
     updateDataValue("fcc", "DKN-401DM")
 }    
-    
-// Raw [catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 B500]
-//else if (descMap.cluster == "0000" && descMap.attrId == "8021") {logging("${device} : Unknown Event ", "debug")}
-else if (descMap.cluster == "0000" && descMap.attrId == "8031") {logging("${device} : Link Quality Cluster Event ", "debug")}
-else if (descMap.cluster == "0000" && descMap.attrId == "8032") {logging("${device} : Routing Table Cluster Event ", "debug")}
+// 0000 clusterId:8021 clusterInt:32801 options:0040 data:[32, 00]
+// raw:catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 3200    
+// Raw catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 B500
+else if (descMap.profileId == "0000" && descMap.clusterId == "8021") {logging("${device} : Replying to cfg? clusterInt:${descMap.clusterInt} data:${descMap.data}", "debug")}
+else if (descMap.profileId == "0000" && descMap.clusterId == "8031") {logging("${device} : Link Quality Cluster Event ", "debug")}
+else if (descMap.profileId == "0000" && descMap.clusterId == "8032") {logging("${device} : Routing Table Cluster Event ", "debug")}
 else {logging("${device} : Unknown profileId:${descMap.profileId} clusterId:${descMap.clusterId} clusterInt:${descMap.clusterInt} sourceEndpoint${descMap.sourceEndpoint} destinationEndpoint${descMap.destinationEndpoint} options:${descMap.options} command:${descMap.command} data:${descMap.data}", "debug")    }
 
     if (description?.startsWith('enroll request')) {
     	List cmds = enrollResponse()
-        logging("${device} : enroll request ${cmds}", "trace")
         result = cmds?.collect { new hubitat.device.HubAction(it) }
+        logging("${device} : enroll request ${cmds} ${result}", "trace")
         return result
     }
     
@@ -248,11 +262,11 @@ else {logging("${device} : Unknown profileId:${descMap.profileId} clusterId:${de
 
 def release(cmd){
     if (cmd ==1){
-    logging("${device} : ${button1Name} Doorbell [button 1] released", "debug")
+    logging("${device} : ${button1Name} Doorbell [button 1] released", "info")
     sendEvent(name: "released", value: "1", isStateChange: true)
     }
     if (cmd ==2){
-    logging("${device} : ${button2Name} Doorbell [Button 2] released", "debug")
+    logging("${device} : ${button2Name} Doorbell [Button 2] released", "info")
     sendEvent(name: "released", value: "2", isStateChange: true)
     }
 } 
@@ -262,13 +276,13 @@ def push(cmd){
     if (cmd ==1){
     logging("${device} : ${button1Name} Doorbell [button 1] Pressed!", "info")
     sendEvent(name: "pushed", value: "1", isStateChange: true)
-    pauseExecution(6000)
+    pauseExecution(7000)
     release(cmd)
     }
     if (cmd ==2){
     logging("${device} : ${button2Name} Doorbell [Button 2] Pressed!", "info")
     sendEvent(name: "pushed", value: "2", isStateChange: true)
-    pauseExecution(6000)
+    pauseExecution(7000)
     release(cmd)   
     }
     
@@ -279,12 +293,13 @@ def push(cmd){
 
 def refresh() {
     logging("${device} : Refresh", "info")
-    def refreshCmds = [
-        "he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20", "delay 500",
-        "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 04 00}", "delay 2000",
-        "he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 05 00}", "delay 2000", 
-	]
-	return refreshCmds + enrollResponse()
+    
+    delayBetween([
+            sendZigbeeCommands(["he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20"]),
+            sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 04 00}"]),
+            sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 05 00}"]),
+   ], 300)
+        
 }
 
 
@@ -292,14 +307,14 @@ def refresh() {
 def enrollResponse() {
     logging("${device} : Sending enroll response", "info")
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
-	[
-		//Resending the CIE in case the enroll request is sent before CIE is written
-		"zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}", "delay 200",
-		"send 0x${device.deviceNetworkId} 1 ${endpointId}", "delay 500",
-		//Enroll Response
-		"raw 0x500 {01 23 00 00 00}",
-		"send 0x${device.deviceNetworkId} 1 1", "delay 200"
-	]
+   
+    delayBetween([
+            sendZigbeeCommands(["zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}"]),// send CIE
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 ${endpointId}"]),
+            sendZigbeeCommands(["raw 0x500 {01 23 00 00 00}"]),// enrole res
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),	
+   ], 300)
+    
 }
 
 private isDuplicateCall(lastRun, allowedEverySeconds) {
@@ -337,6 +352,11 @@ private byte[] reverseArray(byte[] array) {
         i++;
     }
     return array
+}
+
+void sendZigbeeCommands(List<String> cmds) {
+    logging("${device} : sending:${cmds}", "trace")
+    sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
 // Logging block 
