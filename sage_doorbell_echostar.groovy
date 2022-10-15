@@ -16,6 +16,7 @@ Yellow wire: doorbell 2  rear
 
 
 ================================================================================ 
+v2.5.2  10/15/2022  changed presence check llog from debug to info
 v2.5.1  10/14/2022  Adjusted uninstall to remove some left overs
                     Changed sending zigbee routines and delays
 v2.5.0  09/28/2022  Debug logs not auto disabling/Bug on line 285
@@ -58,7 +59,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.5.1"
+    TheVersion="2.5.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -175,7 +176,7 @@ def checkPresence() {
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","info")
     if (state.lastCheckInMin <= checkMin){ 
         test = device.currentValue("presence")
         if (test != "present"){
