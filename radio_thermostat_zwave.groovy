@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.0 10/15/2022 Null detection added in event 11
  v5.4.2 10/10/2022 Split info logs 
  v5.4.1 09/28/2022 Loging for chron human form
  v5.4   09/19/2022 Rewrote logging routines.
@@ -101,7 +102,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.4.2"
+    TheVersion="5.5.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -708,10 +709,14 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
    
 }
 
+//No such property: manufacturerId for class: hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointSupportedReport on line 717 (method parse)
 def zwaveEvent(hubitat.zwave.Command cmd ){
   logging("${device} : Received E11 (${cmd})", "debug")
-//  if(cmd != null) { setModelUp(cmd)}  
-//  if (cmd.contains("ManufacturerSpecificReport")){ setModelUp(cmd)}  
+  if(cmd == null |cmd.manufacturerId == null ) {
+      logging("${device} : Received E11 NULL", "warn")
+      return
+  }  
+ 
 	def map = [:]
     map.name = "ManufacturerSpecificReport"
     map.mfr   = hubitat.helper.HexUtils.integerToHexString(cmd.manufacturerId, 2)
