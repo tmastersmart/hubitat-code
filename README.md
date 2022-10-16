@@ -1,4 +1,8 @@
 # hubitat-code
+ All production drivers are now in the Hubitat Package Manager
+
+ Test beta and drivers I no longer use are not in the HPM and includes for ref.
+
 
  SmartThings Arrival Sensor driver for hubitat
 
@@ -19,7 +23,7 @@
 Radio Thermostat driver for Hubitat 
 Radio Thermostat Zwave Hubitat driver. CT-101 CT30e 
  
-Hubitat Everspring Utilitech Water Sensor  driver
+Hubitat Everspring Utilitech Water Sensor driver. Improved driver to solve all the dropout problems
 
 observer ip driver for hubitat
 
