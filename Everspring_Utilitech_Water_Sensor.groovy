@@ -1,6 +1,7 @@
 /* Everspring/Utilitech Water Sensor Driver for hubitat
    Everspring Flood Sensor       :ST812-2
    Utilitech Water Leak Detector :TST01-1 (Lowe's Iris)
+   Improved bat/presence/drop out detection
 
 
   To reset device press 10 times. remove batteries. reinstall and exclude. 
@@ -10,10 +11,13 @@
   Its sometimes hard to get it to pair. Remove batteries let it set and try again later.
   If include fails check zwave log and if the device is in the log you must remove before retying
 
+  This driver gives correct battery results and fixes the wake up times
+  This code has been rewritten with proper delays to fix some problems with
+  the sensor ignoring commands sent to fast.
 
-  This driver atempts to get correct battery results and fix the wake up times
-  This code has been rewritten with proper delays to fix some problems with the
-  sensor ignoring commands sent to fast in the orginal driver.
+  Includes drop of mesh detection. 
+  
+  Waits for device to wake up then polls it for status
 
 ====================================================================
 v2.5.1 10/07/2022 Auto debug logs off fixed
@@ -42,14 +46,10 @@ https://github.com/tmastersmart/hubitat-code/edit/main/Everspring_Utilitech_Wate
   for the specific language governing permissions and limitations under the License.
 
 
+Includes some source code from the following
 
-
->> Forked from https://github.com/tosa68/tosaSmartThings/blob/master/devicetypes/tosa68/utilitech-water-sensor.src/utilitech-water-sensor.groovy
-Author: tosa68 
-Date:   2014-07-17
-Version 0.8 (2016-11-02)
-
->>> Forked from   https://community.hubitat.com/t/utilitech-water-leak-sensor/3696 by cuboy29 
+https://github.com/tosa68/tosaSmartThings/blob/master/devicetypes/tosa68/utilitech-water-sensor.src/utilitech-water-sensor.groovy
+https://community.hubitat.com/t/utilitech-water-leak-sensor/3696 by cuboy29 
 
  *  
  */
