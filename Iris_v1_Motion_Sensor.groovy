@@ -8,7 +8,8 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
-v2.2.2 10/10/2020 Changes in bat lower limit and config delay
+v2.2.3 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
+v2.2.2 10/10/2022 Changes in bat lower limit and config delay
 v2.1  09/21/2022 Ranging adjustments
 v2.0  09/19/2022 Rewrote logging routines.
 v1.9  09/17/2022 Presence routine rewrote from scratch
@@ -41,11 +42,18 @@ limitations under the License.
 
 
 
+May contain code from the following
+
+
+http://www.apache.org/licenses/LICENSE-2.0
+Iris v2 source code driver
+https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_MotionSensor_2_3.driver
+
 
 
 
 code includes some routines based on alertme UK code from  
-https://github.com/birdslikewires/hubitat
+
 GNU General Public License v3.0
 Permissions of this strong copyleft license are conditioned on making available
 complete source code of licensed works and modifications, which include larger
@@ -57,7 +65,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.2.2"
+    TheVersion="2.2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -367,7 +375,7 @@ def processMap(Map map) {
      // some sensors report bat and temp at diffrent times some both at once?
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-    	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
+    	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
         // what is the lowest voltage this device can work on. 
         if (batteryVoltage < state.minVoltTest){
@@ -387,11 +395,11 @@ def processMap(Map map) {
         if (powerLast != batteryPercentage){
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
-          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
+          logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
+
           if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
          } // end dupe events detection
-         logging("${device} : Temp Report ${temperatureValue}", "debug") 
+
         }// end battery report        
      if (temperatureValue != "0000") {
          
