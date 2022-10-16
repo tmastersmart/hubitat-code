@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.0.5 10/16/2022 Reduced percission of bat voltage to reduce events .xxx to .xx
 v3.0.4 10/10/2022 Min voltage reset, Config delays changed
 v3.0.0 09/21/2022 Ranging adjustments
 v2.9   09/19/2022 Rewrote logging routines.
@@ -50,33 +51,48 @@ v1.4  08/17/2022 Bug fix on bat and temp adj
       05/29/2022 Removed init routine was causing problems.
       04/11/2021 First release
 =================================================================================================
-
-
-
-
-
 https://fccid.io/WJHWD11
 
 
+Before going back to internal drivers you must use uninstall to stop chron
+=================================================================================================== 
+Copyright [2022] [tmaster winnfreenet.com]
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 
- * A uninstall option has been added. If you have problems Use
- * oh-lalabs.com "Zigbee - Generic Device Toolbox" "https://raw.githubusercontent.com/markus-li/Hubitat/development/drivers/expanded/zigbee-generic-device-toolbox-expanded.groovy"
- * all settings and schedules must be erased or chron will generate errors in the log 
- * You can not go back to the orginal built in drivers unless you erase all of the setup...
 
+May contain code from the following
+
+
+http://www.apache.org/licenses/LICENSE-2.0
 Iris v2 source code driver here 2.3 driver
 https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_AlertMe_ContactSensor_2_3.driver
 
+code includes some routines based on alertme UK code from  
 
-
- * forked from  
+GNU General Public License v3.0
+Permissions of this strong copyleft license are conditioned on making available
+complete source code of licensed works and modifications, which include larger
+works using a licensed work, under the same license. Copyright and license
+notices must be preserved. Contributors provide an express grant of patent rights.
+Uk Iris code 
    https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_contact.groovy
  *	
  */
 
 def clientVersion() {
-    TheVersion="3.0.4"
+    TheVersion="3.0.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -428,7 +444,7 @@ def processMap(Map map) {
      // some sensors report bat and temp at diffrent times some both at once?
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-    	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
+    	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP) // changed to x.xx from x.xxx
         // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
         // what is the lowest voltage this device can work on. 
         if (batteryVoltage < state.minVoltTest){
@@ -448,11 +464,11 @@ def processMap(Map map) {
         if (powerLast != batteryPercentage){
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")}
-          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage}V", "info")}
+           logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
+
           if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
          } // end dupe events detection
-         logging("${device} : Temp Report ${temperatureValue}", "debug") 
+          
         }// end battery report        
      if (temperatureValue != "0000") {
          
