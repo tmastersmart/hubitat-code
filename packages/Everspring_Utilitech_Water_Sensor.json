@@ -1,11 +1,10 @@
 {
   "packageName": "Utilitech Water Sensor",
     "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Improved Drop Out detection and bat fixes. Logging upgrade,timming change in presence events.debug logs auto off fixed",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
-  "communityLink": "",
   "version": "2.5.1",
   "dateReleased": "2022-09-03",
   "category":"Security",
