@@ -1,11 +1,9 @@
 {
   "packageName": "Iris v1 Motion Detector Custom",
   "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Auto config delays changed,Lower bat limit changed.Bat auto adjust tweeked. bat precision reduced",
-  "documentationLink": "",
-  "communityLink": "",
   "version": "2.2.3",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
