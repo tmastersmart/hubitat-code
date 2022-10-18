@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "This version has stuck valve detection,Better bat support,Wet/Dry report is now optional,logging upgraded, Automated Test with schedule",
+  "releaseNotes": "This version has Test att for routines to monitor, stuck valve detection,Better bat support,Wet/Dry report is now optional,logging upgraded, Automated Test with schedule",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
   "communityLink": "",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "dateReleased": "2022-09-27",
 	   "category": "Control",
       "tags": [
