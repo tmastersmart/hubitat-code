@@ -1,11 +1,9 @@
 {
   "packageName": "SmartThings Arrival Sensor Chime V2",
   "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Smart things arival sensor with adjustable chime",
-  "documentationLink": "",
-  "communityLink": "",
   "version": "1.4.0",
   "dateReleased": "2022-09-08",
   "category": "Convenience",
