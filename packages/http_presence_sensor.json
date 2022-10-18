@@ -1,8 +1,8 @@
 {
   "packageName": "HTTP Presence Sensor with schedule",
   "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins 404 and 401 added",
   "version": "2.3.0",
   "dateReleased": "2022-09-25",
