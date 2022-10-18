@@ -4,8 +4,6 @@
   "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
   "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "Config delays changed. Min voltage auto adjust. Bad voltage precision reduced",
-  "documentationLink": "",
-  "communityLink": "",
   "version": "3.0.5",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
