@@ -1,11 +1,9 @@
 {
   "packageName": "Iris v1 Repeator Zigbe",
   "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Iris v1 Repeator Zigbee",
-  "documentationLink": "",
-  "communityLink": "",
   "version": "1.8.0",
   "dateReleased": "2022-22-09",
   "category":"Control",
