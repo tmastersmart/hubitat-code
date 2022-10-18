@@ -1,8 +1,8 @@
 {
   "packageName": "Radio Thermostat Zwave",
   "author": "TheMaster",
-  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
-  "payPalUri": "https://www.paypal.com/paypalme/tmastersat",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Split the info logs into info & info2 so you can turn off some of the non temp data. Chron log human readable. Check for null events on event 11",
   "documentationLink": "http://www.winnfreenet.com/wp/2022/08/radio-thermostat-zwave-hubitat-driver-ct101-ct30/",
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
