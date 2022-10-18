@@ -32,6 +32,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.2.3 10/18/2022   Test attribute added for routines to monitor. true when running
     3.2.2 09/27/2022   bug in bat logging. Added test function, Added test schedule
     3.2.1 09/27/2022   Wet/Dry optional
     3.2   09/05/2022   Decoding events rewritten. New alert added from iris source code.
@@ -116,7 +117,7 @@ Much of this code is my own but parts will contain code from
  *
  */
 def clientVersion() {
-    TheVersion="3.2.2"
+    TheVersion="3.2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -143,6 +144,7 @@ metadata {
 //    attribute "lastPollD", "string"
 	attribute "batteryVoltage", "string"
     attribute "Alert", "string"
+    attribute "Test", "bool"    
 
         
 fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02, FC02", outClusters: "0019", manufacturer: "WAXMAN", model: "leakSMART Water Valve v2.10", deviceJoinName: "leakSMART Valve v2.10" //leakSMART Valve
@@ -387,16 +389,19 @@ def poll() {
 def testF(){
 state.lastTest =  new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
 state.test = false
-logging ("${device} : Test finished.","info")  
+logging ("${device} : Test finished.","info") 
+    sendEvent(name: "Test",value: state.test ,descriptionText: "The Test has finished", isStateChange: true, displayed: true)  
 }
 
 def test(){
    state.test = true
-   logging ("${device} : Testing the valve. Supressing events.","info")  
+   sendEvent(name: "Test",value: state.test ,descriptionText: "A Test is in process LAST:${state.lastTest}", isStateChange: true, displayed: true) 
+   logging ("${device} : Testing the valve. Supressing events. LAST:${state.lastTest}","info")  
    runIn(1,close)
    runIn(32,open)  
    runIn(45,testF)
-   runIn(60,getApplianceAlerts)       
+   runIn(60,getApplianceAlerts) 
+ 
 }
 
 
