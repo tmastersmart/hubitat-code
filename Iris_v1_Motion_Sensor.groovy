@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.2.4 10/19/2022 force motion ON/OFF from driver page
 v2.2.3 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
 v2.2.2 10/10/2022 Changes in bat lower limit and config delay
 v2.1  09/21/2022 Ranging adjustments
@@ -65,7 +66,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.2.3"
+    TheVersion="2.2.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -96,6 +97,8 @@ metadata {
         command "unschedule"
         command "uninstall"
         command "ClearTamper"
+        command "motionON"
+        command "motionOFF"
 
 
 		attribute "batteryVoltage", "string"
@@ -341,13 +344,18 @@ void reportToDev(map) {
 // sends standard zigbee command
 def processStatus(ZoneStatus status) {
     logging("${device} : ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()}", "debug")
-	if (status.isAlarm1Set() || status.isAlarm2Set()) {// 2 does not look to be used on irs
+	if (status.isAlarm1Set() || status.isAlarm2Set()) {motionON()}
+	else {motionOFF()}
+}
+
+private motionON(){
 		logging("${device} : Motion : Active", "info")
 		sendEvent(name: "motion", value: "active", isStateChange: true)
-	} else {
+}
+
+private motionOFF(){
 		logging("${device} : Motion : Inactive", "info")
         sendEvent(name: "motion", value: "inactive", isStateChange: true)
-	}
 }
 
 
