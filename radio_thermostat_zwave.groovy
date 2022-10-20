@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.1 10/20/2022 Null on line 401. Error checking added/ Swing and DIff auto saved
  v5.5.0 10/15/2022 Null detection added in event 11
  v5.4.2 10/10/2022 Split info logs 
  v5.4.1 09/28/2022 Loging for chron human form
@@ -102,7 +103,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.0"
+    TheVersion="5.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -202,13 +203,12 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "Programming Debug logs" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-    
-    input(  "heatDiff", "number", title: "Heat differential 2 Stage", description: "When does 2nd stage engage. 4=cold areas 8=warm areas. Press setDiff after changing", defaultValue: 4,required: true)
-    input(  "coolDiff", "number", title: "Cool differential 2 Stage", description: "Cool differential. Only for 2 stage Heatpumps.  Press setDiff after changing", defaultValue: 4,required: true)
-    input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on. Press setSwing after changing", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)
+    input(  "heatDiff", "number", title: "Heat differential 2 Stage", description: "When does 2nd stage engage. 4=cold areas 8=warm areas.", defaultValue: 4,required: true)
+    input(  "coolDiff", "number", title: "Cool differential 2 Stage", description: "Cool differential. Only for 2 stage Heatpumps.", defaultValue: 4,required: true)
+    input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on.", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)
 
     
-    input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. Press setRecovery after changing",  options: ["fast", "economy"], defaultValue: "economy",required: true 
+    input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. ",  options: ["fast", "economy"], defaultValue: "economy",required: true 
    
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
     input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["10","15","20","30","40","50"],defaultValue: 15,required: true)
@@ -330,10 +330,11 @@ def updated() {
     
     delayBetween([
     zwave.thermostatModeV2.thermostatModeGet().format(),// get mode
-    zwave.sensorMultilevelV3.sensorMultilevelGet().format() // current temperature 
+    zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature 
+    saveSettings()
     ], 2300)    
-//	refresh()
 
+    
 }
 
 
@@ -394,18 +395,14 @@ def parse(String description)
    //def zwcmd = zwave.parse(description, [0x42:2, 0x43:2, 0x31: 2, 0x60: 3]) old code
    CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1]   
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
-    logging("${device} : Raw [${description}]", "trace")
-    if (map == null) {return null}
+   if (!map) {
+   logging("${device} : Unable to Parse", "error")   
+       return
+   }
 	def result = [map]
-    if (!result) {return null}
+    logging("${device} : Raw:${description} [${map}]", "trace")
     logging("${device} : Parse ${result}", "debug")
-  
-    if (map) { 
-        zwaveEvent(map)
-        return
-    }
-    
-	result
+    zwaveEvent(map)
 }
 
 // Event Generation
@@ -812,7 +809,7 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format()
-	], delay)
+	], 30000)
 }
 
 //==================cooling
@@ -853,7 +850,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format()
-	], delay)
+	], 30000)
  
 }
 
@@ -902,7 +899,7 @@ def setThermostatMode(String value) {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: set).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 // E21
 def setThermostatFanMode(String value) {
@@ -916,7 +913,7 @@ def setThermostatFanMode(String value) {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: set).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], standardDelay)   
+	], 30000)   
     
 }
 
@@ -947,7 +944,7 @@ def off() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 0).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 // 1
 def heat() {
@@ -960,7 +957,7 @@ def heat() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 1).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 def cool() {
@@ -975,7 +972,7 @@ def cool() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 2).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 def auto() {
@@ -988,7 +985,7 @@ def auto() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 3).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 def emergencyHeat() {
@@ -1001,7 +998,7 @@ def emergencyHeat() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 
@@ -1013,7 +1010,7 @@ def fanOn() {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 1).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 def fanAuto() {
@@ -1021,7 +1018,7 @@ def fanAuto() {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 0).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
 def fanCirculate() {
@@ -1029,12 +1026,12 @@ def fanCirculate() {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 6).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], standardDelay)
+	], 30000)
 }
 
-private getStandardDelay() {
-	1000
-}
+//private getStandardDelay() {
+//	1000
+//}
 
 // CUSTOMIZATIONS
 def zwaveEvent(hubitat.zwave.commands.multiinstancev1.MultiInstanceCmdEncap cmd) {   
@@ -1091,7 +1088,7 @@ private setClock(cmd) {
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: weekdayZ).format(),
         zwave.clockV1.clockGet().format(),
         zwave.batteryV1.batteryGet().format()    
-	], standardDelay)
+	], 30000)
 }
 
 void setDay(day){
@@ -1130,9 +1127,14 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
 }
 
 def saveSettings(cmd){
- logging("${device} : SaveSettings", "info")  
- delayBetween([setDiff(cmd),setSwing(cmd),setRecovery(cmd)], delay)     
-    
+ logging("${device} : SaveSettings", "debug")  
+ delayBetween([
+     setDiff(cmd),
+     setSwing(cmd),
+     setRecovery(cmd),
+     setClock()
+ ], 30000)     
+   
 }
 
 
@@ -1150,7 +1152,7 @@ def setDiff(cmd){
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
    zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
-	], delay)    
+	], 30000)    
 }
 
 def setSwing(cmd){
@@ -1167,13 +1169,13 @@ def setSwing(cmd){
     if (swing == "3.5"){value = 7}
     if (swing == "4.0"){value = 8}
 
-    logging("${device} : Set Temp Swing:${swing} ${locationScale} - #${value}", "info")
+    logging("${device} : Set Temp Swing:${swing} ${locationScale}", "info")
 
     
    delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 7, size: 1, configurationValue: [value]).format(),
    zwave.configurationV2.configurationGet(parameterNumber: 7).format(),    
-	], delay)  
+	], 30000)  
 
 }
 
@@ -1184,13 +1186,13 @@ def setRecovery(cmd){
     if (recovery == "fast"){value = 1}
     if (recovery == "economy"){value = 2}
    
-    logging("${device} : Set Recovery to:${recovery} #${value}", "info")
+    logging("${device} : Set Recovery to:${recovery} ", "info")
     
     
    delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 9, size: 1, configurationValue: [value]).format(),
    zwave.configurationV2.configurationGet(parameterNumber: 9).format(),    
-	], delay)  
+	], 30000)  
 
 }
 
