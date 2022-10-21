@@ -28,8 +28,8 @@ Button 5 = Unlocked by HUB
 
 
 =============================================================
-
- 98/16/2022  v1.2  Support locks that use VIA instead of BY in description.
+ 10/21/2022  v1.3  Unlocked by keypad added
+ 09/16/2022  v1.2  Support locks that use VIA instead of BY in description.
  06/28/2022  v1.1  working version. One lock only
  06/27/2022  v1.0  Testing version.....
 
@@ -38,7 +38,7 @@ Button 5 = Unlocked by HUB
 
 def setVersion(){
     state.name = "Lock Button Monitor ${app.lock}"
-    state.version ="1.2"
+    state.version ="1.3"
 //    updateLabel("Lock Button Monitor ${app.lock}")
 
 //    updateLabel(state.name)
@@ -169,6 +169,13 @@ setVersion()
    virtuaButton.push(4)
    return    
     }   
+if (evt.descriptionText.contains('was unlocked with keypad')){//was unlocked by 
+       log.info ("Lock monitor: UnLocked by a valid code ${name}")
+   virtuaButton.push(4)
+   return    
+    }    
+    
+	
     
    if (evt.descriptionText.contains('was unlocked [digital]')){
    log.info ("Lock monitor: was unlocked by HUB")
