@@ -6,7 +6,7 @@
   "releaseNotes": " Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock.",
   "documentationLink": "https://community.hubitat.com/t/release-lock-button-monitor-arm-hsm-from-outside-door-lock/98010",
   "communityLink": "https://community.hubitat.com/t/release-lock-button-monitor-arm-hsm-from-outside-door-lock/98010",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "dateReleased": "2022-24-09",
   "category":"Safety & Security",
   "tags": [ "Alarm Systems", "buttons","Locks" ],
