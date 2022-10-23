@@ -5,7 +5,7 @@
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "3.7.0",
+  "version": "3.8.0",
   "dateReleased": "2022-09-03",
   "category":"Control",
   "tags":["Misc. Devices"],
