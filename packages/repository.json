@@ -176,8 +176,22 @@
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage_doorbell_echostar.json",
    "description": "Doorbell driver created to stop false button presses. Detect dead bat with presence detection,  And support debug,trace logs."
-   },  	  
-  
+   },
+	  {
+	"name":"Zigbee Sonoff - generic relays",  
+	"category": "Control",
+      "tags": [
+        "Buttons",
+	"Lights & Switches",      
+	"Alarm Systems",      
+	"Presence & Location",     
+        "Zigbee"
+      ],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-relays-sonoff.json",
+   "description": "Works with Sonoff MINI and other generic zigbee relays"
+   },	  
+	  
+	
     {
   "name":"HTTP Presence Sensor with schedule",
 	    "category": "Control",
