@@ -15,7 +15,7 @@ Suports alarm,strobe,siren,refreash and presence.
 Send me your fngerprints so they can be added.
 
 
-v 1.2.3 10/23/2022   Bug fixes more untrapted cluster fixes
+v 1.3.0 10/23/2022   Bug fixes more untrapted cluster fixes
 v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
 v 1.0.0 10/23/2022   Creation
 ======================================================================================================
@@ -38,7 +38,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.2.3"
+    TheVersion="1.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
