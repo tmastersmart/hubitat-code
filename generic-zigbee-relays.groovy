@@ -36,7 +36,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -63,6 +63,7 @@ metadata {
 
         command "unschedule" 
         command "uninstall"
+        command "enrollResponse"
 
 
 		attribute "strobe", "string"
@@ -362,7 +363,7 @@ def processMap(Map map) {
         }
         
 //New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
-   }else if (map.cluster == "8001") {
+   }else if (map.cluster == "8001") { 
         logging("General event :8001 ${map.data}", "debug") 
    }else if (map.cluster == "8021") {
         logging("Blind Cluster event :8021 ${map.data}", "debug")
