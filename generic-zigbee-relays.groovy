@@ -1,16 +1,20 @@
 /** Zigbee Sonoff - generic relays
 driver for hubitat
 
-Sonoff MINI ZB  relay driver
+Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
 Generic zigbee relays/outlets...
 
 
-This driver was created to handel my SONOFF and off brand relays.
+This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
+These relays all use the same formats but have diffrent problems with internal drivers.
+
+Suports alarm,strobe,siren,refreash and presence.
+
 Send me your fngerprints so they can be added.
 
 
 
-
+v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
 v 1.0.0 10/23/2022   Creation
 ==============================================================================================
 GNU General Public License v3.0
@@ -21,7 +25,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.0"
+    TheVersion="1.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -54,9 +58,12 @@ metadata {
 		attribute "siren", "string"
 
 
-        fingerprint model:"BASICZBR3",manufacturer:"SONOFF",deviceJoinName:"SONOFF Relay BASICBR3",profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
-	    fingerprint model:"01MINIZB", manufacturer:"SONOFF",deviceJoinName:"SONOFF Relay MINI",    profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
-	}
+        fingerprint model:"BASICZBR3",     manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay BASICBR3", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
+	    fingerprint model:"01MINIZB",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay MINI",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
+        fingerprint model:"SA-003-Zigbee", manufacturer:"eWeLink",         deviceJoinName:"eWeLink Relay",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
+        fingerprint model:"Lamp_01",       manufacturer:"SZ",              deviceJoinName:"Generic Relay",         profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
+        fingerprint model:"LXN59-1S7LX1.0",manufacturer:"3A Smart Home DE",deviceJoinName:"Inline Switch",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"", application:"01"
+    }
 
 }
 
@@ -89,6 +96,8 @@ def initialize() {
 
 	// Remove disused state variables from earlier versions.
 state.remove("status")
+state.remove("comment")    
+state.remove("icon")     
 
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
