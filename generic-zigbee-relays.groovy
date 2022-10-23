@@ -13,7 +13,7 @@ Suports alarm,strobe,siren,refreash and presence.
 Send me your fngerprints so they can be added.
 
 
-v 1.2.0 10/23/2022   Bug fixes more untrapted cluster fixes
+v 1.2.2 10/23/2022   Bug fixes more untrapted cluster fixes
 v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
 v 1.0.0 10/23/2022   Creation
 ======================================================================================================
@@ -36,7 +36,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -98,6 +98,13 @@ def uninstall() {
 	state.remove("presenceUpdated")    
 	state.remove("version")
     logging("Uninstalled", "info")   
+    state.remove("checkPhase")
+    state.remove("lastCheckInMin")
+    state.remove("logo")
+    state.remove("bin")
+    state.remove("DataUpdate")
+    state.remove("lastCheckin")
+
 }
 
 def initialize() {
@@ -110,7 +117,8 @@ def initialize() {
 state.remove("status")
 state.remove("comment")    
 state.remove("icon")
-state.remove("logo")      
+state.remove("logo")
+state.remove("flashing")    
 
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
@@ -127,27 +135,13 @@ def configure() {
     logging("configure", "info")  
     state.DataUpdate = false  
 	unschedule()
-//    configureDevice()
-    
-
 	
     // Schedule presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
    
-refresh() 
-}
 
-void configureDevice() {
-    Integer endpointId = 1
-    ArrayList<String> cmd = []
-    cmd += zigbee.readAttribute(0x0000, [0x0001, 0x0004, 0x0005, 0x0006])
-    cmd += ["zdo bind 0x${device.deviceNetworkId} ${endpointId} 0x01 0x0001 {${device.zigbeeId}} {}", "delay 187"]
-    cmd += zigbee.readAttribute(0x0001, [0x0020, 0x0021])
-    cmd += ["he cr 0x${device.deviceNetworkId} ${endpointId} 0x0001 0 0x10 0 0xE10 {}", "delay 189"]
-
-    sendZigbeeCommands(cmd)
 }
 
 
