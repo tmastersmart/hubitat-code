@@ -1,0 +1,21 @@
+{
+  "packageName": "Zigbee Sonoff - generic relays",
+  "author": "TheMaster",
+  "releaseNotes":   "Working on sonoff mini. more fingerprints added",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "version": "1.2.2",
+  "dateReleased": "2022-10-23",
+  "category":"Control",
+  "tags":["Misc. Devices"],
+  "drivers": [
+    {
+      "name":"Zigbee Sonoff - generic relays",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy",
+      "required": "true",
+        "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays",
+      "id": "9742730c-c241-4988-9c0c-53d6d93131e9"
+    }
+    ]
+}
