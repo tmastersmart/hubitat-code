@@ -143,7 +143,7 @@
         "Monitoring",
 	"Misc. Devices",
 	"Locks",
-	"buttons",      
+	"Buttons",      
         "Safety & Security"
         
       ],
@@ -157,7 +157,7 @@
         "Monitoring",
 	"Misc. Devices",
 	"Locks",
-	"buttons",      
+	"Buttons",      
         "Safety & Security"
         
       ],
@@ -180,13 +180,7 @@
 	  {
 	"name":"Zigbee Sonoff - generic relays",  
 	"category": "Control",
-      "tags": [
-        "Buttons",
-	"Lights & Switches",      
-	"Alarm Systems",      
-	"Presence & Location",     
-        "Zigbee"
-      ],
+"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
    "description": "Works with Sonoff MINI and other generic zigbee relays"
    },	  
