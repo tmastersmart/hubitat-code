@@ -187,7 +187,7 @@
 	"Presence & Location",     
         "Zigbee"
       ],
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-relays-sonoff.json",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
    "description": "Works with Sonoff MINI and other generic zigbee relays"
    },	  
 	  
