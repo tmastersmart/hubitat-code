@@ -11,7 +11,7 @@ Send me your fngerprints so they can be added.
 
 
 
-v 2.0.0 10/13/2022   Creation
+v 1.0.0 10/23/2022   Creation
 ==============================================================================================
 GNU General Public License v3.0
 Permissions of this strong copyleft license are conditioned on making available
