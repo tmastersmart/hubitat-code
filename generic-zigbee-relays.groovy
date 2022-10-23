@@ -1,7 +1,9 @@
-/** Zigbee Sonoff - generic relays
-driver for hubitat
+/** Zigbee Sonoff - generic relays - Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
+sonoff MINI zigbee driver for hubitat
+eWeLink zigbee driver for hubitat
+3A Smart Home zigbee driver for hubitat
 
-Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
+
 Generic zigbee relays/outlets...
 
 
