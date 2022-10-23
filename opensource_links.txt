@@ -23,3 +23,6 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 
 https://github.com/birdslikewires/hubitat
 
+
+https://github.com/rbaldwi3/Sage-HVAC-Sensor/edit/master/groovy
+
