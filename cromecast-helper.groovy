@@ -1,5 +1,12 @@
-/**
- *  **************** Chromecast Helper App  ****************
+/** Chromecast Helper for hubitat
+
+ This app is no longer supported but I was still using it off and on so I have saved it.
+ It may no longer be needed as you needto have your google set to static IP in your router
+ And the hub wont lose track of it. Just in case someone still needs this app its archived here. 
+
+
+
+ ============================================================================================================
  *
  *  Design Usage:
  *  Simple way to help keep your Google/Nest devices alive.
