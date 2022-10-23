@@ -44,7 +44,7 @@ import java.security.MessageDigest
 import hubitat.helper.HexUtils
 
 metadata {
-	definition (name: "Zigbee - Generic Outlet (with Presence)", namespace: "oh-lalabs.com", author: "Markus Liljergren", filename: "zigbee-generic-outlet", importUrl: "https://raw.githubusercontent.com/markus-li/Hubitat/release/drivers/expanded/zigbee-generic-outlet-expanded.groovy") {
+	definition (name: "Zigbee - Generic Outlet (with Presence)", namespace: "oh-lalabs.com", author: "Markus Liljergren", filename: "eneric-outlet", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
         // BEGIN:getDefaultMetadataCapabilitiesForZigbeeDevices()
         capability "Sensor"
         capability "PresenceSensor"
