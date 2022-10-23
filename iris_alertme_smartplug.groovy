@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v3.8  10/11/2022 Energy usage moved to debug from info
 v3.7  09/21/2022 Adjustments to ranging
 v3.6  09/19/2022 Rewrote logging routines. Block code changes copied from keypad code
                  Rewrote presence and ranging routines.
@@ -452,10 +453,9 @@ else if (map.clusterId == "00EF") {
 			BigInteger energyValue = new BigInteger(energyValueHex, 16)
 			BigDecimal energyValueDecimal = BigDecimal.valueOf(energyValue / 3600 / 1000)
    		    energyValueDecimal = energyValueDecimal.setScale(4, BigDecimal.ROUND_HALF_UP)
-            
-            logging("${device} : Total Energy Usage: ${energyValueDecimal}kWh", "debug")
-             if (energyValueDecimal != state.energy){
-			 logging("${device} : Total Energy Usage: ${energyValueDecimal}kWh", "info")
+
+            if (energyValueDecimal != state.energy){
+			 logging("${device} : Total Energy Usage: ${energyValueDecimal}kWh", "debug")
              sendEvent(name: "energy", value: energyValueDecimal, unit: "kWh",descriptionText: "${state.uptime} V${state.version}" )
              state.energy = energyValueDecimal
             }
