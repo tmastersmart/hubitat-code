@@ -13,7 +13,7 @@ Suports alarm,strobe,siren,refreash and presence.
 Send me your fngerprints so they can be added.
 
 
-v 1.2.2 10/23/2022   Bug fixes more untrapted cluster fixes
+v 1.2.3 10/23/2022   Bug fixes more untrapted cluster fixes
 v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
 v 1.0.0 10/23/2022   Creation
 ======================================================================================================
@@ -36,7 +36,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.2.2"
+    TheVersion="1.2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -166,19 +166,19 @@ void refresh(cmd) {
 
     if (Test =="on"){
         logging("Resending State ON", "info")
-        runIn(2,on)
+        runIn(4,on)
     }
     else {
         logging("Resending State OFF", "info")
-        runIn(2,off)
+        runIn(4,off)
     }    
     
-       delayBetween([
-            zigbee.readAttribute(0x0000, 0x0006), 
-            zigbee.readAttribute(0x0000, 0x0004),
+ //      delayBetween([
+ //           zigbee.readAttribute(0x0000, 0x0006), 
+ //           zigbee.readAttribute(0x0000, 0x0004),
  //           sendZigbeeCommands(["zcl global send-me-a-report 6 0 0x10 0 1 {01}"]),
  //           sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0x0006 0x0001"]),
-   ], 1000) 
+ //  ], 1000) 
     
 }
 
@@ -211,12 +211,12 @@ def both(cmd){
 }
 
 def off() {
-    logging("Sending OFF", "debug")
+    logging("Sending OFF", "info")
 	zigbee.command(0x006, 0x00)
 }
 
 def on() {
-    logging("Sending ON", "debug")
+    logging("Sending ON", "info")
 	zigbee.command(0x006, 0x01)
 }
 
