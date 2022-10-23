@@ -1,875 +1,383 @@
-/** generic zigbee relay driver for hubitat
+/** Zigbee Sonoff - generic relays
+driver for hubitat
 
 Sonoff MINI ZB  relay driver
-Generic zigbee outlets...
+Generic zigbee relays/outlets...
+
+
+This driver was created to handel my SONOFF and off brand relays.
+Send me your fngerprints so they can be added.
 
 
 
 
-
-
-
-
-
-
-
-ported from https://github.com/markus-li/Hubitat/blob/release/drivers/expanded/zigbee-generic-outlet-expanded.groovy
- *  Copyright 2020 Markus Liljergren (https://oh-lalabs.com)
- *
- *  Version: v1.0.1.1123
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- *  NOTE: This is an auto-generated file and most comments have been removed!
- *
+v 2.0.0 10/13/2022   Creation
+==============================================================================================
+GNU General Public License v3.0
+Permissions of this strong copyleft license are conditioned on making available
+complete source code of licensed works and modifications, which include larger
+works using a licensed work, under the same license. Copyright and license
+notices must be preserved. Contributors provide an express grant of patent rights.
+ *	
  */
-
 def clientVersion() {
-    TheVersion="2.0.0"
+    TheVersion="1.0.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
  }
 }
-
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
- 
-import java.security.MessageDigest
-// END:  getDefaultImports()
+import hubitat.zigbee.clusters.iaszone.ZoneStatus
+import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
-
 metadata {
+    
+	definition (name: "Zigbee Sonoff - generic relays", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
+
+		capability "Actuator"
+		capability "Configuration"
+		capability "EnergyMeter"
+		capability "Initialize"
+		capability "Outlet"
+		capability "PresenceSensor"
+		capability "Refresh"
+		capability "Switch" 
+        capability "Alarm"
+
+
+
+        command "unschedule" 
+        command "uninstall"
+
+
+		attribute "strobe", "string"
+		attribute "siren", "string"
+
+
+        fingerprint model:"BASICZBR3",manufacturer:"SONOFF",deviceJoinName:"SONOFF Relay BASICBR3",profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
+	    fingerprint model:"01MINIZB", manufacturer:"SONOFF",deviceJoinName:"SONOFF Relay MINI",    profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
+	}
+
+}
+
+preferences {
 	
-	definition (name: "Zigbee generic relays", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
-
-        capability "Sensor"
-        capability "PresenceSensor"
-        capability "Initialize"
-        capability "Refresh"
-
-        
-        capability "HealthCheck"
-        capability "Actuator"
-        capability "Switch"
-        capability "Outlet"
-
-		
-        attribute   "driver", "string"
-
-
-        attribute "lastCheckin", "Date"
-        attribute "lastCheckinEpoch", "number"
-        attribute "notPresentCounter", "number"
-        attribute "restoredCounter", "number"
-
-
-        command "toggle"
- 
-        command "resetRestoredCounter"
-
-        command "forceRecoveryMode", [[name:"Minutes*", type: "NUMBER", description: "Maximum minutes to run in Recovery Mode"]]
-
-        command "stopSchedules"
-        command "getInfo"
-
-
-        fingerprint deviceJoinName:"IKEA Tradfri Power Outlet", model:"TRADFRI control outlet", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,1000,FC7C", outClusters:"0005,0019,0020,1000", manufacturer:"IKEA of Sweden"
-        fingerprint deviceJoinName:"IKEA Tradfri Power Outlet", model:"TRADFRI control outlet", manufacturer:"IKEA of Sweden", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,FC7C", outClusters:"0005,0019,0020", application:"14"
-        fingerprint deviceJoinName:"Iris 3210-L Plug", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B04,0B05,FC03", outClusters:"0019", model:"3210-L", manufacturer:"CentraLite"
-        fingerprint model:"3320-L", manufacturer:"CentraLite", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019"
-        fingerprint deviceJoinName:"Sylvania Outlet", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B05,FC01,FC08", outClusters:"0003,0019", model:"PLUG", manufacturer:"LEDVANCE"
-        fingerprint deviceJoinName:"Sylvania Outlet", profileId:"C05E", endpointId:"03", inClusters:"1000,0000,0003,0004,0005,0006,0B04,FC0F", outClusters:"0019", model:"Plug 01", manufacturer:"OSRAM"
-        fingerprint model:"SP 222", manufacturer:"innr", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,0B05,1000,FC82", outClusters:"000A,0019", application:"10"
-        fingerprint model:"outlet", manufacturer:"Samjin", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0009,0B04,0B05", outClusters:"0003,0019", application:"11"
-        fingerprint model:"4257050-RZHAC", manufacturer:"CentraLite", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B04,0B05", outClusters:"0019"
-        fingerprint model:"BASICZBR3", manufacturer:"SONOFF", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
-	fingerprint model:"01MINIZB", manufacturer:"SONOFF", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57", outClusters:"0019"	
-
-    }
-
-    preferences {
-	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
- 
-	    
-
-        input(name: "debugLogging", type: "bool", title: styling_getLogo() + styling_addTitleDiv("Enable debug logging"), description: ""  + styling_getDefaultCSS(), defaultValue: false, submitOnChange: true, displayDuringSetup: false, required: false)
-        input(name: "infoLogging", type: "bool", title: styling_addTitleDiv("Enable info logging"), description: "", defaultValue: true, submitOnChange: true, displayDuringSetup: false, required: false)
-
-	input(name: "lastCheckinEnable", type: "bool", title: styling_addTitleDiv("Enable Last Checkin Date"), description: styling_addDescriptionDiv("Records Date events if enabled"), defaultValue: true)
-        input(name: "lastCheckinEpochEnable", type: "bool", title: styling_addTitleDiv("Enable Last Checkin Epoch"), description: styling_addDescriptionDiv("Records Epoch events if enabled"), defaultValue: false)
-        input(name: "presenceEnable", type: "bool", title: styling_addTitleDiv("Enable Presence"), description: styling_addDescriptionDiv("Enables Presence to indicate if the device has sent data within the last 3 hours (REQUIRES at least one of the Checkin options to be enabled)"), defaultValue: true)
-        input(name: "presenceWarningEnable", type: "bool", title: styling_addTitleDiv("Enable Presence Warning"), description: styling_addDescriptionDiv("Enables Presence Warnings in the Logs (default: true)"), defaultValue: true)
-        input(name: "recoveryMode", type: "enum", title: styling_addTitleDiv("Recovery Mode"), description: styling_addDescriptionDiv("Select Recovery mode type (default: Slow)<br/>NOTE: The \"Insane\" and \"Suicidal\" modes may destabilize your mesh if run on more than a few devices at once!"), options: ["Disabled", "Slow", "Normal", "Insane", "Suicidal"], defaultValue: "Slow")
-        input(name: "enablePing", type: "bool", title: styling_addTitleDiv("Enable Automatic Ping"), description: styling_addDescriptionDiv("Sends an, infrequent, ping to the device if needed for knowing if Present (default: enabled)"), defaultValue: true)
-	}
+	
 }
 
-String getDeviceInfoByName(infoName) { 
 
-}
-ArrayList<String> refresh() {
-    logging("refresh() model='${getDeviceDataByName('model')}'", 10)
-    getDriverVersion()
-    configurePresence()
-    startCheckEventInterval()
-    setLogsOffTask(noLogWarning=true)
-    setCleanModelName(newModelToSet=null, acceptedModels=null)
-
-    if(enablePing == null || enablePing == true) {
-        Random rnd = new Random()
-        schedule("${rnd.nextInt(59)} ${rnd.nextInt(29)}/29 * * * ? *", 'ping')
-        ping()
-    }
-
-    ArrayList<String> cmd = []
-    cmd += zigbee.readAttribute(0x000, 0x0005)
-    cmd += ["zdo bind ${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}", "delay 187",]
-    logging("refresh cmd: $cmd", 1)
-    sendZigbeeCommands(cmd)
+def installed() {
+	// Runs after first pairing. this may never run internal drivers overide pairing.
+	logging("${device} : Paired!", "info")
 }
 
-void ping() {
-    if(enablePing == false) {
-        logging("ping() is DISABLED in Preferences", 100)
-        unschedule('ping')
-    } else if(hasCorrectCheckinEvents(25, false) == false){
-        logging("ping()", 100)
-        /* If additional Ping types are needed, please contact the Developer */
-        List<String> cmd = []
-        cmd += zigbee.readAttribute(CLUSTER_BASIC, 0x0004)
-        
-        cmd.each() {
-            if(it.startsWith("delay") == false) {
-                logging(it, 1)
-            }
-        }
-        sendZigbeeCommands(cmd)
-    } else {
-        logging("SKIPPING ping() since there has been events received during the last 25 minutes...", 100)
-    }
+def uninstall() {
+	unschedule()
+	state.remove("presenceUpdated")    
+	state.remove("version")
+    logging("Uninstalled", "info")   
 }
 
 def initialize() {
-    logging("initialize()", 100)
-    unschedule()
-    refresh()
-}
 
-void installed() {
-    logging("installed()", 100)
-    refresh()
-}
+    // This runs on reboot 
+	state.presenceUpdated = 0
+    state.logo =""
 
-void updated() {
-    logging("updated()", 100)
+	// Remove disused state variables from earlier versions.
+state.remove("status")
+
+	// Remove unnecessary device details.
+    device.deleteCurrentState("alarm")
+
     clientVersion()
-    loggingUpdate()
-    refresh()
+	// multi devices will run this on reboot make sure they all use a diffrent time
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
 }
 
-ArrayList<String> parse(String description) {
 
+def configure() {
+	// Runs on reboot paired or rejoined
+    logging("configure", "info")  
+    state.DataUpdate = false  
+	unschedule()
+//    configureDevice()
+    
+
+	
+    // Schedule presence in hrs
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
+   
+refresh() 
+}
+
+void configureDevice() {
+    Integer endpointId = 1
     ArrayList<String> cmd = []
-    Map msgMap = null
-    if(description.indexOf('encoding: 4C') >= 0) {
-      msgMap = zigbee.parseDescriptionAsMap(description.replace('encoding: 4C', 'encoding: F2'))
-      msgMap = unpackStructInMap(msgMap)
-    
-    } else if(description.indexOf('attrId: FF01, encoding: 42') >= 0) {
-      msgMap = zigbee.parseDescriptionAsMap(description.replace('encoding: 42', 'encoding: F2'))
-      msgMap["encoding"] = "41"
-      msgMap["value"] = parseXiaomiStruct(msgMap["value"], isFCC0=false, hasLength=true)
-    } else {
-      if(description.indexOf('encoding: 42') >= 0) {
-    
-        List values = description.split("value: ")[1].split("(?<=\\G..)")
-        String fullValue = values.join()
-        Integer zeroIndex = values.indexOf("01")
-        if(zeroIndex > -1) {
-    
-          //logging("zeroIndex: $zeroIndex, fullValue: $fullValue, string: ${values.take(zeroIndex).join()}", 0)
-          msgMap = zigbee.parseDescriptionAsMap(description.replace(fullValue, values.take(zeroIndex).join()))
-    
-          values = values.drop(zeroIndex + 3)
-          msgMap["additionalAttrs"] = [
-              ["encoding": "41",
-              "value": parseXiaomiStruct(values.join(), isFCC0=false, hasLength=true)]
-          ]
-        } else {
-          msgMap = zigbee.parseDescriptionAsMap(description)
-        }
-      } else {
-        msgMap = zigbee.parseDescriptionAsMap(description)
-      }
-    
-      if(msgMap.containsKey("encoding") && msgMap.containsKey("value") && msgMap["encoding"] != "41" && msgMap["encoding"] != "42") {
-        msgMap["valueParsed"] = zigbee_generic_decodeZigbeeData(msgMap["value"], msgMap["encoding"])
-      }
-      if(msgMap == [:] && description.indexOf("zone") == 0) {
-    
-        msgMap["type"] = "zone"
-        java.util.regex.Matcher zoneMatcher = description =~ /.*zone.*status.*0x(?<status>([0-9a-fA-F][0-9a-fA-F])+).*extended.*status.*0x(?<statusExtended>([0-9a-fA-F][0-9a-fA-F])+).*/
-        if(zoneMatcher.matches()) {
-          msgMap["parsed"] = true
-          msgMap["status"] = zoneMatcher.group("status")
-          msgMap["statusInt"] = Integer.parseInt(msgMap["status"], 16)
-          msgMap["statusExtended"] = zoneMatcher.group("statusExtended")
-          msgMap["statusExtendedInt"] = Integer.parseInt(msgMap["statusExtended"], 16)
-        } else {
-          msgMap["parsed"] = false
-        }
-      }
-    }
-    //logging("msgMap: ${msgMap}", 0)
-    // END:  getGenericZigbeeParseHeader(loglevel=0)
+    cmd += zigbee.readAttribute(0x0000, [0x0001, 0x0004, 0x0005, 0x0006])
+    cmd += ["zdo bind 0x${device.deviceNetworkId} ${endpointId} 0x01 0x0001 {${device.zigbeeId}} {}", "delay 187"]
+    cmd += zigbee.readAttribute(0x0001, [0x0020, 0x0021])
+    cmd += ["he cr 0x${device.deviceNetworkId} ${endpointId} 0x0001 0 0x10 0 0xE10 {}", "delay 189"]
 
-    switch(msgMap["cluster"] + '_' + msgMap["attrId"]) {
-        case "0000_0001":
-            logging("Application ID Received", 100)
-            updateApplicationId(msgMap['value'])
-            break
-        case "0000_0004":
-            logging("Manufacturer Name Received", 100)
-            if(sendlastCheckinEvent(minimumMinutesToRepeat=25) == true) {
-                logging("Sending request to read attribute 0x0005 from cluster 0x0000...", 1)
-                sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0005))
-            }
-            updateManufacturer(msgMap['value'])
-            break
-        case "0000_0005":
-            logging("Model Name Received", 1)
-            setCleanModelName(newModelToSet=msgMap["value"])
-            break
-        case "0006_0000":
-            logging("On/Off Button press - description:${description} | parseMap:${msgMap}", 1)
-            sendOnOffEvent(Integer.parseInt(msgMap['value'], 16) == 1)
-            sendlastCheckinEvent(minimumMinutesToRepeat=25)
-            break
-        default:
-            switch(msgMap["clusterId"]) {
-                case "0006":
-                    logging("ON/OFF CATCHALL CLUSTER EVENT - description:${description} | parseMap:${msgMap}", 100)
-                    sendOnOffEvent(Integer.parseInt(msgMap['sourceEndpoint'], 16), Integer.parseInt(msgMap['data'][0], 16) == 1)
-                    sendlastCheckinEvent(minimumMinutesToRepeat=25)
-                    break
-                case "0013":
-                    logging("MULTISTATE CLUSTER EVENT", 1)
-                    sendlastCheckinEvent(minimumMinutesToRepeat=25)
-                    break
-                case "8021":
-                    logging("BIND RESPONSE CLUSTER EVENT", 100)
-                    sendlastCheckinEvent(minimumMinutesToRepeat=25)
-                    break
-                case "8001":
-                    logging("GENERAL CLUSTER EVENT", 100)
-                    sendlastCheckinEvent(minimumMinutesToRepeat=25)
-                    break
-                case "8004":
-                    updateDataFromSimpleDescriptorData(msgMap["data"])
-                    break
-                case "8021":
-                case "8032":
-                case "8038":
-                    logging("GENERAL CATCHALL (0x${msgMap["clusterId"]}", 100)
-                    break
-                default:
-                    sendlastCheckinEvent(minimumMinutesToRepeat=25)
-                    logging("Unhandled Event IGNORE THIS - description:${description} | msgMap:${msgMap}", 100)
-                    break
-            }
-            break
-    }
-    
-    // BEGIN:getGenericZigbeeParseFooter(loglevel=0)
-    //logging("PARSE END-----------------------", 0)
-    msgMap = null
-    return cmd
-    // END:  getGenericZigbeeParseFooter(loglevel=0)
+    sendZigbeeCommands(cmd)
 }
 
-void sendOnOffEvent(Integer endpoint, boolean state) {
-    sendOnOffEvent(state)
-}
 
-void sendOnOffEvent(boolean onOff) {
-    logging("sendOnOffEvent(onOff=$onOff)", 1)
-    if(onOff == false) {
-        sendEvent(name:"switch", value: "off", isStateChange: false, descriptionText: "Switch was turned off")
-    } else {
-        sendEvent(name:"switch", value: "on", isStateChange: false, descriptionText: "Switch was turned on")
-    }
-}
-
-/**
- *  --------- WRITE ATTRIBUTE METHODS ---------
- */
-ArrayList<String> on() {
-    logging("on()", 1)
-	return zigbeeCommand(0x006, 0x01)
-}
-
-ArrayList<String> off() {
-    logging("off()", 1)
-	return zigbeeCommand(0x006, 0x00)
-}
-
-/**
- *   --------- READ ATTRIBUTE METHODS ---------
- */
-
-/**
- *  -----------------------------------------------------------------------------
- *  Everything below here are LIBRARY includes and should NOT be edited manually!
- *  -----------------------------------------------------------------------------
- *  --- Nothings to edit here, move along! --------------------------------------
- *  -----------------------------------------------------------------------------
- */
-
-// BEGIN:getDefaultFunctions()
-private String getDriverVersion() {
-    comment = "Works with Generic Outlets/relays (please report your fingerprints)"
-    if(comment != "") state.comment = comment
+def updated() {
+	// Runs whenever preferences are saved.
     clientVersion()
-    String version = state.version
-//    String version = "v1.0.1.1123"
-//    logging("getDriverVersion() = ${version}", 100)
-//    sendEvent(name: "driver", value: version)
-//    updateDataValue('driver', version)
-    return version
+	loggingUpdate()
+    refresh() 
 }
-// END:  getDefaultFunctions()
 
-// BEGIN:getLoggingFunction()
-private boolean logging(message, level) {
-    boolean didLogging = false
-     
-    Integer logLevelLocal = 0
-    if (infoLogging == null || infoLogging == true) {
-        logLevelLocal = 100
+void reportToDev(map) {
+	String[] receivedData = map.data
+	logging("New unknown Cluster Detected: clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command}, value:${map.value} data: ${receivedData}", "warn")
+}
+
+
+
+
+void refresh(cmd) {
+	logging("Refreshing", "info")
+    Test = device.currentValue("switch")
+
+    if (Test =="on"){
+        logging("Resending State ON", "info")
+        runIn(2,on)
     }
-    if (debugLogging == true) {
-        logLevelLocal = 1
+    else {
+        logging("Resending State OFF", "info")
+        runIn(2,off)
+    }    
+    
+       delayBetween([
+            zigbee.readAttribute(0x0000, 0x0006), 
+            zigbee.readAttribute(0x0000, 0x0004),
+ //           sendZigbeeCommands(["zcl global send-me-a-report 6 0 0x10 0 1 {01}"]),
+ //           sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0x0006 0x0001"]),
+   ], 1000) 
+    
+}
+
+
+
+
+
+
+def alarm(cmd){
+    logging("Alarm ON", "info")
+    sendEvent(name: "alarm", value: "on")
+  on()
+}
+                   
+def siren(cmd){
+    logging("siren ON", "info")
+    sendEvent(name: "siren", value: "on")
+  on()
+}
+def strobe(cmd){
+    logging("strobe ON", "info")
+    sendEvent(name: "strobe", value: "on")
+  on()
+}
+def both(cmd){
+    logging("both ON", "info")
+    sendEvent(name: "siren", value: "on")
+    sendEvent(name: "strobe", value: "on")
+  on()
+}
+
+def off() {
+    logging("Sending OFF", "debug")
+	zigbee.command(0x006, 0x00)
+}
+
+def on() {
+    logging("Sending ON", "debug")
+	zigbee.command(0x006, 0x01)
+}
+
+
+private String swapEndianHex(String hex) {
+    reverseArray(hex.decodeHex()).encodeHex()
+}
+private byte[] reverseArray(byte[] array) {
+    int i = 0;
+    int j = array.length - 1;
+    byte tmp;
+    while (j > i) {
+        tmp = array[j];
+        array[j] = array[i];
+        array[i] = tmp;
+        j--;
+        i++;
     }
-     
-    if (logLevelLocal != 0){
-        switch (logLevelLocal) {
-        case 1:  
-            if (level >= 1 && level < 99) {
-                log.debug "$message"
-                didLogging = true
-            } else if (level == 100) {
-                log.info "$message"
-                didLogging = true
-            }
-        break
-        case 100:  
-            if (level == 100 ) {
-                log.info "$message"
-                didLogging = true
-            }
-        break
+    return array
+}
+
+
+def checkPresence() {
+    // New shorter presence routine.
+    // Runs on every parse and a schedule.
+    def checkMin  = 5  // 5 min warning
+    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
         }
     }
-    return didLogging
-}
-// END:  getLoggingFunction()
-
-// BEGIN:getHelperFunctions('zigbee-generic')
-private getCLUSTER_BASIC() { 0x0000 }
-private getCLUSTER_POWER() { 0x0001 }
-private getCLUSTER_WINDOW_COVERING() { 0x0102 }
-private getCLUSTER_WINDOW_POSITION() { 0x000d }
-private getCLUSTER_ON_OFF() { 0x0006 }
-private getBASIC_ATTR_POWER_SOURCE() { 0x0007 }
-private getPOWER_ATTR_BATTERY_PERCENTAGE_REMAINING() { 0x0021 }
-private getPOSITION_ATTR_VALUE() { 0x0055 }
-private getCOMMAND_OPEN() { 0x00 }
-private getCOMMAND_CLOSE() { 0x01 }
-private getCOMMAND_PAUSE() { 0x02 }
-private getENCODING_SIZE() { 0x39 }
-
-void updateNeededSettings() {
+    if (state.lastCheckInMin >= checkMin){ 
+        logging("Sensor timing out ${state.lastCheckInMin} min ago","warn")
+        runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        runIn(60,refresh) 
+        }
+    }
 }
 
-void refreshEvents() {
+def enrollResponse() {
+    logging("Sending enroll response", "info")
+	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
+   
+    delayBetween([
+            sendZigbeeCommands(["zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}"]),// send CIE
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 ${endpointId}"]),
+            sendZigbeeCommands(["raw 0x500 {01 23 00 00 00}"]),// enrole res
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),	
+   ], 1000)
+    
+}
+
+def parse(String description) {
+    state.lastCheckin = now()
+    checkPresence()
+    logging("Raw: [${description}]", "trace")
+    Map descMap = zigbee.parseDescriptionAsMap(description) 
+    logging("MAP: [${descMap}]", "trace")
+
+    if (description?.startsWith('enroll request')) { 
+        enrollResponse()
+        return  
+    }  
+    
+
+
+    if (descMap) {processMap(descMap)}
+        else{
+        // we should never get here reportToDev is in processMap above
+            logging("Error ${description} ${descMap}", "debug") 
+
+        }
+	
+}
+
+
+
+
+
+
+def processMap(Map map) {
+	String[] receivedData = map.data
+  
+    logging("PARSE [${map}]", "trace")
+//MAP: [[raw:BD840100060800002001, dni:BD84, endpoint:01, cluster:0006, size:08, attrId:0000, encoding:20, command:0A, value:01, clusterInt:6, attrInt:0]]  
+//MAP: [[raw:catchall: 0104 0006 01 01 0040 00 BD84 00 00 0000 0B 01 0100, profileId:0104, clusterId:0006, clusterInt:6, sourceEndpoint:01, destinationEndpoint:01,
+    //options:0040, messageType:00, dni:BD84, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:0B, direction:01, data:[01, 00]]]
+    
+    if (map.clusterId == "0006" && map.profileId == "0104"  ){
+      logging("clusterId:${map.clusterId} profileId:${map.profileId} command:${map.command}", "debug")
+      status = map.data[0]
+        if (status == "01"){
+        logging("is ON [digital]", "info")
+        sendEvent(name: "switch", value: "on")
+        }
+        if (status == "00"){
+        logging("is OFF [digital]", "info")
+        offEvents() 
         
-}
-
-ArrayList<String> zigbeeCommand(Integer cluster, Integer command, Map additionalParams, int delay = 201, String... payload) {
-    ArrayList<String> cmd = zigbee.command(cluster, command, additionalParams, delay, payload)
-    cmd[0] = cmd[0].replace('0xnull', '0x01')
-     
-    return cmd
-}
-
-ArrayList<String> zigbeeCommand(Integer cluster, Integer command, int delay = 202, String... payload) {
-    ArrayList<String> cmd = zigbee.command(cluster, command, [:], delay, payload)
-    cmd[0] = cmd[0].replace('0xnull', '0x01')
-     
-    return cmd
-}
-
-ArrayList<String> zigbeeCommand(Integer endpoint, Integer cluster, Integer command, int delay = 203, String... payload) {
-    zigbeeCommand(endpoint, cluster, command, [:], delay, payload)
-}
-
-ArrayList<String> zigbeeCommand(Integer endpoint, Integer cluster, Integer command, Map additionalParams, int delay = 204, String... payload) {
-    String mfgCode = ""
-    if(additionalParams.containsKey("mfgCode")) {
-        mfgCode = " {${HexUtils.integerToHexString(HexUtils.hexStringToInt(additionalParams.get("mfgCode")), 2)}}"
-    }
-    String finalPayload = payload != null && payload != [] ? payload[0] : ""
-    String cmdArgs = "0x${device.deviceNetworkId} 0x${HexUtils.integerToHexString(endpoint, 1)} 0x${HexUtils.integerToHexString(cluster, 2)} " + 
-                       "0x${HexUtils.integerToHexString(command, 1)} " + 
-                       "{$finalPayload}" + 
-                       "$mfgCode"
-    ArrayList<String> cmd = ["he cmd $cmdArgs", "delay $delay"]
-    return cmd
-}
-
-ArrayList<String> zigbeeWriteAttribute(Integer cluster, Integer attributeId, Integer dataType, Integer value, Map additionalParams = [:], int delay = 199) {
-    ArrayList<String> cmd = zigbee.writeAttribute(cluster, attributeId, dataType, value, additionalParams, delay)
-    cmd[0] = cmd[0].replace('0xnull', '0x01')
-     
-    return cmd
-}
-
-ArrayList<String> zigbeeWriteAttribute(Integer endpoint, Integer cluster, Integer attributeId, Integer dataType, Integer value, Map additionalParams = [:], int delay = 198) {
-    logging("zigbeeWriteAttribute()", 1)
-    String mfgCode = ""
-    if(additionalParams.containsKey("mfgCode")) {
-        mfgCode = " {${HexUtils.integerToHexString(HexUtils.hexStringToInt(additionalParams.get("mfgCode")), 2)}}"
-    }
-    String wattrArgs = "0x${device.deviceNetworkId} $endpoint 0x${HexUtils.integerToHexString(cluster, 2)} " + 
-                       "0x${HexUtils.integerToHexString(attributeId, 2)} " + 
-                       "0x${HexUtils.integerToHexString(dataType, 1)} " + 
-                       "{${HexUtils.integerToHexString(value, 1)}}" + 
-                       "$mfgCode"
-    ArrayList<String> cmd = ["he wattr $wattrArgs", "delay $delay"]
-    
-    logging("zigbeeWriteAttribute cmd=$cmd", 1)
-    return cmd
-}
-
-ArrayList<String> zigbeeReadAttribute(Integer cluster, Integer attributeId, Map additionalParams = [:], int delay = 205) {
-    ArrayList<String> cmd = zigbee.readAttribute(cluster, attributeId, additionalParams, delay)
-    cmd[0] = cmd[0].replace('0xnull', '0x01')
-     
-    return cmd
-}
-
-ArrayList<String> zigbeeReadAttribute(Integer endpoint, Integer cluster, Integer attributeId, int delay = 206) {
-    ArrayList<String> cmd = ["he rattr 0x${device.deviceNetworkId} ${endpoint} 0x${HexUtils.integerToHexString(cluster, 2)} 0x${HexUtils.integerToHexString(attributeId, 2)} {}", "delay $delay"]
-     
-    return cmd
-}
-
-ArrayList<String> zigbeeWriteLongAttribute(Integer cluster, Integer attributeId, Integer dataType, Long value, Map additionalParams = [:], int delay = 207) {
-    return zigbeeWriteLongAttribute(1, cluster, attributeId, dataType, value, additionalParams, delay)
-}
-
-ArrayList<String> zigbeeWriteLongAttribute(Integer endpoint, Integer cluster, Integer attributeId, Integer dataType, Long value, Map additionalParams = [:], int delay = 208) {
-    logging("zigbeeWriteLongAttribute()", 1)
-    String mfgCode = ""
-    if(additionalParams.containsKey("mfgCode")) {
-        mfgCode = " {${HexUtils.integerToHexString(HexUtils.hexStringToInt(additionalParams.get("mfgCode")), 2)}}"
-    }
-    String wattrArgs = "0x${device.deviceNetworkId} $endpoint 0x${HexUtils.integerToHexString(cluster, 2)} " + 
-                       "0x${HexUtils.integerToHexString(attributeId, 2)} " + 
-                       "0x${HexUtils.integerToHexString(dataType, 1)} " + 
-                       "{${Long.toHexString(value)}}" + 
-                       "$mfgCode"
-    ArrayList<String> cmd = ["he wattr $wattrArgs", "delay $delay"]
-    
-    logging("zigbeeWriteLongAttribute cmd=$cmd", 1)
-    return cmd
-}
-
-void sendZigbeeCommand(String cmd) {
-    logging("sendZigbeeCommand(cmd=$cmd)", 1)
-    sendZigbeeCommands([cmd])
-}
-
-void sendZigbeeCommands(ArrayList<String> cmd) {
-    logging("sendZigbeeCommands(cmd=$cmd)", 1)
-    hubitat.device.HubMultiAction allActions = new hubitat.device.HubMultiAction()
-    cmd.each {
-            allActions.add(new hubitat.device.HubAction(it, hubitat.device.Protocol.ZIGBEE))
-    }
-    sendHubCommand(allActions)
-}
-
-String setCleanModelName(String newModelToSet=null, List<String> acceptedModels=null) {
-    String model = newModelToSet != null ? newModelToSet : getDeviceDataByName('model')
-    model = model == null ? "null" : model
-    String newModel = model.replaceAll("[^A-Za-z0-9.\\-_ ]", "")
-    boolean found = false
-    if(acceptedModels != null) {
-        acceptedModels.each {
-            if(found == false && newModel.startsWith(it) == true) {
-                newModel = it
-                found = true
-            }
         }
-    }
-    logging("dirty model = $model, clean model=$newModel", 1)
-    updateDataValue('model', newModel)
-    return newModel
-}
 
-void resetBatteryReplacedDate(boolean forced=true) {
-    if(forced == true || device.currentValue('batteryLastReplaced') == null) {
-        sendEvent(name: "batteryLastReplaced", value: new Date().format('yyyy-MM-dd HH:mm:ss'))
-    }
-}
-
-void parseAndSendBatteryStatus(BigDecimal vCurrent) {
-    BigDecimal vMin = vMinSetting == null ? 2.5 : vMinSetting
-    BigDecimal vMax = vMaxSetting == null ? 3.0 : vMaxSetting
-    
-    BigDecimal bat = 0
-    if(vMax - vMin > 0) {
-        bat = ((vCurrent - vMin) / (vMax - vMin)) * 100.0
-    } else {
-        bat = 100
-    }
-    bat = bat.setScale(0, BigDecimal.ROUND_HALF_UP)
-    bat = bat > 100 ? 100 : bat
-    
-    vCurrent = vCurrent.setScale(3, BigDecimal.ROUND_HALF_UP)
-
-    logging("Battery event: $bat% (V = $vCurrent)", 1)
-    sendEvent(name:"battery", value: bat, unit: "%", isStateChange: false)
-}
-
-Map unpackStructInMap(Map msgMap, String originalEncoding="4C") {
-     
-    msgMap['encoding'] = originalEncoding
-    List<String> values = msgMap['value'].split("(?<=\\G..)")
-    logging("unpackStructInMap() values=$values", 1)
-    Integer numElements = Integer.parseInt(values.take(2).reverse().join(), 16)
-    values = values.drop(2)
-    List r = []
-    Integer cType = null
-    List ret = null
-    while(values != []) {
-        cType = Integer.parseInt(values.take(1)[0], 16)
-        values = values.drop(1)
-        ret = zigbee_generic_convertStructValueToList(values, cType)
-        r += ret[0]
-        values = ret[1]
-    }
-    if(r.size() != numElements) throw new Exception("The STRUCT specifies $numElements elements, found ${r.size()}!")
-     
-    msgMap['value'] = r
-    return msgMap
-}
-
-Map parseXiaomiStruct(String xiaomiStruct, boolean isFCC0=false, boolean hasLength=false) {
-     
-    Map tags = [
-        '01': 'battery',
-        '03': 'deviceTemperature',
-        '04': 'unknown1',
-        '05': 'RSSI_dB',
-        '06': 'LQI',
-        '07': 'unknown2',
-        '08': 'unknown3',
-        '09': 'unknown4',
-        '0A': 'routerid',
-        '0B': 'unknown5',
-        '0C': 'unknown6',
-        '6429': 'temperature',
-        '6410': 'openClose',
-        '6420': 'curtainPosition',
-        '6521': 'humidity',
-        '6510': 'switch2',
-        '66': 'pressure',
-        '6E': 'unknown10',
-        '6F': 'unknown11',
-        '95': 'consumption',
-        '96': 'voltage',
-        '98': 'power',
-        '9721': 'gestureCounter1',
-        '9739': 'consumption',
-        '9821': 'gestureCounter2',
-        '9839': 'power',
-        '99': 'gestureCounter3',
-        '9A21': 'gestureCounter4',
-        '9A20': 'unknown7',
-        '9A25': 'accelerometerXYZ',
-        '9B': 'unknown9',
-    ]
-    if(isFCC0 == true) {
-        tags['05'] = 'numBoots'
-        tags['6410'] = 'onOff'
-        tags['95'] = 'current'
-    }
-
-    List<String> values = xiaomiStruct.split("(?<=\\G..)")
-    
-    if(hasLength == true) values = values.drop(1)
-    Map r = [:]
-    r["raw"] = [:]
-    String cTag = null
-    String cTypeStr = null
-    Integer cType = null
-    String cKey = null
-    List ret = null
-    while(values != []) {
-        cTag = values.take(1)[0]
-        values = values.drop(1)
-        cTypeStr = values.take(1)[0]
-        cType = Integer.parseInt(cTypeStr, 16)
-        values = values.drop(1)
-        if(tags.containsKey(cTag+cTypeStr)) {
-            cKey = tags[cTag+cTypeStr]
-        } else if(tags.containsKey(cTag)) {
-            cKey = tags[cTag]
-        } else {
-            cKey = "unknown${cTag}${cTypeStr}"
-            log.warn("PLEASE REPORT TO DEV - The Xiaomi Struct used an unrecognized tag: 0x$cTag (type: 0x$cTypeStr) (struct: $xiaomiStruct)")
+    } 
+        
+        
+ 
+//New unknown Cluster Detected: clusterId:null, attrId:0000, command:0A, value:00 data: null
+//PARSE [[raw:BD840100060800002000, dni:BD84, endpoint:01, cluster:0006, size:08, attrId:0000, encoding:20, command:0A, value:00, clusterInt:6, attrInt:0]]	
+        
+   
+    else if (map.cluster == "0006") {
+        logging("cluster:${map.cluster} command:${map.command} value:${map.value}", "debug")
+        sendEvent(name: "pushed", value: 1, isStateChange: true)
+        status = map.value
+        if (status == "01"){
+        logging("Button Pressed is ON [physical] ", "info")
+        sendEvent(name: "switch", value: "on")
         }
-        ret = zigbee_generic_convertStructValue(r, values, cType, cKey, cTag)
-        r = ret[0]
-        values = ret[1]
-    }
-     
-    return r
-}
-
-Map parseAttributeStruct(List data, boolean hasLength=false) {
-     
-    Map tags = [
-        '0000': 'ZCLVersion',
-        '0001': 'applicationVersion',
-        '0002': 'stackVersion',
-        '0003': 'HWVersion',
-        '0004': 'manufacturerName',
-        '0005': 'dateCode',
-        '0006': 'modelIdentifier',
-        '0007': 'powerSource',
-        '0010': 'locationDescription',
-        '0011': 'physicalEnvironment',
-        '0012': 'deviceEnabled',
-        '0013': 'alarmMask',
-        '0014': 'disableLocalConfig',
-        '4000': 'SWBuildID',
-    ]
-    
-    List<String> values = data
-    
-    if(hasLength == true) values = values.drop(1)
-    Map r = [:]
-    r["raw"] = [:]
-    String cTag = null
-    String cTypeStr = null
-    Integer cType = null
-    String cKey = null
-    List ret = null
-    while(values != []) {
-        cTag = values.take(2).reverse().join()
-        values = values.drop(2)
-        values = values.drop(1)
-        cTypeStr = values.take(1)[0]
-        cType = Integer.parseInt(cTypeStr, 16)
-        values = values.drop(1)
-        if(tags.containsKey(cTag+cTypeStr)) {
-            cKey = tags[cTag+cTypeStr]
-        } else if(tags.containsKey(cTag)) {
-            cKey = tags[cTag]
-        } else {
-            throw new Exception("The Xiaomi Struct used an unrecognized tag: 0x$cTag (type: 0x$cTypeStr)")
+        if (status == "00"){
+        logging("Button Pressed is OFF [physical] ", "info")
+        offEvents() 
+        
         }
-        ret = zigbee_generic_convertStructValue(r, values, cType, cKey, cTag)
-        r = ret[0]
-        values = ret[1]
-    }
-     
-    return r
+        
+        
+	} else {
+		reportToDev(map)// unknown cluster
+	}
+	return null
 }
 
-def zigbee_generic_decodeZigbeeData(String value, String cTypeStr, boolean reverseBytes=true) {
-    List values = value.split("(?<=\\G..)")
-    values = reverseBytes == true ? values.reverse() : values
-    Integer cType = Integer.parseInt(cTypeStr, 16)
-    Map rMap = [:]
-    rMap['raw'] = [:]
-    List ret = zigbee_generic_convertStructValue(rMap, values, cType, "NA", "NA")
-    return ret[0]["NA"]
+def offEvents(){
+    alarmTest = device.currentValue("alarm")   
+    if(alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
+    alarmTest = device.currentValue("siren") 
+    if(alarmTest != "off"){sendEvent(name: "siren",  value: "off")} 
+    alarmTest = device.currentValue("strobe") 
+    if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
+    alarmTest = device.currentValue("switch")
+    if(alarmTest != "off"){sendEvent(name: "switch", value: "off")} 
 }
-
-List zigbee_generic_convertStructValueToList(List values, Integer cType) {
-    Map rMap = [:]
-    rMap['raw'] = [:]
-    List ret = zigbee_generic_convertStructValue(rMap, values, cType, "NA", "NA")
-    return [ret[0]["NA"], ret[1]]
-}
-
-List zigbee_generic_convertStructValue(Map r, List values, Integer cType, String cKey, String cTag) {
-    String cTypeStr = cType != null ? integerToHexString(cType, 1) : null
-    switch(cType) {
-        case 0x10:
-            r["raw"][cKey] = values.take(1)[0]
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16) != 0
-            values = values.drop(1)
-            break
-        case 0x18:
-        case 0x20:
-            r["raw"][cKey] = values.take(1)[0]
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(1)
-            break
-        case 0x19:
-        case 0x21:
-            r["raw"][cKey] = values.take(2).reverse().join()
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(2)
-            break
-        case 0x1A:
-        case 0x22:
-            r["raw"][cKey] = values.take(3).reverse().join()
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(3)
-            break
-        case 0x1B:
-        case 0x23:
-            r["raw"][cKey] = values.take(4).reverse().join()
-            r[cKey] = Long.parseLong(r["raw"][cKey], 16)
-            values = values.drop(4)
-            break
-        case 0x1C:
-        case 0x24:
-            r["raw"][cKey] = values.take(5).reverse().join()
-            r[cKey] = Long.parseLong(r["raw"][cKey], 16)
-            values = values.drop(5)
-            break
-        case 0x1D:
-        case 0x25:
-            r["raw"][cKey] = values.take(6).reverse().join()
-            r[cKey] = Long.parseLong(r["raw"][cKey], 16)
-            values = values.drop(6)
-            break
-        case 0x1E:
-        case 0x26:
-            r["raw"][cKey] = values.take(7).reverse().join()
-            r[cKey] = Long.parseLong(r["raw"][cKey], 16)
-            values = values.drop(7)
-            break
-        case 0x1F:
-        case 0x27:
-            r["raw"][cKey] = values.take(8).reverse().join()
-            r[cKey] = new BigInteger(r["raw"][cKey], 16)
-            values = values.drop(8)
-            break
-        case 0x28:
-            r["raw"][cKey] = values.take(1).reverse().join()
-            r[cKey] = convertToSignedInt8(Integer.parseInt(r["raw"][cKey], 16))
-            values = values.drop(1)
-            break
-        case 0x29:
-            r["raw"][cKey] = values.take(2).reverse().join()
-            r[cKey] = (Integer) (short) Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(2)
-            break
-        case 0x2B:
-            r["raw"][cKey] = values.take(4).reverse().join()
-            r[cKey] = (Integer) Long.parseLong(r["raw"][cKey], 16)
-            values = values.drop(4)
-            break
-        case 0x30:
-            r["raw"][cKey] = values.take(1)[0]
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(1)
-            break
-        case 0x31:
-            r["raw"][cKey] = values.take(2).reverse().join()
-            r[cKey] = Integer.parseInt(r["raw"][cKey], 16)
-            values = values.drop(2)
-            break
-        case 0x39:
-            r["raw"][cKey] = values.take(4).reverse().join()
-            r[cKey] = parseSingleHexToFloat(r["raw"][cKey])
-            values = values.drop(4)
-            break
-        case 0x42:
-            Integer strLength = Integer.parseInt(values.take(1)[0], 16)
-            values = values.drop(1)
-            r["raw"][cKey] = values.take(strLength)
-            r[cKey] = r["raw"][cKey].collect { 
-                (char)(int) Integer.parseInt(it, 16)
-            }.join()
-            values = values.drop(strLength)
-            break
-        default:
-            throw new Exception("The Struct used an unrecognized type: $cTypeStr ($cType) for tag 0x$cTag with key $cKey (values: $values, map: $r)")
-    }
-    return [r, values]
-}
-
-ArrayList<String> zigbeeWriteHexStringAttribute(Integer cluster, Integer attributeId, Integer dataType, String value, Map additionalParams = [:], int delay = 209) {
-    logging("zigbeeWriteBigIntegerAttribute()", 1)
-    String mfgCode = ""
-    if(additionalParams.containsKey("mfgCode")) {
-        mfgCode = " {${integerToHexString(HexUtils.hexStringToInt(additionalParams.get("mfgCode")), 2, reverse=true)}}"
-    }
-    String wattrArgs = "0x${device.deviceNetworkId} 0x01 0x${HexUtils.integerToHexString(cluster, 2)} " + 
-                       "0x${HexUtils.integerToHexString(attributeId, 2)} " + 
-                       "0x${HexUtils.integerToHexString(dataType, 1)} " + 
-                       "{${value.split("(?<=\\G..)").reverse().join()}}" + 
-                       "$mfgCode"
-    ArrayList<String> cmd = ["he wattr $wattrArgs", "delay $delay"]
     
-    logging("zigbeeWriteBigIntegerAttribute cmd=$cmd", 1)
-    return cmd
+    
+
+
+void sendZigbeeCommands(List<String> cmds) {
+    logging("${device} : sending:${cmds}", "trace")
+    sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
-ArrayList<String> zigbeeReadAttributeList(Integer cluster, List<Integer> attributeIds, Map additionalParams = [:], int delay = 211) {
-    logging("zigbeeReadAttributeList()", 1)
-    String mfgCode = "0000"
-    if(additionalParams.containsKey("mfgCode")) {
-        mfgCode = "${integerToHexString(HexUtils.hexStringToInt(additionalParams.get("mfgCode")), 2, reverse=true)}"
-        log.error "Manufacturer code support is NOT implemented!"
-    }
-    List<String> attributeIdsString = []
-    attributeIds.each { attributeIdsString.add(integerToHexString(it, 2, reverse=true)) }
-    logging("attributeIds=$attributeIds, attributeIdsString=$attributeIdsString", 100)
-    String rattrArgs = "0x${device.deviceNetworkId} 1 0x01 0x${integerToHexString(cluster, 2)} " + 
-                       "{000000${attributeIdsString.join()}}"
-    ArrayList<String> cmd = ["he raw $rattrArgs", "delay $delay"]
-    logging("zigbeeWriteLongAttribute cmd=$cmd", 1)
-    return cmd
-}
 
-Float parseSingleHexToFloat(String singleHex) {
-    return Float.intBitsToFloat(Long.valueOf(singleHex, 16).intValue())
-}
-
-Integer convertToSignedInt8(Integer signedByte) {
-    Integer sign = signedByte & (1 << 7)
-    return (signedByte & 0x7f) * (sign != 0 ? -1 : 1)
-}
-
-Integer parseIntReverseHex(String hexString) {
-    return Integer.parseInt(hexString.split("(?<=\\G..)").reverse().join(), 16)
-}
-
-Long parseLongReverseHex(String hexString) {
-    return Long.parseLong(hexString.split("(?<=\\G..)").reverse().join(), 16)
+private String[] millisToDhms(BigInteger millisToParse) {
+	BigInteger secondsToParse = millisToParse / 1000
+	def dhms = []
+	dhms.add(secondsToParse % 60)
+	secondsToParse = secondsToParse / 60
+	dhms.add(secondsToParse % 60)
+	secondsToParse = secondsToParse / 60
+	dhms.add(secondsToParse % 24)
+	secondsToParse = secondsToParse / 24
+	dhms.add(secondsToParse % 365)
+	return dhms
 }
 
 String integerToHexString(BigDecimal value, Integer minBytes, boolean reverse=false) {
@@ -885,671 +393,21 @@ String integerToHexString(Integer value, Integer minBytes, boolean reverse=false
     
 }
 
-String bigIntegerToHexString(BigInteger value, Integer minBytes, boolean reverse=false) {
-    if(reverse == true) {
-        return value.toString(16).reverse().join()
-    } else {
-        return String.format("%0${minBytes*2}x", value)
-    }
+
+
+private BigDecimal hexToBigDecimal(String hex) {
+    int d = Integer.parseInt(hex, 16) << 21 >> 21
+    return BigDecimal.valueOf(d)
 }
 
-BigInteger hexStringToBigInteger(String hexString, boolean reverse=false) {
-    if(reverse == true) {
-        return new BigInteger(hexString.split("(?<=\\G..)").reverse().join(), 16)
-    } else {
-        return new BigInteger(hexString, 16)
-    }
-}
-
-Integer miredToKelvin(Integer mired) {
-    Integer t = mired
-    if(t < 153) t = 153
-    if(t > 500) t = 500
-    t = Math.round(1000000/t)
-    if(t > 6536) t = 6536
-    if(t < 2000) t = 2000
-    return t
-}
-
-Integer kelvinToMired(Integer kelvin) {
-    Integer t = kelvin
-    if(t > 6536) t = 6536
-    if(t < 2000) t = 2000
-    t = Math.round(1000000/t)
-    if(t < 153) t = 153
-    if(t > 500) t = 500
-    return t
-}
-
-Integer getMaximumMinutesBetweenEvents(BigDecimal forcedMinutes=null) {
-    Integer mbe = null
-    if(forcedMinutes == null && (state.forcedMinutes == null || state.forcedMinutes == 0)) {
-        mbe = MINUTES_BETWEEN_EVENTS == null ? 90 : MINUTES_BETWEEN_EVENTS
-    } else {
-        mbe = forcedMinutes != null ? forcedMinutes.intValue() : state.forcedMinutes.intValue()
-    }
-    return mbe
-}
-
-void reconnectEvent(BigDecimal forcedMinutes=null) {
-    recoveryEvent(forcedMinutes)
-}
-
-void disableRecoveryDueToBug() {
-    log.warn("Stopping Recovery feature due to Platform bug! Disabling the feature in Preferences. To use it again when the platform is stable, Enable it in Device Preferences.")
-    unschedule('recoveryEvent')
-    unschedule('reconnectEvent')
-    device.updateSetting('recoveryMode', 'Disabled')
-}
-
-void recoveryEvent(BigDecimal forcedMinutes=null) {
-    try {
-        recoveryEventDeviceSpecific()
-    } catch(Exception e) {
-        logging("recoveryEvent()", 1)
-        sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0004))
-    }
-    try {
-        checkPresence(displayWarnings=false)
-        Integer mbe = getMaximumMinutesBetweenEvents(forcedMinutes=forcedMinutes)
-        if(hasCorrectCheckinEvents(maximumMinutesBetweenEvents=mbe, displayWarnings=false) == true) {
-            if(presenceWarningEnable == null || presenceWarningEnable == true) log.warn("Event interval normal, recovery mode DEACTIVATED!")
-            unschedule('recoveryEvent')
-            unschedule('reconnectEvent')
-        }
-    } catch(Exception e) {
-        disableRecoveryDueToBug()
-    }
-    
-}
-
-void scheduleRecoveryEvent(BigDecimal forcedMinutes=null) {
-    Random rnd = new Random()
-    switch(recoveryMode) {
-        case "Suicidal":
-            schedule("${rnd.nextInt(15)}/15 * * * * ? *", 'recoveryEvent')
-            break
-        case "Insane":
-            schedule("${rnd.nextInt(30)}/30 * * * * ? *", 'recoveryEvent')
-            break
-        case "Slow":
-            schedule("${rnd.nextInt(59)} ${rnd.nextInt(3)}/3 * * * ? *", 'recoveryEvent')
-            break
-        case null:
-        case "Normal":
-        default:
-            schedule("${rnd.nextInt(59)} ${rnd.nextInt(2)}/2 * * * ? *", 'recoveryEvent')
-            break
-    }
-    recoveryEvent(forcedMinutes=forcedMinutes)
-}
-
-void checkEventInterval(boolean displayWarnings=true) {
-    logging("recoveryMode: $recoveryMode", 1)
-    if(recoveryMode == "Disabled") {
-        unschedule('checkEventInterval')
-    } else {
-        prepareCounters()
-        Integer mbe = getMaximumMinutesBetweenEvents()
-        try {
-            if(hasCorrectCheckinEvents(maximumMinutesBetweenEvents=mbe) == false) {
-                recoveryMode = recoveryMode == null ? "Normal" : recoveryMode
-                if(displayWarnings == true && (presenceWarningEnable == null || presenceWarningEnable == true)) log.warn("Event interval INCORRECT, recovery mode ($recoveryMode) ACTIVE! If this is shown every hour for the same device and doesn't go away after three times, the device has probably fallen off and require a quick press of the reset button or possibly even re-pairing. It MAY also return within 24 hours, so patience MIGHT pay off.")
-                scheduleRecoveryEvent()
-            }
-        } catch(Exception e) {
-            disableRecoveryDueToBug()
-        }
-        sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0004))
-    }
-}
-
-void startCheckEventInterval() {
-    logging("startCheckEventInterval()", 1)
-    if(recoveryMode != "Disabled") {
-        logging("Recovery feature ENABLED", 100)
-        Random rnd = new Random()
-        schedule("${rnd.nextInt(59)} ${rnd.nextInt(59)}/59 * * * ? *", 'checkEventInterval')
-        checkEventInterval(displayWarnings=true)
-    } else {
-        logging("Recovery feature DISABLED", 100)
-        unschedule('checkEventInterval')
-        unschedule('recoveryEvent')
-        unschedule('reconnectEvent')
-    }
-}
-
-void forceRecoveryMode(BigDecimal minutes) {
-    minutes = minutes == null || minutes < 0 ? 0 : minutes
-    Integer minutesI = minutes.intValue()
-    logging("forceRecoveryMode(minutes=$minutesI) ", 1)
-    if(minutesI == 0) {
-        disableForcedRecoveryMode()
-    } else if(hasCorrectCheckinEvents(maximumMinutesBetweenEvents=minutesI) == false) {
-        recoveryMode = recoveryMode == null ? "Normal" : recoveryMode
-        if(presenceWarningEnable == null || presenceWarningEnable == true) log.warn("Forced recovery mode ($recoveryMode) ACTIVATED!")
-        state.forcedMinutes = minutes
-        runIn(minutesI * 60, 'disableForcedRecoveryMode')
-
-        scheduleRecoveryEvent(forcedMinutes=minutes)
-    } else {
-        log.warn("Forced recovery mode NOT activated since we already have a checkin event during the last $minutesI minute(s)!")
-    }
-}
-
-void disableForcedRecoveryMode() {
-    state.forcedMinutes = 0
-    unschedule('recoveryEvent')
-    unschedule('reconnectEvent')
-    if(presenceWarningEnable == null || presenceWarningEnable == true) log.warn("Forced recovery mode DEACTIVATED!")
-}
-
-void updateManufacturer(String manfacturer) {
-    if(getDataValue("manufacturer") == null) {
-        updateDataValue("manufacturer", manfacturer)
-    }
-}
-
-void updateApplicationId(String application) {
-    if(getDataValue("application") == null) {
-        updateDataValue("application", application)
-    }
-}
-
-Integer retrieveEndpointId() {
-    String endpointIdRaw = getDataValue("endpointId")
-    BigDecimal endpointId = endpointIdRaw == null ? 1 : hexStringToBigInteger(endpointIdRaw)
-    return endpointId.intValue()
-}
-
-Map parseSimpleDescriptorData(List<String> data) {
-    Map<String,String> d = [:]
-    if(data[1] == "00") {
-        d["nwkAddrOfInterest"] = data[2..3].reverse().join()
-        Integer ll = Integer.parseInt(data[4], 16)
-        d["endpointId"] = data[5]
-        d["profileId"] = data[6..7].reverse().join()
-        d["applicationDevice"] = data[8..9].reverse().join()
-        d["applicationVersion"] = data[10]
-        Integer icn = Integer.parseInt(data[11], 16)
-        Integer pos = 12
-        Integer cPos = null
-        d["inClusters"] = ""
-        if(icn > 0) {
-            (1..icn).each() {b->
-                cPos = pos+((b-1)*2)
-                d["inClusters"] += data[cPos..cPos+1].reverse().join()
-                if(b < icn) {
-                    d["inClusters"] += ","
-                }
-            }
-        }
-        pos += icn*2
-        Integer ocn = Integer.parseInt(data[pos], 16)
-        pos += 1
-        d["outClusters"] = ""
-        if(ocn > 0) {
-            (1..ocn).each() {b->
-                cPos = pos+((b-1)*2)
-                d["outClusters"] += data[cPos..cPos+1].reverse().join()
-                if(b < ocn) {
-                    d["outClusters"] += ","
-                }
-            }
-        }
-        logging("d=$d, ll=$ll, icn=$icn, ocn=$ocn", 1)
-    } else {
-        log.warn("Incorrect Simple Descriptor Data received: $data")
-    }
-    return d
-}
-
-void updateDataFromSimpleDescriptorData(List<String> data) {
-    Map<String,String> sdi = parseSimpleDescriptorData(data)
-    if(sdi != [:]) {
-        updateDataValue("endpointId", sdi['endpointId'])
-        updateDataValue("profileId", sdi['profileId'])
-        updateDataValue("inClusters", sdi['inClusters'])
-        updateDataValue("outClusters", sdi['outClusters'])
-        getInfo(true, sdi)
-    } else {
-        log.warn("No VALID Simple Descriptor Data received!")
-    }
-    sdi = null
-}
-
-void getInfo(boolean ignoreMissing=false, Map<String,String> sdi = [:]) {
-    log.debug("Getting info for Zigbee device...")
-    String endpointId = device.getEndpointId()
-    endpointId = endpointId == null ? getDataValue("endpointId") : endpointId
-    String profileId = getDataValue("profileId")
-    String inClusters = getDataValue("inClusters")
-    String outClusters = getDataValue("outClusters")
-    String model = getDataValue("model")
-    String manufacturer = getDataValue("manufacturer")
-    String application = getDataValue("application")
-    if(sdi != [:]) {
-        endpointId = endpointId == null ? sdi['endpointId'] : endpointId
-        profileId = profileId == null ? sdi['profileId'] : profileId
-        inClusters = inClusters == null ? sdi['inClusters'] : inClusters
-        outClusters = outClusters == null ? sdi['outClusters'] : outClusters
-        sdi = null
-    }
-    String extraFingerPrint = ""
-    boolean missing = false
-    String requestingFromDevice = ", requesting it from the device. If it is a sleepy device you may have to wake it up and run this command again. Run this command again to get the new fingerprint."
-    if(ignoreMissing==true) {
-        requestingFromDevice = ". Try again."
-    }
-    if(manufacturer == null) {
-        missing = true
-        log.warn("Manufacturer name is missing for the fingerprint$requestingFromDevice")
-        if(ignoreMissing==false) sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0004))
-    }
-    log.trace("Manufacturer: $manufacturer")
-    if(model == null) {
-        missing = true
-        log.warn("Model name is missing for the fingerprint$requestingFromDevice")
-        if(ignoreMissing==false) sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0005))
-    }
-    log.trace("Model: $model")
-    if(application == null) {
-        log.info("NOT IMPORTANT: Application ID is missing for the fingerprint$requestingFromDevice")
-        if(ignoreMissing==false) sendZigbeeCommands(zigbee.readAttribute(CLUSTER_BASIC, 0x0001))
-    } else {
-        extraFingerPrint += ", application:\"$application\""
-    }
-    log.trace("Application: $application")
-    if(profileId == null || endpointId == null || inClusters == null || outClusters == null) {
-        missing = true
-        String endpointIdTemp = endpointId == null ? "01" : endpointId
-        log.warn("One or multiple pieces of data needed for the fingerprint is missing$requestingFromDevice")
-        if(ignoreMissing==false) sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 0 0x0004 {00 ${zigbee.swapOctets(device.deviceNetworkId)} $endpointIdTemp} {0x0000}"])
-    }
-    profileId = profileId == null ? "0104" : profileId
-    if(missing == true) {
-        log.info("INCOMPLETE - DO NOT SUBMIT THIS - TRY AGAIN: fingerprint model:\"$model\", manufacturer:\"$manufacturer\", profileId:\"$profileId\", endpointId:\"$endpointId\", inClusters:\"$inClusters\", outClusters:\"$outClusters\"" + extraFingerPrint)
-    } else {
-        log.info("COPY AND PASTE THIS ROW TO THE DEVELOPER: fingerprint model:\"$model\", manufacturer:\"$manufacturer\", profileId:\"$profileId\", endpointId:\"$endpointId\", inClusters:\"$inClusters\", outClusters:\"$outClusters\"" + extraFingerPrint)
-    }
-}
-// END:  getHelperFunctions('zigbee-generic')
-
-// BEGIN:getHelperFunctions('all-default')
-boolean isDriver() {
-    try {
-        getDeviceDataByName('_unimportant')
-        logging("This IS a driver!", 1)
-        return true
-    } catch (MissingMethodException e) {
-        logging("This is NOT a driver!", 1)
-        return false
-    }
-}
-
-void deviceCommand(String cmd) {
-    def jsonSlurper = new JsonSlurper()
-    def cmds = jsonSlurper.parseText(cmd)
-     
-    r = this."${cmds['cmd']}"(*cmds['args'])
-     
-    updateDataValue('appReturn', JsonOutput.toJson(r))
-}
-
-void setLogsOffTask(boolean noLogWarning=false) {
-	if (debugLogging == true) {
-        if(noLogWarning==false) {
-            if(runReset != "DEBUG") {
-                log.warn "Debug logging will be disabled in 30 minutes..."
-            } else {
-                log.warn "Debug logging will NOT BE AUTOMATICALLY DISABLED!"
-            }
-        }
-        runIn(1800, "logsOff")
-    }
-}
-
-void toggle() {
-    if(device.currentValue('switch') == 'on') {
-        off()
-    } else {
-        on()
-    }
-}
-
-void logsOff() {
-    if(runReset != "DEBUG") {
-        log.warn "Debug logging disabled... "
-        if(isDriver()) {
-            device.clearSetting("logLevel")
-            device.removeSetting("logLevel")
-            device.updateSetting("logLevel", "0")
-            state?.settings?.remove("logLevel")
-            device.clearSetting("debugLogging")
-            device.removeSetting("debugLogging")
-            device.updateSetting("debugLogging", "false")
-            state?.settings?.remove("debugLogging")
-            
-        } else {
-            app.removeSetting("logLevel")
-            app.updateSetting("logLevel", "0")
-            app.removeSetting("debugLogging")
-            app.updateSetting("debugLogging", "false")
-        }
-    } else {
-        log.warn "OVERRIDE: Disabling Debug logging will not execute with 'DEBUG' set..."
-        if (logLevel != "0" && logLevel != "100") runIn(1800, "logsOff")
-    }
-}
-
-boolean isDeveloperHub() {
-    return generateMD5(location.hub.zigbeeId as String) == "125fceabd0413141e34bb859cd15e067_disabled"
-}
-
-def getEnvironmentObject() {
-    if(isDriver()) {
-        return device
-    } else {
-        return app
-    }
-}
-
-private def getFilteredDeviceDriverName() {
-    def deviceDriverName = getDeviceInfoByName('name')
-    if(deviceDriverName.toLowerCase().endsWith(' (parent)')) {
-        deviceDriverName = deviceDriverName.substring(0, deviceDriverName.length()-9)
-    }
-    return deviceDriverName
-}
-
-private def getFilteredDeviceDisplayName() {
-    def deviceDisplayName = device.displayName.replace(' (parent)', '').replace(' (Parent)', '')
-    return deviceDisplayName
-}
-
-BigDecimal round2(BigDecimal number, Integer scale) {
-    Integer pow = 10;
-    for (Integer i = 1; i < scale; i++)
-        pow *= 10;
-    BigDecimal tmp = number * pow;
-    return ( (Float) ( (Integer) ((tmp - (Integer) tmp) >= 0.5f ? tmp + 1 : tmp) ) ) / pow;
-}
-
-String generateMD5(String s) {
-    if(s != null) {
-        return MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()
-    } else {
-        return "null"
-    }
-}
-
-Integer extractInt(String input) {
-  return input.replaceAll("[^0-9]", "").toInteger()
-}
-
-String hexToASCII(String hexValue) {
-    StringBuilder output = new StringBuilder("")
-    for (int i = 0; i < hexValue.length(); i += 2) {
-        String str = hexValue.substring(i, i + 2)
-        output.append((char) Integer.parseInt(str, 16) + 30)
-        logging("${Integer.parseInt(str, 16)}", 10)
-    }
-     
-    return output.toString()
-}
-// END:  getHelperFunctions('all-default')
-
-// BEGIN:getHelperFunctions('styling')
-String styling_addTitleDiv(title) {
-    return '<div class="preference-title">' + title + '</div>'
-}
-
-String styling_addDescriptionDiv(description) {
-    return '<div class="preference-description">' + description + '</div>'
-}
-
-String styling_makeTextBold(s) {
-    if(isDriver()) {
-        return "<b>$s</b>"
-    } else {
-        return "$s"
-    }
-}
-
-String styling_makeTextItalic(s) {
-    if(isDriver()) {
-        return "<i>$s</i>"
-    } else {
-        return "$s"
-    }
-}
-
-String styling_getDefaultCSS(boolean includeTags=true) {
-    String defaultCSS = '''
-    /* This is part of the CSS for replacing a Command Title */
-    div.mdl-card__title div.mdl-grid div.mdl-grid .mdl-cell p::after {
-        visibility: visible;
-        position: absolute;
-        left: 50%;
-        transform: translate(-50%, 0%);
-        width: calc(100% - 20px);
-        padding-left: 5px;
-        padding-right: 5px;
-        margin-top: 0px;
-    }
-    /* This is general CSS Styling for the Driver page */
-    h3, h4, .property-label {
-        font-weight: bold;
-    }
-    .preference-title {
-        font-weight: bold;
-    }
-    .preference-description {
-        font-style: italic;
-    }
-    
-    '''
-    if(includeTags == true) {
-        return "<style>$defaultCSS </style>"
-    } else {
-        return defaultCSS
-    }
-}
-
-String styling_getLogo() {
-    String logoCSS = ""
-}
-
-
-
-String getDEGREE() { return String.valueOf((char)(176)) }
-
-void refresh(String cmd) {
-    deviceCommand(cmd)
-}
-
-def installedDefault() {
-	logging("installedDefault()", 100)
-    
-    try {
-        tasmota_installedPreConfigure()
-    } catch (MissingMethodException e) {
-    }
-    try {
-        installedAdditional()
-    } catch (MissingMethodException e) {
-    }
-}
-
-def configureDefault() {
-    logging("configureDefault()", 100)
-    try {
-        return configureAdditional()
-    } catch (MissingMethodException e) {
-    }
-    try {
-        getDriverVersion()
-    } catch (MissingMethodException e) {
-    }
-}
-
-void configureDelayed() {
-    runIn(10, "configure")
-    runIn(30, "refresh")
-}
-
-void configurePresence() {
-    prepareCounters()
-    if(presenceEnable == null || presenceEnable == true) {
-        Random rnd = new Random()
-        schedule("${rnd.nextInt(59)} ${rnd.nextInt(59)} 1/3 * * ? *", 'checkPresence')
-        checkPresence(false)
-    } else {
-        sendEvent(name: "presence", value: "not present", descriptionText: "Presence Checking Disabled" )
-        unschedule('checkPresence')
-    }
-}
-
-void stopSchedules() {
-    unschedule()
-    log.info("Stopped ALL Device Schedules!")
-}
-
-void prepareCounters() {
-    if(device.currentValue('restoredCounter') == null) sendEvent(name: "restoredCounter", value: 0, descriptionText: "Initialized to 0" )
-    if(device.currentValue('notPresentCounter') == null) sendEvent(name: "notPresentCounter", value: 0, descriptionText: "Initialized to 0" )
-    if(device.currentValue('presence') == null) sendEvent(name: "presence", value: "unknown", descriptionText: "Initialized as Unknown" )
-}
-
-boolean isValidDate(String dateFormat, String dateString) {
-    try {
-        Date.parse(dateFormat, dateString)
-    } catch (e) {
-        return false
-    }
-    return true
-}
-
-Integer retrieveMinimumMinutesToRepeat(Integer minimumMinutesToRepeat=55) {
-    Integer mmr = null
-    if(state.forcedMinutes == null || state.forcedMinutes == 0) {
-        mmr = minimumMinutesToRepeat
-    } else {
-        mmr = state.forcedMinutes - 1 < 1 ? 1 : state.forcedMinutes.intValue() - 1
-    }
-    return mmr
-}
-
-boolean sendlastCheckinEvent(Integer minimumMinutesToRepeat=55) {
-    boolean r = false
-    Integer mmr = retrieveMinimumMinutesToRepeat(minimumMinutesToRepeat=minimumMinutesToRepeat)
-    if (lastCheckinEnable == true || lastCheckinEnable == null) {
-        String lastCheckinVal = device.currentValue('lastCheckin')
-        if(lastCheckinVal == null || isValidDate('yyyy-MM-dd HH:mm:ss', lastCheckinVal) == false || now() >= Date.parse('yyyy-MM-dd HH:mm:ss', lastCheckinVal).getTime() + (mmr * 60 * 1000)) {
-            r = true
-		    sendEvent(name: "lastCheckin", value: new Date().format('yyyy-MM-dd HH:mm:ss'))
-            logging("Updated lastCheckin", 1)
-        } else {
-             
-        }
-	}
-    if (lastCheckinEpochEnable == true) {
-		if(device.currentValue('lastCheckinEpoch') == null || now() >= device.currentValue('lastCheckinEpoch').toLong() + (mmr * 60 * 1000)) {
-            r = true
-		    sendEvent(name: "lastCheckinEpoch", value: now())
-            logging("Updated lastCheckinEpoch", 1)
-        } else {
-             
-        }
-	}
-    if(r == true) setAsPresent()
-    return r
-}
-
-Long secondsSinceLastCheckinEvent() {
-    Long r = null
-    if (lastCheckinEnable == true || lastCheckinEnable == null) {
-        String lastCheckinVal = device.currentValue('lastCheckin')
-        if(lastCheckinVal == null || isValidDate('yyyy-MM-dd HH:mm:ss', lastCheckinVal) == false) {
-            logging("No VALID lastCheckin event available! This should be resolved by itself within 1 or 2 hours and is perfectly NORMAL as long as the same device don't get this multiple times per day...", 100)
-            r = -1
-        } else {
-            r = (now() - Date.parse('yyyy-MM-dd HH:mm:ss', lastCheckinVal).getTime()) / 1000
-        }
-	}
-    if (lastCheckinEpochEnable == true) {
-		if(device.currentValue('lastCheckinEpoch') == null) {
-		    logging("No VALID lastCheckin event available! This should be resolved by itself within 1 or 2 hours and is perfectly NORMAL as long as the same device don't get this multiple times per day...", 100)
-            r = r == null ? -1 : r
-        } else {
-            r = (now() - device.currentValue('lastCheckinEpoch').toLong()) / 1000
-        }
-	}
-    return r
-}
-
-boolean hasCorrectCheckinEvents(Integer maximumMinutesBetweenEvents=90, boolean displayWarnings=true) {
-    Long secondsSinceLastCheckin = secondsSinceLastCheckinEvent()
-    if(secondsSinceLastCheckin != null && secondsSinceLastCheckin > maximumMinutesBetweenEvents * 60) {
-        if(displayWarnings == true && (presenceWarningEnable == null || presenceWarningEnable == true)) log.warn("One or several EXPECTED checkin events have been missed! Something MIGHT be wrong with the mesh for this device. Minutes since last checkin: ${Math.round(secondsSinceLastCheckin / 60)} (maximum expected $maximumMinutesBetweenEvents)")
-        return false
-    }
-    return true
-}
-
-boolean checkPresence(boolean displayWarnings=true) {
-    boolean isPresent = false
-    Long lastCheckinTime = null
-    String lastCheckinVal = device.currentValue('lastCheckin')
-    if ((lastCheckinEnable == true || lastCheckinEnable == null) && isValidDate('yyyy-MM-dd HH:mm:ss', lastCheckinVal) == true) {
-        lastCheckinTime = Date.parse('yyyy-MM-dd HH:mm:ss', lastCheckinVal).getTime()
-    } else if (lastCheckinEpochEnable == true && device.currentValue('lastCheckinEpoch') != null) {
-        lastCheckinTime = device.currentValue('lastCheckinEpoch').toLong()
-    }
-    if(lastCheckinTime != null && lastCheckinTime >= now() - (3 * 60 * 60 * 1000)) {
-        setAsPresent()
-        isPresent = true
-    } else {
-        sendEvent(name: "presence", value: "not present")
-        if(displayWarnings == true) {
-            Integer numNotPresent = device.currentValue('notPresentCounter')
-            numNotPresent = numNotPresent == null ? 1 : numNotPresent + 1
-            sendEvent(name: "notPresentCounter", value: numNotPresent )
-            if(presenceWarningEnable == null || presenceWarningEnable == true) {
-                log.warn("No event seen from the device for over 3 hours! Something is not right... (consecutive events: $numNotPresent)")
-            }
-        }
-    }
-    return isPresent
-}
-
-void setAsPresent() {
-    if(device.currentValue('presence') == "not present") {
-        Integer numRestored = device.currentValue('restoredCounter')
-        numRestored = numRestored == null ? 1 : numRestored + 1
-        sendEvent(name: "restoredCounter", value: numRestored )
-        sendEvent(name: "notPresentCounter", value: 0 )
-    }
-    sendEvent(name: "presence", value: "present")
-}
-
-void resetNotPresentCounter() {
-    logging("resetNotPresentCounter()", 100)
-    sendEvent(name: "notPresentCounter", value: 0, descriptionText: "Reset notPresentCounter to 0" )
-}
-
-void resetRestoredCounter() {
-    logging("resetRestoredCounter()", 100)
-    sendEvent(name: "restoredCounter", value: 0, descriptionText: "Reset restoredCounter to 0" )
-}
-// Logging block 
-//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+// Logging block v4 10/23/2022
+//	
 void loggingUpdate() {
-    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
-    // Only do this when its needed
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     if (debugLogging){runIn(3600,debugLogOff)}
     if (traceLogging){runIn(1800,traceLogOff)}
 }
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -1559,10 +417,10 @@ void debugLogOff(){
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
 private logging(String message, String level) {
-    if (level == "infoBypass"){log.info  "$message"}
-	if (level == "error"){     log.error "$message"}
-	if (level == "warn") {     log.warn  "$message"}
-	if (level == "trace" && traceLogging) {log.trace "$message"}
-	if (level == "debug" && debugLogging) {log.debug "$message"}
-    if (level == "info"  && infoLogging)  {log.info  "$message"}
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
