@@ -62,7 +62,7 @@ def setVersion(){
 }
 
 definition(
-    name: "Chromecast Helper", namespace: "BPTWorld", author: "Bryan Turcotte", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/cromecast-helper.groovy"
+    name: "Chromecast Helper BU", namespace: "BPTWorld", author: "Bryan Turcotte", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/cromecast-helper.groovy"
 	
 )
 
