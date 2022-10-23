@@ -55,15 +55,8 @@ def setVersion(){
 }
 
 definition(
-    name: "Chromecast Helper",
-    namespace: "BPTWorld",
-    author: "Bryan Turcotte",
-    description: "Simple way to help keep your Google/Nest devices alive.",
-    category: "Convenience",
-    iconUrl: "",
-    iconX2Url: "",
-    iconX3Url: "",
-	importUrl: "https://raw.githubusercontent.com/bptworld/Hubitat/master/Apps/Chromecast%20Helper/CH.groovy",
+    name: "Chromecast Helper", namespace: "BPTWorld", author: "Bryan Turcotte", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/cromecast-helper.groovy"
+	
 )
 
 preferences {
