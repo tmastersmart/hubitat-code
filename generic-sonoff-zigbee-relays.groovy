@@ -15,7 +15,7 @@ Suports alarm,strobe,siren,refreash and presence.
 Send me your fngerprints so they can be added.
 
 
-v 1.3.0 10/23/2022   Bug fixes more untrapted cluster fixes
+v 1.3.1 10/23/2022   Bug fixes more untrapted cluster fixes
 v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
 v 1.0.0 10/23/2022   Creation
 ======================================================================================================
@@ -38,7 +38,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.3.0"
+    TheVersion="1.3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -97,15 +97,16 @@ def installed() {
 
 def uninstall() {
 	unschedule()
+    logging("Uninstalled", "info") 
 	state.remove("presenceUpdated")    
 	state.remove("version")
-    logging("Uninstalled", "info")   
     state.remove("checkPhase")
     state.remove("lastCheckInMin")
     state.remove("logo")
     state.remove("bin")
     state.remove("DataUpdate")
     state.remove("lastCheckin")
+    state.remove("DataUpdate")
 
 }
 
@@ -121,6 +122,7 @@ state.remove("comment")
 state.remove("icon")
 state.remove("logo")
 state.remove("flashing")    
+    
 
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
@@ -151,7 +153,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    refresh() 
+//    refresh() 
 }
 
 void reportToDev(map) {
@@ -359,7 +361,7 @@ def processMap(Map map) {
         }
         
 //New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
-   }else if (map.cluster == "8001") { 
+   }else if (map.cluster == "8001" | map.clusterId == "8001") { 
         logging("General event :8001 ${map.data}", "debug") 
    }else if (map.cluster == "8021") {
         logging("Blind Cluster event :8021 ${map.data}", "debug")
