@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.2.5 10/26/2022 Reduced min voltage again to prevent -results
 v2.2.4 10/19/2022 force motion ON/OFF from driver page
 v2.2.3 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
 v2.2.2 10/10/2022 Changes in bat lower limit and config delay
@@ -193,7 +194,7 @@ def configure() {
 	// Remove state variables from old versions.
 	
 	// upgrade to new min values
-	if (state.minVoltTest < 2.17 | state.minVoltTest > 2.3 ){ 
+	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.3 ){ 
 		state.minVoltTest= 2.30 
 		logging("${device} : Reset min voltage to ${state.minVoltTest}", "info")
 	}
