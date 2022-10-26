@@ -4,7 +4,7 @@
   "releaseNotes":   "Extra option added for generic relays , status detected as button press.",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.3.2",
+  "version": "1.3.3",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
