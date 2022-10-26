@@ -1,9 +1,7 @@
-/** Zigbee Sonoff - generic relays - Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
-sonoff MINI zigbee driver for hubitat
-eWeLink zigbee driver for hubitat
-3A Smart Home zigbee driver for hubitat
+/** Zigbee Sonoff - generic relays
+driver for hubitat
 
-
+Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
 Generic zigbee relays/outlets...
 
 
@@ -14,10 +12,18 @@ Suports alarm,strobe,siren,refreash and presence.
 
 Send me your fngerprints so they can be added.
 
+NOTES:
+If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
+and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
+---------------------------------------------------------------------------------------------------------
 
-v 1.3.1 10/23/2022   Bug fixes more untrapted cluster fixes
-v 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
-v 1.0.0 10/23/2022   Creation
+
+ 1.3.2 10/26/2022   Option to disable button report on some relays
+ 1.3.1 10/23/2022   Bug fixes more untrapted cluster fixes
+ 1.3.0 10/24/2022   Minor logging and on off code rewriten
+ 1.2.3 10/23/2022   Bug fixes more untrapted cluster fixes
+ 1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
+ 1.0.0 10/23/2022   Creation
 ======================================================================================================
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -38,7 +44,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.3.1"
+    TheVersion="1.3.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -49,7 +55,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "Zigbee Sonoff - generic relays", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy") {
+	definition (name: "Zigbee - Sonoff - generic relays", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
 
 		capability "Actuator"
 		capability "Configuration"
@@ -86,6 +92,8 @@ preferences {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+
+    input name: "buttonDetect", type: "bool", title: "Ignore Button Press", description: "Some generic relays use button cluster as a status report. Just report as status not button.", defaultValue: false
 	
 }
 
@@ -97,16 +105,15 @@ def installed() {
 
 def uninstall() {
 	unschedule()
-    logging("Uninstalled", "info") 
 	state.remove("presenceUpdated")    
 	state.remove("version")
+    logging("Uninstalled", "info")   
     state.remove("checkPhase")
     state.remove("lastCheckInMin")
     state.remove("logo")
     state.remove("bin")
     state.remove("DataUpdate")
     state.remove("lastCheckin")
-    state.remove("DataUpdate")
 
 }
 
@@ -122,7 +129,6 @@ state.remove("comment")
 state.remove("icon")
 state.remove("logo")
 state.remove("flashing")    
-    
 
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
@@ -153,7 +159,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-//    refresh() 
+    refresh() 
 }
 
 void reportToDev(map) {
@@ -167,23 +173,8 @@ void reportToDev(map) {
 void refresh(cmd) {
 	logging("Refreshing", "info")
     Test = device.currentValue("switch")
-
-    if (Test =="on"){
-        logging("Resending State ON", "info")
-        runIn(4,on)
-    }
-    else {
-        logging("Resending State OFF", "info")
-        runIn(4,off)
-    }    
-    
- //      delayBetween([
- //           zigbee.readAttribute(0x0000, 0x0006), 
- //           zigbee.readAttribute(0x0000, 0x0004),
- //           sendZigbeeCommands(["zcl global send-me-a-report 6 0 0x10 0 1 {01}"]),
- //           sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 0x0006 0x0001"]),
- //  ], 1000) 
-    
+    if (Test =="on"){runIn(4,on)}
+    else {runIn(4,off)}    
 }
 
 
@@ -294,7 +285,7 @@ def parse(String description) {
     checkPresence()
     logging("Raw: [${description}]", "trace")
     Map descMap = zigbee.parseDescriptionAsMap(description) 
-    logging("MAP: [${descMap}]", "trace")
+    logging("${descMap}", "debug")
 
     if (description?.startsWith('enroll request')) { 
         enrollResponse()
@@ -319,61 +310,54 @@ def parse(String description) {
 
 def processMap(Map map) {
 	String[] receivedData = map.data
-  
-    logging("PARSE [${map}]", "trace")
-//MAP: [[raw:BD840100060800002001, dni:BD84, endpoint:01, cluster:0006, size:08, attrId:0000, encoding:20, command:0A, value:01, clusterInt:6, attrInt:0]]  
-//MAP: [[raw:catchall: 0104 0006 01 01 0040 00 BD84 00 00 0000 0B 01 0100, profileId:0104, clusterId:0006, clusterInt:6, sourceEndpoint:01, destinationEndpoint:01,
-    //options:0040, messageType:00, dni:BD84, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:0B, direction:01, data:[01, 00]]]
-    
-    if (map.clusterId == "0006" && map.profileId == "0104"  ){
-      logging("clusterId:${map.clusterId} profileId:${map.profileId} command:${map.command}", "debug")
-      status = map.data[0]
-        if (status == "01"){
-        logging("is ON [digital]", "info")
-        sendEvent(name: "switch", value: "on")
-        }
-        if (status == "00"){
-        logging("is OFF [digital]", "info")
-        offEvents() 
-        
-        }
-
-    } 
-        
-        
  
-//New unknown Cluster Detected: clusterId:null, attrId:0000, command:0A, value:00 data: null
-//PARSE [[raw:BD840100060800002000, dni:BD84, endpoint:01, cluster:0006, size:08, attrId:0000, encoding:20, command:0A, value:00, clusterInt:6, attrInt:0]]	
-        
-   
+//    logging("PARSE [${map}]", "trace")
+// relay report
+    if (map.clusterId == "0006" && map.profileId == "0104"  ){
+        logging("ON/OFF report command:${map.command} data:${map.data}", "debug")
+      status  = map.data[0]
+        if (status == "01"){onEvents()}
+        if (status == "00"){offEvents()}
+      status = map.data[1] 
+        if (status == "01"){logging("2nd data field report ${status}", "warn")} 
+    } 
+// button report 
     else if (map.cluster == "0006") {
-        logging("cluster:${map.cluster} command:${map.command} value:${map.value}", "debug")
-        sendEvent(name: "pushed", value: 1, isStateChange: true)
-        status = map.value
-        if (status == "01"){
-        logging("Button Pressed is ON [physical] ", "info")
-        sendEvent(name: "switch", value: "on")
-        }
-        if (status == "00"){
-        logging("Button Pressed is OFF [physical] ", "info")
-        offEvents() 
+ //       logging("cluster:${map.cluster} command:${map.command} value:${map.value}", "debug")
         
-        }
+      if(!buttonDetect){
+        press(1)
+        runIn(2,Release(1))
+      }
+        
+        status = map.value
+        if (status == "01"){onEvents()}
+        if (status == "00"){offEvents()}
+        
+        
         
 //New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
    }else if (map.cluster == "8001" | map.clusterId == "8001") { 
         logging("General event :8001 ${map.data}", "debug") 
-   }else if (map.cluster == "8021") {
+        logging("Device may need CONFIG on internal drivers to stop this cluster", "debug") 
+   }else if (map.cluster == "8021"| map.clusterId == "8021" ) {
         logging("Blind Cluster event :8021 ${map.data}", "debug")
-   }else if (map.cluster == "8038") {
+   }else if (map.cluster == "8038"| map.clusterId == "8038") {
         logging("General Catchall :8038 ${map.data}", "debug")      
-   }else if (map.cluster == "0013") {
+   }else if (map.cluster == "0013"| map.clusterId == "0013") {
         logging("Multistate event: UNKNOWN ${map.data}", "warn")      
     
 	} else {
 		reportToDev(map)// unknown cluster
 	}
 	return null
+}
+
+// prevents dupe events
+def onEvents(){
+    alarmTest = device.currentValue("switch")
+    if(alarmTest != "on"){sendEvent(name: "switch", value: "on")}    
+    logging("is ON [digital] our state was:${alarmTest}", "info")
 }
 
 def offEvents(){
@@ -384,11 +368,19 @@ def offEvents(){
     alarmTest = device.currentValue("strobe") 
     if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
     alarmTest = device.currentValue("switch")
-    if(alarmTest != "off"){sendEvent(name: "switch", value: "off")} 
+    if(alarmTest != "off"){sendEvent(name: "switch", value: "off")}
+    logging("is OFF [digital] our state was:${alarmTest}", "info")
 }
     
-    
+def press(cmd){
+logging("Button pressed", "info")    
+sendEvent(name: "pushed", value: cmd, isStateChange: true)    
+}
 
+def Release(cmd){
+logging("Button released", "info")    
+sendEvent(name: "released", value: cmd, isStateChange: true)    
+}
 
 void sendZigbeeCommands(List<String> cmds) {
     logging("${device} : sending:${cmds}", "trace")
@@ -429,12 +421,12 @@ private BigDecimal hexToBigDecimal(String hex) {
     return BigDecimal.valueOf(d)
 }
 
-// Logging block v4 10/23/2022
+// Logging block v4 10/24/2022
 //	
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){runIn(4000,debugLogOff)}
+    if (traceLogging){runIn(1000,traceLogOff)}
 }
 
 void traceLogOff(){
