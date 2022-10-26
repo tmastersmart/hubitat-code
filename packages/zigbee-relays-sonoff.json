@@ -1,11 +1,10 @@
-
 {
   "packageName": "Zigbee Sonoff - generic relays",
   "author": "TheMaster",
-  "releaseNotes":   "Working on sonoff mini. more fingerprints added",
+  "releaseNotes":   "Extra option added for generic relays , status detected as button press.",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.3.0",
+  "version": "1.3.2",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
@@ -15,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy",
       "required": "true",
-        "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays",
+        "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. Refreash and Presence",
       "id": "9742730c-c241-4988-9c0c-53d6d93131e9"
     }
     ]
