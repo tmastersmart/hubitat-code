@@ -17,7 +17,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 ---------------------------------------------------------------------------------------------------------
 
-
+ 1.3.3 10/26/2022   Bug fix line 330
  1.3.2 10/26/2022   Option to disable button report on some relays
  1.3.1 10/23/2022   Bug fixes more untrapted cluster fixes
  1.3.0 10/24/2022   Minor logging and on off code rewriten
@@ -44,7 +44,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.3.2"
+    TheVersion="1.3.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -325,9 +325,9 @@ def processMap(Map map) {
     else if (map.cluster == "0006") {
  //       logging("cluster:${map.cluster} command:${map.command} value:${map.value}", "debug")
         
-      if(!buttonDetect){
-        press(1)
-        runIn(2,Release(1))
+      if(buttonDetect == false ){
+        press()
+        runIn(2,Release)
       }
         
         status = map.value
@@ -374,12 +374,12 @@ def offEvents(){
     
 def press(cmd){
 logging("Button pressed", "info")    
-sendEvent(name: "pushed", value: cmd, isStateChange: true)    
+sendEvent(name: "pushed", value: 1, isStateChange: true)    
 }
 
 def Release(cmd){
 logging("Button released", "info")    
-sendEvent(name: "released", value: cmd, isStateChange: true)    
+sendEvent(name: "released", value: 1, isStateChange: true)    
 }
 
 void sendZigbeeCommands(List<String> cmds) {
