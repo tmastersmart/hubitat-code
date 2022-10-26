@@ -182,7 +182,7 @@
 	"category": "Control",
 "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
-   "description": "Works with Sonoff MINI and other generic zigbee relays"
+   "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. Refreash and Presence"
    },	  
 	  
 	
