@@ -8,7 +8,7 @@
   "version": "1.1.0",
   "dateReleased": "2022-09-03",
   "category":"Control",
-  "tags":["Misc. Devices"],
+  "tags":["Zwave","Buttons","Lights & Switches"],
   "drivers": [
     {
       "name":"Zooz Zen21 Central Scene Switch",
