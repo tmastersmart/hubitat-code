@@ -1,0 +1,22 @@
+{
+  "packageName": "Zooz Zen21 Central Scene Switch",
+  "author": "Bryan Copeland",
+  "releaseNotes":   "update",
+  "documentationLink": "https://github.com/tmastersmart/hubitat-zooz-switch/tree/master/Drivers/zooz",
+  "gitHubUrl": "https://github.com/tmastersmart/",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "version": "1.1.0",
+  "dateReleased": "2022-09-03",
+  "category":"Control",
+  "tags":["Misc. Devices"],
+  "drivers": [
+    {
+      "name":"Zooz Zen21 Central Scene Switch",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-zooz-switch/master/Drivers/zooz/zen21-switch.groovy",
+      "required": "true",
+        "description": "Zooz Zen21 Central Scene Switch",
+      "id": "2e0710de-01ee-4901-8cb6-724a6450f768"
+    }
+    ]
+}
