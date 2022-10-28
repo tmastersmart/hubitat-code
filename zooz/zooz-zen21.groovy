@@ -3,7 +3,7 @@ driver for hubitat
 
 
 Reformated Repackaged for Hubitat Package Manager.
-
+Use update in hubitat driver to pull current version. This is a archive.
 
 v 1.1 orginal fork
 
@@ -24,9 +24,6 @@ limitations under the License.
 
 
 forked from
-name: "Zooz Zen21 Central Scene Switch"
-namespace: "djdizzyd" 
-author: "Bryan Copeland" 
 importUrl: "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen21-switch.groovy"
 
 
@@ -35,7 +32,10 @@ importUrl: "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zo
 import groovy.transform.Field
 
 metadata {
-    definition (name: "Zooz Zen21 Central Scene Switch", namespace: "tmastersmart", author: "Bryan Copeland", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/zooz-zen21.groovy") {
+    
+definition (name: "Zooz Zen21 Central Scene Switch", namespace: "djdizzyd" ,    author: "Bryan Copeland" ,importUrl: "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen21-switch.groovy"){
+
+// definition (name: "Zooz Zen21 Central Scene Switch", namespace: "tmastersmart", author: "Bryan Copeland", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/zooz-zen21.groovy"){
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
