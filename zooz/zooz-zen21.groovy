@@ -35,7 +35,7 @@ importUrl: "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zo
 import groovy.transform.Field
 
 metadata {
-    definition (name: "Zooz Zen21 Central Scene Switch", namespace: "tmastersmart", author: "Bryan Copeland", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-zooz-switch/master/Drivers/zooz/zen21-switch.groovy") {
+    definition (name: "Zooz Zen21 Central Scene Switch", namespace: "tmastersmart", author: "Bryan Copeland", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/zooz-zen21.groovy") {
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
