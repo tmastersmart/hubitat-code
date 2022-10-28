@@ -432,12 +432,13 @@ def configure() {
  	state.configured = true
 	state.supplyPresent = true
     state.remove("badSupplyFlag")
+    state.remove("paypal")
     state.test = false
 	state.lastBatteryVoltage = 0 // force a new event
 
     state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/leaksmart.jpg' >"
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
-
+ 
     state.firm = device.data.firmwareMT
 	if(device.data.model=="House Water Valve - MDL-TBD"){state.model = "v1a"}
     if(device.data.model=="leakSMART Water Valve v2.10"){state.model = "v2.1"}
