@@ -148,7 +148,7 @@
         
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/lock_button_monitor.json",
-   "description": "Lock button monitor. works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. ",
+   "description": "Lock button monitor. works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. "
    }, 	
 	  {
   "name":"Lock Button Monitor2",
@@ -162,7 +162,7 @@
         
       ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/lock_button_monitor2.json",
-   "description": "Lock button monitor2. for second lock, works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. ",
+   "description": "Lock button monitor2. for second lock, works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. "
    }, 
 	  {
 	"name":"sage doorbell echostar",  
