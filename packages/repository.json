@@ -189,15 +189,61 @@
     {
   "name":"HTTP Presence Sensor with schedule",
 	    "category": "Control",
-      "tags": [
-        "Monitoring",
-	"LAN",
-	"Misc. Devices",      
-        "Presence & Location"
-      ],
+      "tags": ["Monitoring","LAN","Misc. Devices","Presence & Location"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
   "description": "Improved HTTP Presence sensor with adjustable chron schedule up to 59 mins. Extra delay prevents overloading enter Endpoint URL and polling time with info debug and trace logs"
-		 }
-	]
-	
+},
+
+ {
+  "name":"Zooz Zen21 Central Scene Switch",
+	 "category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen21.json",
+  "description": "Zooz Zen21 Central Scene Switch"
+ },
+{
+  "name":"Zooz Zen22 Central Scene Dimmer",
+	"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen22.json",
+  "description": "Zooz Zen22 Central Scene Dimmer"
+ },
+{
+  "name":"Zooz Zen23 Central Scene Switch",
+	"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen23.json",
+  "description": "Zooz Zen23 Central Scene Switch"
+ },	  
+{
+  "name":"Zooz Zen24 Central Scene Dimmer",
+	"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen24.json",
+  "description": "Zooz Zen24 Central Scene Dimmer"
+ },  
+	{
+  "name":"Zooz Zen26 Central Scene Switch",
+		"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen26.json",
+  "description": "Zooz Zen26 Central Scene Switch"
+ },  
+	{
+  "name":"Zooz Zen27 Central Scene Dimmer",
+		"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen27.json",
+  "description": "Zooz Zen27 Central Scene Dimmer"
+ },  
+	{
+  "name":"Zooz Zen31 LED Controller",
+		"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen31.json",
+  "description": "Zooz Zen31 LED Controller"
+ }  
+  
+  ]
+
 }
