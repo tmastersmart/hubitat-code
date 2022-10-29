@@ -10,7 +10,7 @@
   "tags":["Zwave","Buttons","Lights & Switches"],
   "drivers": [
     {
-      "name":"Zooz Zen21 Central Scene Switch",
+      "name":"Zooz Zen22 Central Scene Switch",
       "namespace": "djdizzyd",
       "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen22-dimmer.groovy",
       "required": "true",
