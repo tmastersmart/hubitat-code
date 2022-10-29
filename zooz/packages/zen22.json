@@ -1,0 +1,21 @@
+ 
+{
+  "packageName": "Zooz Zen22 Central Scene Dimmer",
+  "author": "Bryan Copeland",
+  "releaseNotes":   "update",
+  "gitHubUrl": "https://github.com/djdizzyd/hubitat/tree/master/Drivers/zooz",
+  "version": "1.0.0",
+  "dateReleased": "2022-10-28",
+  "category":"Control",
+  "tags":["Zwave","Buttons","Lights & Switches"],
+  "drivers": [
+    {
+      "name":"Zooz Zen21 Central Scene Switch",
+      "namespace": "djdizzyd",
+      "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen22-dimmer.groovy",
+      "required": "true",
+        "description": "Zooz Zen22 Central Scene Switch",
+      "id": "b7469257-14cb-4976-a938-24ffcd258542"
+    }
+    ]
+}
