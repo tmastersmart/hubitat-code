@@ -14,7 +14,7 @@
       "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen26-switch.groovy",
       "required": "true",
         "description": "Zooz Zen26 Central Scene Switch",
-      "id": "6dc95be9-ff8b-4844-8bf6-19c7eaf21f54"
+      "id": "22cb3d44-762a-4b2a-96a2-86a0159b3b0e"
     }
     ]
 }
