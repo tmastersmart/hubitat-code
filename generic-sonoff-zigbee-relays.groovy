@@ -10,13 +10,14 @@ These relays all use the same formats but have diffrent problems with internal d
 
 Suports alarm,strobe,siren,refreash and presence.
 
-Send me your fngerprints so they can be added.
+Send me your fingerprints so they can be added.
 
 NOTES:
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 ---------------------------------------------------------------------------------------------------------
-
+ 1.4.1 10/29/2022   Timeout changed
+ 1.4.0 10/27/2022   Parsing changes
  1.3.3 10/26/2022   Bug fix line 330
  1.3.2 10/26/2022   Option to disable button report on some relays
  1.3.1 10/23/2022   Bug fixes more untrapted cluster fixes
@@ -44,7 +45,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.3.3"
+    TheVersion="1.4.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -71,7 +72,7 @@ metadata {
 
         command "unschedule" 
         command "uninstall"
-        command "enrollResponse"
+        command "checkPresence"
 
 
 		attribute "strobe", "string"
@@ -237,8 +238,8 @@ private byte[] reverseArray(byte[] array) {
 def checkPresence() {
     // New shorter presence routine.
     // Runs on every parse and a schedule.
-    def checkMin  = 5  // 5 min warning
-    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    def checkMin  = 90  // warning
+    def checkMin2 = 100 // [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
@@ -310,42 +311,45 @@ def parse(String description) {
 
 def processMap(Map map) {
 	String[] receivedData = map.data
- 
-//    logging("PARSE [${map}]", "trace")
-// relay report
-    if (map.clusterId == "0006" && map.profileId == "0104"  ){
+
+    // fix parse Geting 2 formats so merge them
+    map.profile = "na"
+    if (map.clusterId) {map.cluster = map.clusterId} 
+    if (map.profileId) {map.profile = map.profileId}
+
+    
+// button report 
+    if (map.cluster == "0006") {
+      if (map.profile != "0104"){
+         if(buttonDetect == false ){
+         press()
+         runIn(2,Release)
+         }
+        status = map.value
+        if (status == "01"){onEvents()}
+        if (status == "00"){offEvents()}
+        } 
+               
+    } else if (map.clusterId == "0006" && map.profileId == "0104"  ){
         logging("ON/OFF report command:${map.command} data:${map.data}", "debug")
       status  = map.data[0]
         if (status == "01"){onEvents()}
         if (status == "00"){offEvents()}
       status = map.data[1] 
         if (status == "01"){logging("2nd data field report ${status}", "warn")} 
-    } 
-// button report 
-    else if (map.cluster == "0006") {
- //       logging("cluster:${map.cluster} command:${map.command} value:${map.value}", "debug")
-        
-      if(buttonDetect == false ){
-        press()
-        runIn(2,Release)
-      }
-        
-        status = map.value
-        if (status == "01"){onEvents()}
-        if (status == "00"){offEvents()}
-        
-        
+   
+           
         
 //New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
-   }else if (map.cluster == "8001" | map.clusterId == "8001") { 
+   }else if (map.cluster == "8001" ) { 
         logging("General event :8001 ${map.data}", "debug") 
         logging("Device may need CONFIG on internal drivers to stop this cluster", "debug") 
-   }else if (map.cluster == "8021"| map.clusterId == "8021" ) {
+   }else if (map.cluster == "8021") {
         logging("Blind Cluster event :8021 ${map.data}", "debug")
-   }else if (map.cluster == "8038"| map.clusterId == "8038") {
+   }else if (map.cluster == "8038") {
         logging("General Catchall :8038 ${map.data}", "debug")      
-   }else if (map.cluster == "0013"| map.clusterId == "0013") {
-        logging("Multistate event: UNKNOWN ${map.data}", "warn")      
+   }else if (map.cluster == "0013") {
+        logging("Device Announcement Cluster ${map.data}", "warn")      
     
 	} else {
 		reportToDev(map)// unknown cluster
