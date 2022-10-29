@@ -9,7 +9,7 @@
   "tags":["Zwave","Buttons","Lights & Switches"],
   "drivers": [
     {
-      "name":"Zooz Zen24 Central Scene Dimmer",
+      "name":"Zooz Zen26 Central Scene Dimmer",
       "namespace": "djdizzyd",
       "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen26-switch.groovy",
       "required": "true",
