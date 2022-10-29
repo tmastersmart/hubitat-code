@@ -1,0 +1,20 @@
+{
+  "packageName": "Zooz Zen31 LED Controller",
+  "author": "Bryan Copeland",
+  "releaseNotes":   "update",
+  "gitHubUrl": "https://github.com/djdizzyd/hubitat/tree/master/Drivers/zooz",
+  "version": "1.0.0",
+  "dateReleased": "2022-10-28",
+  "category":"Control",
+  "tags":["Zwave","Buttons","Lights & Switches"],
+  "drivers": [
+    {
+      "name":"Zooz Zen31 LED Controller",
+      "namespace": "djdizzyd",
+      "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen31-led-controller.groovy",
+      "required": "true",
+        "description": "Zooz Zen31 LED Controller",
+      "id": "72ed7e78-6547-4c51-ab92-60ae1f484433"
+    }
+    ]
+}
