@@ -14,7 +14,7 @@
       "location": "https://raw.githubusercontent.com/djdizzyd/hubitat/master/Drivers/zooz/zen24-dimmer.groovy",
       "required": "true",
         "description": "Zooz Zen24 Central Scene Switch",
-      "id": "6dc95be9-ff8b-4844-8bf6-19c7eaf21f54"
+      "id": "248758c5-144f-4f0b-972d-4400b5395863"
     }
     ]
 }
