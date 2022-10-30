@@ -5,6 +5,7 @@ Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
 Generic zigbee relays/outlets...
 
 
+
 This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
 These relays all use the same formats but have diffrent problems with internal drivers.
 
@@ -16,6 +17,7 @@ NOTES:
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 ---------------------------------------------------------------------------------------------------------
+ 1.5.1 10/29/2022   Rewrote on off detection / Model detection/ Poll routine
  1.4.1 10/29/2022   Timeout changed
  1.4.0 10/27/2022   Parsing changes
  1.3.3 10/26/2022   Bug fix line 330
@@ -45,7 +47,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.4.1"
+    TheVersion="1.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -78,7 +80,6 @@ metadata {
 		attribute "strobe", "string"
 		attribute "siren", "string"
 
-
         fingerprint model:"BASICZBR3",     manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay BASICBR3", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
 	    fingerprint model:"01MINIZB",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay MINI",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
         fingerprint model:"SA-003-Zigbee", manufacturer:"eWeLink",         deviceJoinName:"eWeLink Relay",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
@@ -88,14 +89,17 @@ metadata {
 
 }
 
+
+//https://zigbee.blakadder.com/Zemismart_ZW-EU-01.html
+
 preferences {
 	
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-    input name: "buttonDetect", type: "bool", title: "Ignore Button Press", description: "Some generic relays use button cluster as a status report. Just report as status not button.", defaultValue: false
-	
+	input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
+
 }
 
 
@@ -119,11 +123,9 @@ def uninstall() {
 }
 
 def initialize() {
-
+   logging("initialize", "info") 
     // This runs on reboot 
 	state.presenceUpdated = 0
-//    state.logo =""
-
 	// Remove disused state variables from earlier versions.
 state.remove("status")
 state.remove("comment")    
@@ -133,11 +135,13 @@ state.remove("flashing")
 
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
-
+    configure()
     clientVersion()
+    
 	// multi devices will run this on reboot make sure they all use a diffrent time
   	randomSixty = Math.abs(new Random().nextInt() % 180)
 	runIn(randomSixty,refresh)
+
 }
 
 
@@ -161,6 +165,7 @@ def updated() {
     clientVersion()
 	loggingUpdate()
     refresh() 
+    getIcons()
 }
 
 void reportToDev(map) {
@@ -172,10 +177,18 @@ void reportToDev(map) {
 
 
 void refresh(cmd) {
-	logging("Refreshing", "info")
-    Test = device.currentValue("switch")
-    if (Test =="on"){runIn(4,on)}
-    else {runIn(4,off)}    
+    if(state.DataUpdate){ logging("Refreshing MFR:${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
+
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004))// mf
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005))// model
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))// on off state
+    
+    if(resendState){
+      Test = device.currentValue("switch")  
+      if (Test =="on"){runIn(4,on)}
+      else {runIn(4,off)} 
+    }
 }
 
 
@@ -308,37 +321,33 @@ def parse(String description) {
 
 
 
-
+//profileId:0104, clusterId:0006, clusterInt:6, sourceEndpoint:01, destinationEndpoint:01, options:0040, messageType:00, dni:697F, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:0B, direction:01, data:[00, 00]]
 def processMap(Map map) {
 	String[] receivedData = map.data
 
     // fix parse Geting 2 formats so merge them
-    map.profile = "na"
     if (map.clusterId) {map.cluster = map.clusterId} 
-    if (map.profileId) {map.profile = map.profileId}
-
-    
-// button report 
-    if (map.cluster == "0006") {
-      if (map.profile != "0104"){
-         if(buttonDetect == false ){
-         press()
-         runIn(2,Release)
-         }
-        status = map.value
-        if (status == "01"){onEvents()}
-        if (status == "00"){offEvents()}
-        } 
-               
-    } else if (map.clusterId == "0006" && map.profileId == "0104"  ){
-        logging("ON/OFF report command:${map.command} data:${map.data}", "debug")
-      status  = map.data[0]
-        if (status == "01"){onEvents()}
-        if (status == "00"){offEvents()}
-      status = map.data[1] 
-        if (status == "01"){logging("2nd data field report ${status}", "warn")} 
    
-           
+    if (map.cluster == "0006" | map.clusterId == "0006" ) {
+      if (map.value){status = map.value}
+      if (map.data) {status = map.data[0]} 
+      logging("ON/OFF report", "debug")
+      if (status == "01"){onEvents()}
+      if (status == "00"){offEvents()}
+
+}else if (map.cluster == "0000" ) {
+        state.DataUpdate = true
+        if (map.attrId== "0004" && map.attrInt ==4){
+        logging("Manufacturer :${map.value}", "debug") 
+        state.MFR = map.value    
+        updateDataValue("manufacturer", state.MFR)
+        } 
+        if (map.attrId== "0005" && map.attrInt ==5){
+        logging("Model :${map.value}", "debug")
+        state.model = map.value    
+        updateDataValue("model", state.model)
+        }
+       
         
 //New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
    }else if (map.cluster == "8001" ) { 
@@ -424,6 +433,15 @@ private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
 }
+
+void getIcons(){
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    if (state.model == "BASICZBR3"){     state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/BASICZBR3.jpg' >"}
+    if (state.model == "01MINIZB"){      state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/01MINIZB.jpg' >"  }                                  
+    if (state.model == "SA-003-Zigbee"){ state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/SA-003-Zigbee.jpg' >"}
+    if (state.model == "Lamp_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Lamp_01.jpg' >"}                             
+    if (state.model == "LXN59-1S7LX1.0"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/LXN59-1S7LX1.0.jpg' >"}
+ }
 
 // Logging block v4 10/24/2022
 //	
