@@ -1,9 +1,9 @@
 /** Zigbee Sonoff - generic relays
 driver for hubitat
 
-Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
-Generic zigbee relays/outlets...
-Lamp_01,SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0
+Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
+Generic zigbee relays
+Lamp_01, SA-003-Zigbee, 01MINIZB, BASICZBR3, LXN59-1S7LX1.0
 
 
 This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
@@ -17,6 +17,7 @@ NOTES:
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 ---------------------------------------------------------------------------------------------------------
+ 1.5.3 10/30/2022   More minor rewrites.
  1.5.1 10/29/2022   Rewrote on off detection / Model detection/ Poll routine
  1.4.1 10/29/2022   Timeout changed
  1.4.0 10/27/2022   Parsing changes
@@ -47,7 +48,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.5.1"
+    TheVersion="1.5.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -147,7 +148,7 @@ state.remove("flashing")
 
 def configure() {
 	// Runs on reboot paired or rejoined
-    logging("configure", "info")  
+     
     state.DataUpdate = false  
 	unschedule()
 	
@@ -155,7 +156,7 @@ def configure() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
-   
+    logging("Configure - Presence Check Every 10hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty} ", "info") 
 
 }
 
@@ -168,10 +169,6 @@ def updated() {
     getIcons()
 }
 
-void reportToDev(map) {
-	String[] receivedData = map.data
-	logging("New unknown Cluster Detected: clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command}, value:${map.value} data: ${receivedData}", "warn")
-}
 
 
 
@@ -179,10 +176,12 @@ void reportToDev(map) {
 void refresh(cmd) {
     if(state.DataUpdate){ logging("Refreshing MFR:${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
+delayBetween([
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),
+   ], 1000)    
 
-    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004))// mf
-    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005))// model
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))// on off state
     
     if(resendState){
       Test = device.currentValue("switch")  
@@ -310,9 +309,7 @@ def parse(String description) {
 
     if (descMap) {processMap(descMap)}
         else{
-        // we should never get here reportToDev is in processMap above
-            logging("Error ${description} ${descMap}", "debug") 
-
+            logging("Error ${description} ${descMap}", "error") 
         }
 	
 }
@@ -334,18 +331,20 @@ def processMap(Map map) {
       logging("ON/OFF report", "debug")
       if (status == "01"){onEvents()}
       if (status == "00"){offEvents()}
+     
 
 }else if (map.cluster == "0000" ) {
-        state.DataUpdate = true
         if (map.attrId== "0004" && map.attrInt ==4){
         logging("Manufacturer :${map.value}", "debug") 
-        state.MFR = map.value    
+        state.MFR = map.value 
         updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true                     
         } 
         if (map.attrId== "0005" && map.attrInt ==5){
         logging("Model :${map.value}", "debug")
         state.model = map.value    
         updateDataValue("model", state.model)
+        state.DataUpdate = true    
         }
        
         
@@ -360,40 +359,38 @@ def processMap(Map map) {
    }else if (map.cluster == "0013") {
         logging("Device Announcement Cluster ${map.data}", "warn")      
     
-	} else {
-		reportToDev(map)// unknown cluster
-	}
-	return null
+   }else {
+        logging("New unknown Cluster Detected: ${map}", "warn")
+    
+    }
+    
+
 }
+
+
 
 // prevents dupe events
 def onEvents(){
     alarmTest = device.currentValue("switch")
-    if(alarmTest != "on"){sendEvent(name: "switch", value: "on")}    
-    logging("is ON [digital] our state was:${alarmTest}", "info")
+    if (alarmTest != "on"){sendEvent(name: "switch", value: "on")}    
+    logging("is ON our state was:${alarmTest}", "info")
+
 }
 
 def offEvents(){
     alarmTest = device.currentValue("alarm")   
-    if(alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
+    if (alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
     alarmTest = device.currentValue("siren") 
-    if(alarmTest != "off"){sendEvent(name: "siren",  value: "off")} 
+    if (alarmTest != "off"){sendEvent(name: "siren",  value: "off")} 
     alarmTest = device.currentValue("strobe") 
-    if(alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
+    if (alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
     alarmTest = device.currentValue("switch")
-    if(alarmTest != "off"){sendEvent(name: "switch", value: "off")}
-    logging("is OFF [digital] our state was:${alarmTest}", "info")
+    if (alarmTest != "off"){sendEvent(name: "switch", value: "off")}
+    logging("is OFF our state was:${alarmTest}", "info")
+   
 }
     
-def press(cmd){
-logging("Button pressed", "info")    
-sendEvent(name: "pushed", value: 1, isStateChange: true)    
-}
 
-def Release(cmd){
-logging("Button released", "info")    
-sendEvent(name: "released", value: 1, isStateChange: true)    
-}
 
 void sendZigbeeCommands(List<String> cmds) {
     logging("${device} : sending:${cmds}", "trace")
