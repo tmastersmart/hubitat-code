@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v3.9  10/30/2022 Bug fix in presence routine
 v3.8  10/11/2022 Energy usage moved to debug from info
 v3.7  09/21/2022 Adjustments to ranging
 v3.6  09/19/2022 Rewrote logging routines. Block code changes copied from keypad code
@@ -68,7 +69,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="3.7.0"
+    TheVersion="3.9.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -306,8 +307,7 @@ def on() {
 
 
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
+    // New shorter presence routine. v2 10/22
     def checkMin  = 5  // 5 min warning
     def checkMin2 = 10 // 10 min [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
@@ -323,10 +323,6 @@ def checkPresence() {
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
     if (state.lastCheckInMin >= checkMin2) { 
         test = device.currentValue("presence")
         if (test != "not present"){
@@ -336,6 +332,10 @@ def checkPresence() {
         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
         runIn(60,refresh) 
         }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
 }
 
