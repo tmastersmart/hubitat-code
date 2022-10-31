@@ -22,7 +22,8 @@ added option to ignore tamper on broken cases.
 
 
 =================
-v3.0.5 10/16/2022 Reduced percission of bat voltage to reduce events .xxx to .xx
+v3.1.0 10/30/2022 Bug fix in presence routine. not sending warning before timeout
+v3.0.5 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
 v3.0.4 10/10/2022 Min voltage reset, Config delays changed
 v3.0.0 09/21/2022 Ranging adjustments
 v2.9   09/19/2022 Rewrote logging routines.
@@ -92,7 +93,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.0.5"
+    TheVersion="3.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -236,7 +237,7 @@ def configure() {
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
     
 	// upgrade to new min values
-	if (state.minVoltTest < 2.17 | state.minVoltTest > 2.3 ){ 
+	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.3 ){ 
 		state.minVoltTest= 2.30 
 		logging("${device} : Reset min voltage to ${state.minVoltTest}", "info")
 	}
@@ -321,8 +322,7 @@ def rangeAndRefresh() {
 
 
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
+    // New shorter presence routine. v2 10/22
     def checkMin  = 5  // 5 min warning
     def checkMin2 = 10 // 10 min [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
@@ -338,10 +338,6 @@ def checkPresence() {
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
     if (state.lastCheckInMin >= checkMin2) { 
         test = device.currentValue("presence")
         if (test != "not present"){
@@ -351,6 +347,10 @@ def checkPresence() {
         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
         runIn(60,refresh) 
         }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
 }
 
