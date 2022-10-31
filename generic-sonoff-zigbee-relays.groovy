@@ -17,6 +17,7 @@ NOTES:
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 ---------------------------------------------------------------------------------------------------------
+ 1.5.4 10/30/2022   Store last status human form. Polling Options added
  1.5.3 10/30/2022   More minor rewrites.
  1.5.1 10/29/2022   Rewrote on off detection / Model detection/ Poll routine
  1.4.1 10/29/2022   Timeout changed
@@ -48,7 +49,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.5.3"
+    TheVersion="1.5.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -100,40 +101,48 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
 	input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
-
+    input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
+//    input name: "timeOut" ,	    type: "enum", title: "Timeout in mins",description: "",options: ["40","80","100","200","250"], defaultValue: "100",required: true 
+    
 }
 
 
 def installed() {
 	// Runs after first pairing. this may never run internal drivers overide pairing.
 	logging("${device} : Paired!", "info")
+    state.DataUpdate = false 
+    initialize()
 }
 
 def uninstall() {
 	unschedule()
 	state.remove("presenceUpdated")    
 	state.remove("version")
-    logging("Uninstalled", "info")   
     state.remove("checkPhase")
     state.remove("lastCheckInMin")
     state.remove("logo")
     state.remove("bin")
     state.remove("DataUpdate")
     state.remove("lastCheckin")
+    state.remove("lastPoll")
+    state.remove("donate")
+    state.remove("model")
 
+    logging("Uninstalled", "info")  
 }
 
 def initialize() {
    logging("initialize", "info") 
     // This runs on reboot 
 	state.presenceUpdated = 0
+
 	// Remove disused state variables from earlier versions.
 state.remove("status")
 state.remove("comment")    
 state.remove("icon")
 state.remove("logo")
 state.remove("flashing")    
-
+state.remove("timeOut")
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
     configure()
@@ -148,16 +157,16 @@ state.remove("flashing")
 
 def configure() {
 	// Runs on reboot paired or rejoined
-     
-    state.DataUpdate = false  
 	unschedule()
-	
+	state.poll = pollHR
+    if (!state.poll){ state.poll= 10}
     // Schedule presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
-    logging("Configure - Presence Check Every 10hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty} ", "info") 
-
+	schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", checkPresence)	
+    logging("Configure - Presence Check Every ${state.poll}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+     
 }
 
 
@@ -248,36 +257,32 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
-    def checkMin  = 90  // warning
-    def checkMin2 = 100 // [not present] and 0 batt
+    // New shorter presence routine. v2 10-30-22
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 200// [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${timeOut}","debug")
     if (state.lastCheckInMin <= checkMin){ 
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-        logging("Creating presence event: ${value}","info")
+            logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
         test = device.currentValue("presence")
         if (test != "not present"){
         value = "not present"
         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        runIn(60,refresh) 
+        runIn(6,refresh)
         }
     }
+
 }
 
 def enrollResponse() {
