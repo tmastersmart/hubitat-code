@@ -11,12 +11,20 @@ White wire:  common
 Green wire:  doorbell 1  front
 Yellow wire: doorbell 2  rear
 
+
+If device keeps sending 0000 0006 pings switch to internal driver 
+and use config option then switch back.
+Help is needed do you know the command to send to stop the reporting above?
+
+
  Factory reset:
  Press and hold the RESET button until the red LED blinks.
 
 
-================================================================================ 
-v2.5.2  10/15/2022  changed presence check llog from debug to info
+================================================================================
+v2.6.0  10/30/2022  Presence Bug Fix Was not warning first
+v2.5.6  10/17/2022  bug fixes and cleanup
+v2.5.4  10/15/2022  Config changes
 v2.5.1  10/14/2022  Adjusted uninstall to remove some left overs
                     Changed sending zigbee routines and delays
 v2.5.0  09/28/2022  Debug logs not auto disabling/Bug on line 285
@@ -59,7 +67,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.5.2"
+    TheVersion="2.6.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -81,10 +89,11 @@ metadata {
         command "enrollResponse"
         command "uninstall"
 
- 	   
-        fingerprint endpointId: "12", inClusters: "0000,0003,0009,0001", outClusters: "0003,0006,0008,0019", model: "Bell", manufacturer: "Echostar"
+ 
+// temp disabled for force pair to internal driver first so it can send config         
+//        fingerprint endpointId: "12", inClusters: "0000,0003,0009,0001", outClusters: "0003,0006,0008,0019", model: "Bell", manufacturer: "Echostar"
     }
-//  fingerprint model:" Bell", manufacturer:" Echostar", profileId:"0104", endpointId:"12", inClusters:"0000,0003,0009,0001", outClusters:"0003,0006,0008,0019", application:"02"    
+
     preferences {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
@@ -154,14 +163,16 @@ def configure() {
        
             sendZigbeeCommands(["zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 1 {${device.zigbeeId}} {}"]),
             sendZigbeeCommands(["zcl global send-me-a-report 1 0x20 0x20 30 21600 {01}"]),		//checkin time 6 hrs
+
             sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
                                 
             sendZigbeeCommands(["zdo bind 0x${device.deviceNetworkId} ${endpointId} 1 0x402 {${device.zigbeeId}} {}"]),
             sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 21600 {6400}"]),   //checkin time 6 hrs
+
 //            sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 3600 {6400}"]),
             sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
                             
-   ], 300)
+   ], 1000)
 //  “send-me-a-report” cluster, attribute, data type, min report, max report,       
 runIn(8,refresh)     
 runIn(12,enrollResponse)    
@@ -169,27 +180,23 @@ runIn(12,enrollResponse)
 
 }
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
     def checkMin  = 1400 // 24 hrs warning
     def checkMin2 = 2800 // 48 hrs [not present] and 0 batt
+    // New shorter presence routine. v2 10/22
+//    def checkMin  = 5  // 5 min warning
+//    def checkMin2 = 10 // 10 min [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","info")
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
     if (state.lastCheckInMin <= checkMin){ 
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
         logging("${device} : Creating presence event: ${value}","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Estimated ${state.version}", isStateChange: true)    
         return    
         }
-    }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
     if (state.lastCheckInMin >= checkMin2) { 
         test = device.currentValue("presence")
@@ -197,9 +204,13 @@ def checkPresence() {
         value = "not present"
         logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Estimated 0 ${state.version}", isStateChange: true) 
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
         runIn(60,refresh) 
         }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
 }
 def parse(String description) {
@@ -210,7 +221,26 @@ def parse(String description) {
     logging("${device} : ${descMap}", "trace")
     logging("${device} : profileId:${descMap.profileId} clusterId:${descMap.clusterId} clusterInt:${descMap.clusterInt} sourceEndpoint${descMap.sourceEndpoint} destinationEndpoint${descMap.destinationEndpoint} options:${descMap.options} command:${descMap.command} data:${descMap.data}", "trace")
 //profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[25, 00, 00, 04, 01, 01, 19, 00, 00]    
-if (descMap.profileId == "0000" && descMap.clusterId == "0006" ){logging("${device} : Ping", "debug")}
+
+  
+    if (description?.startsWith('enroll request')) { 
+        enrollResponse()
+        return  
+    }  
+    
+    
+    if (descMap.profileId == "0000" && descMap.clusterId == "0006" ){
+    logging("${device} : device Pinging [0000 0006] ", "info")
+       delayBetween([
+            sendZigbeeCommands(["zcl global send-me-a-report 1 0x20 0x20 30 21600 {01}"]),		//checkin time 6 hrs
+            sendZigbeeCommands(["zcl global send-me-a-report 1 0x20 0x20 30 21600 {01}"]),		//checkin time 6 hrs 
+            sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 21600 {6400}"]),   //checkin time 6 hrs
+            sendZigbeeCommands(["zcl global send-me-a-report 0x402 0 0x29 30 21600 {6400}"]),   //checkin time 6 hrs
+            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),
+                            
+   ], 1600)
+
+}
 //profileId:0104 clusterId:0006 clusterInt:6 sourceEndpoint12 destinationEndpoint01 options:0040 command:00 data:[]    
 else  if (descMap.profileId == "0104" && descMap.clusterId == "0006" ){
             def buttonNumber = (descMap.command as int)
@@ -244,62 +274,34 @@ else if (descMap.cluster == "0000" && descMap.attrId == "0005") {
     updateDataValue("model", "DRBELL")
     updateDataValue("fcc", "DKN-401DM")
 }    
-// 0000 clusterId:8021 clusterInt:32801 options:0040 data:[32, 00]
-// raw:catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 3200    
-// Raw catchall: 0000 8021 00 00 0040 00 F7F6 00 00 0000 00 00 B500
+
 else if (descMap.profileId == "0000" && descMap.clusterId == "8021") {logging("${device} : Replying to cfg? clusterInt:${descMap.clusterInt} data:${descMap.data}", "debug")}
-else if (descMap.profileId == "0000" && descMap.clusterId == "8031") {logging("${device} : Link Quality Cluster Event ", "debug")}
-else if (descMap.profileId == "0000" && descMap.clusterId == "8032") {logging("${device} : Routing Table Cluster Event ", "debug")}
+else if (descMap.profileId == "0000" && descMap.clusterId == "8031") {logging("${device} : Link Quality Cluster Event  data:${descMap.data}", "debug")}
+else if (descMap.profileId == "0000" && descMap.clusterId == "8032") {logging("${device} : Routing Table Cluster Event  data:${descMap.data}", "debug")}
 else {logging("${device} : Unknown profileId:${descMap.profileId} clusterId:${descMap.clusterId} clusterInt:${descMap.clusterInt} sourceEndpoint${descMap.sourceEndpoint} destinationEndpoint${descMap.destinationEndpoint} options:${descMap.options} command:${descMap.command} data:${descMap.data}", "debug")    }
 
-    if (description?.startsWith('enroll request')) {
-    	List cmds = enrollResponse()
-        result = cmds?.collect { new hubitat.device.HubAction(it) }
-        logging("${device} : enroll request ${cmds} ${result}", "trace")
-        return result
-    }
     
 }
 
-def release(cmd){
-    if (cmd ==1){
-    logging("${device} : ${button1Name} Doorbell [button 1] released", "info")
-    sendEvent(name: "released", value: "1", isStateChange: true)
-    }
-    if (cmd ==2){
-    logging("${device} : ${button2Name} Doorbell [Button 2] released", "info")
-    sendEvent(name: "released", value: "2", isStateChange: true)
-    }
-} 
 
 def push(cmd){
-    
-    if (cmd ==1){
-    logging("${device} : ${button1Name} Doorbell [button 1] Pressed!", "info")
-    sendEvent(name: "pushed", value: "1", isStateChange: true)
-    pauseExecution(7000)
-    release(cmd)
-    }
-    if (cmd ==2){
-    logging("${device} : ${button2Name} Doorbell [Button 2] Pressed!", "info")
-    sendEvent(name: "pushed", value: "2", isStateChange: true)
-    pauseExecution(7000)
-    release(cmd)   
-    }
-    
- 
-    
+
+    if (cmd ==1){ Name = button1Name}
+    if (cmd ==2){ Name = button2Name}
+    logging("${device} : ${Name} Doorbell ${cmd} Pressed!", "info")
+    sendEvent(name: "pushed", value: cmd, isStateChange: true)
+
 }
 
 
 def refresh() {
     logging("${device} : Refresh", "info")
-    
+
     delayBetween([
-            sendZigbeeCommands(["he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20"]),
+            sendZigbeeCommands(["he rattr 0x${device.deviceNetworkId} 18 0x0001 0x20"]), // bat
             sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 04 00}"]),
             sendZigbeeCommands(["he raw 0x${device.deviceNetworkId} 1 0x12 0x0000 {10 00 00 05 00}"]),
-   ], 300)
+   ], 1000)
         
 }
 
@@ -314,7 +316,7 @@ def enrollResponse() {
             sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 ${endpointId}"]),
             sendZigbeeCommands(["raw 0x500 {01 23 00 00 00}"]),// enrole res
             sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),	
-   ], 300)
+   ], 1000)
     
 }
 
@@ -368,7 +370,7 @@ void loggingUpdate() {
     if (debugLogging){runIn(3600,debugLogOff)}
     if (traceLogging){runIn(1800,traceLogOff)}
 }
-void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
