@@ -6,7 +6,7 @@
   "version": "1.3.0",
   "dateReleased": "2022-10-28",
   "category":"Control",
-  "tags":["Zwave","Buttons","Lights & Switches"],
+  "tags":["ZWave","Buttons","Lights & Switches"],
   "drivers": [
     {
       "name":"Zooz Zen27 Central Scene Dimmer",
