@@ -189,10 +189,11 @@
     {
   "name":"HTTP Presence Sensor with schedule",
 	    "category": "Control",
-      "tags": ["Monitoring","LAN","Misc. Devices","Presence & Location"],
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
-  "description": "Improved HTTP Presence sensor with adjustable chron schedule up to 59 mins. Extra delay prevents overloading enter Endpoint URL and polling time with info debug and trace logs"
-},
+ "tags":  ["Tools & Utilities","LAN","Misc. Devices","Monitoring","Presence & Location"  ],    
+ "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
+  "description": "Improved HTTP Presence sensor with  adjustable chron schedule. detects 404 file not found and 401 password, for IP cameras asking for a password"
+
+ },
 
  {
   "name":"Zooz Zen21 Central Scene Switch",
