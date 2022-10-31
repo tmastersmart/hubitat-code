@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.3.0 10/30/2020 Bug fix in presence not giving warning before timeout
 v2.2.5 10/26/2022 Reduced min voltage again to prevent -results
 v2.2.4 10/19/2022 force motion ON/OFF from driver page
 v2.2.3 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
@@ -67,7 +68,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.2.4"
+    TheVersion="2.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -280,8 +281,7 @@ def rangeAndRefresh() {
 
 
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
+    // New shorter presence routine. v2 10/22
     def checkMin  = 5  // 5 min warning
     def checkMin2 = 10 // 10 min [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
@@ -297,10 +297,6 @@ def checkPresence() {
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
     if (state.lastCheckInMin >= checkMin2) { 
         test = device.currentValue("presence")
         if (test != "not present"){
@@ -310,6 +306,10 @@ def checkPresence() {
         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
         runIn(60,refresh) 
         }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
 }
 
