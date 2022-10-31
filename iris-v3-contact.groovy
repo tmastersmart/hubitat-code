@@ -41,21 +41,31 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-	definition(name: "IrisV3 Contact Sensor IL06", namespace: "djdizzyd", author: "Bryan Copeland") {
-		capability "Battery"
-		capability "Configuration"
-		capability "Contact Sensor"
-		capability "Refresh"
-        capability "Temperature Measurement"
-		capability "Health Check"
-		capability "Sensor"
+definition (name: "Iris v3 Contact Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
 
-		fingerprint inClusters: "0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters: "0003,0019", manufacturer: "iMagic by GreatStar", model: "1116-S", deviceJoinName: "Iris V3 Contact Sensor"
-	}
-	preferences {
-        input name: "tempOffset", type: "number", title: "Temperature Offset", defaultValue: 0
-        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-        input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: true
+capability "Battery"
+capability "Configuration"
+capability "Contact Sensor"
+capability "Refresh"
+capability "Temperature Measurement"
+capability "Health Check"
+capability "Sensor"
+
+fingerprint manufacturer: "iMagic by GreatStar", model: "1116-S",  deviceJoinName: "Iris V3 Contact Sensor", inClusters: "0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters: "0003,0019"
+
+}
+preferences {
+		
+	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+    	
+    input name: "tempOffset",type:"enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8",
+    "-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",
+    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",
+    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",
+   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
+
     }
 }
 
@@ -187,3 +197,30 @@ def intTo8bitUnsignedHex(value) {
 def installed() {
 
 }
+
+// Logging block 
+
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){runIn(3600,debugLogOff)}
+    if (traceLogging){runIn(1800,traceLogOff)}
+}
+void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+void traceLogOff(){
+	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+	log.trace "${device} : Trace Logging : Automatically Disabled"
+}
+void debugLogOff(){
+	device.updateSetting("debugLogging",[value:"false",type:"bool"])
+	log.debug "${device} : Debug Logging : Automatically Disabled"
+}
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
+}
+
