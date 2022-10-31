@@ -3,6 +3,7 @@ Hubitat Driver
 CARE PRESENCE BEEP TONE FLASH
 =============================
 
+
 https://github.com/tmastersmart/hubitat-code
 Corrects mising options in built in driver. 
 This is the only driver that supports the care FOB the way it was orginaly designed to work.
@@ -21,6 +22,7 @@ to the free service on iris v2 after a few months.
 The Care Pendant would call for help notify you it had called and notify you help was coming.
 This drver duplicates the care service on Hubitat.
 =============================================================================================================
+v2.0 10/30/2022 New presence routine
 v1.9 09/21/2022 Adjust ranging code
 v1.8 09/19/2022 Rewrote logging routines.
 v1.7 09/16/2022 Routines copied from contact sensors. Updating iris blockcode
@@ -34,7 +36,7 @@ v1.1 10/22/2021 First release
 reset:
 HOLD down both buttons when inserting battery then press 3 or 4 times and it will start flashing to pair
 
-
+Pair all keypads before installing this driver or they will mispar as a fob
 
 https://github.com/tmastersmart/hubitat-code
 
@@ -50,7 +52,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 
 def clientVersion() {
-    TheVersion="1.9.0"
+    TheVersion="2.0.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -86,8 +88,8 @@ metadata {
         attribute "deviceModel", "string"
 		attribute "mode", "string"
         attribute "care","string"
-
-		fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:"00C0", manufacturer: "Iris/AlertMe", model:"Care Pendant Device", deviceJoinName: "Iris v1 Senior Care Pendant"
+// Pair all keypads before installing this driver 
+//		fingerprint profileId: "C216", endpointId:"02", inClusters:"00F0,00C0", outClusters:"00C0", manufacturer: "Iris/AlertMe", model:"Care Pendant Device", deviceJoinName: "Iris v1 Senior Care Pendant"
 		
 	}
 
@@ -161,9 +163,8 @@ updateDataValue("outClusters", "00C0")
     state.donate="<img src='data:image/png;base64,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'>"
 
 
-	state.presenceUpdated = 0
 	state.rangingPulses = 0
-
+    state.lastCheckin = now()
 	// Remove state variables from old versions.
     state.remove("operatingMode")
     state.remove("LQI")
@@ -197,9 +198,10 @@ def configure() {
     state.remove("LQI")
     state.remove("batteryOkay")
     state.remove("Config")
+    state.remove("presenceUpdated")
     
 	unschedule()
-
+    
 
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -326,55 +328,45 @@ def both(cmd){return}
 
 
 
-def updatePresence() {
-	long millisNow = new Date().time
-	state.presenceUpdated = millisNow
-}
-
-
 
 
 def checkPresence() {
-	// Check how long ago the presence state was updated.
-	// AlertMe devices check in with some sort of report at least every 2 minutes (every minute for outlets).
-	// It would be suspicious if nothing was received after 4 minutes, but this check runs every 6 minutes
-	// by default (every minute for key fobs) so we don't exaggerate a wayward transmission or two.
-	presenceTimeoutMinutes = 2 
-    uptimeAllowanceMinutes = 5
-    LastPresence = device.currentValue("presence")// only change state one time..
-	if (state.presenceUpdated > 0 ) {
-		long millisNow = new Date().time
-		long millisElapsed = millisNow - state.presenceUpdated
-		long presenceTimeoutMillis = presenceTimeoutMinutes * 60000
-		BigInteger secondsElapsed = BigDecimal.valueOf(millisElapsed / 1000)
-		BigInteger hubUptime = location.hub.uptime
-		if (millisElapsed > presenceTimeoutMillis) {
-			if (hubUptime > uptimeAllowanceMinutes * 60) {
-                if (LastPresence != "not present"){
-				sendEvent(name: "presence", value: "not present")
-                logging("${device} : Presence: not present", "warn")    
-                }    
-				logging("${device} : Presence: Not Present! Last report received ${secondsElapsed} seconds ago.", "debug")
-                powerLast = device.currentValue("battery")
-                if (powerLast != 0){ // this does not work well yet
-                    sendEvent(name: "battery", value:0, unit: "%")
-                    logging("${device} : Battery set to 0%", "warn")
-                }
-		} else {logging("${device} : Presence: Ignoring overdue presence reports for ${uptimeAllowanceMinutes} minutes. The hub was rebooted ${hubUptime} seconds ago.", "info")}
-        }else {
-            if (LastPresence != "present"){
-			 sendEvent(name: "presence", value: "present")
-			 logging("${device} : Presence: present", "info")
-            }
-            logging("${device} : Presence: Last presence report ${secondsElapsed} seconds ago.", "debug")   
-		}
-	} else {logging("${device} : Presence: Not yet received. ", "warn")}
+    // New shorter presence routine. v2 10/22
+    def checkMin  = 5  // 5 min warning
+    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+        logging("${device} : Creating presence event: ${value}","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin2) { 
+        test = device.currentValue("presence")
+        if (test != "not present"){
+        value = "not present"
+        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
+        runIn(60,refresh) 
+        }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
+    }
 }
 
 def parse(String description) {
 	logging("${device} : Parse : ${description}", "trace")
-
-	updatePresence()// this updates the timmer not the state
+    state.lastCheckin = now()
+    checkPresence()
     // Device contacts are zigbee cluster compatable
 //	if (description.startsWith("zone status")) {
 //		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
