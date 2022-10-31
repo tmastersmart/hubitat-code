@@ -7,7 +7,7 @@
   "version": "2.3.0",
   "dateReleased": "2022-09-25",
   "category":"Security",
-  "tags":  [   "Tools & Utilities"   ],
+  "tags":  [   "Tools & Utilities","LAN","Misc. Devices","Monitoring","Presence & Location"  ],
   "drivers": [
     {
       "name":"HTTP Presence Sensor with schedule",
