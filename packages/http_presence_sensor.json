@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins 404 and 401 added",
+  "releaseNotes": "404 and 401 added",
   "version": "2.3.0",
   "dateReleased": "2022-09-25",
   "category":"Security",
@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy",
       "required": "true",
-      "description": "Improved HTTP Presence sensor with  adjustable chron schedule up to 59 mins",
+      "description": "Improved HTTP Presence sensor with  adjustable chron schedule. detects 404 file not found and 401 password, for IP cameras asking for a password",
       "id": "22096152-3a39-11ed-a261-0242ac120002"
     }
     ]
