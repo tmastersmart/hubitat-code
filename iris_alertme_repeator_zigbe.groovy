@@ -5,6 +5,7 @@ https://fcc.report/FCC-ID/WJHRP11/
 
 
 ===========================================================================================
+v1.9    10/30/2022 Bug fix in presence
 v1.8    09/21/2022 Adjustments to ranging
 v1.7    09/19/2022 Rewrote logging routines. Block code changes copied from keypad code
                    Rewrote presence and ranging routines.
@@ -61,7 +62,7 @@ https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108e
  * author: "Andrew Davison", 
  */
 def clientVersion() {
-    TheVersion="1.8.0"
+    TheVersion="1.9.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -265,8 +266,7 @@ def rangeAndRefresh() {
 
 
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
+    // New shorter presence routine. v2 10/22
     def checkMin  = 5  // 5 min warning
     def checkMin2 = 10 // 10 min [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
@@ -282,10 +282,6 @@ def checkPresence() {
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
     if (state.lastCheckInMin >= checkMin2) { 
         test = device.currentValue("presence")
         if (test != "not present"){
@@ -295,6 +291,10 @@ def checkPresence() {
         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
         runIn(60,refresh) 
         }
+    } 
+    if (state.lastCheckInMin >= checkMin){ 
+      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
+      runIn(60,refresh)// Ping Perhaps we can wake it up...
     }
 }
 
