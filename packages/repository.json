@@ -194,6 +194,14 @@
   "description": "Improved HTTP Presence sensor with  adjustable chron schedule. detects 404 file not found and 401 password, for IP cameras asking for a password"
 
  },
+	  
+   {
+  "name":"Iris v2 Contact Sensor",
+"category":  "Security",
+"tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-contact.json",
+  "description": "Iris v2 Contact Sensor With presence "
+   },	  
 
  {
   "name":"Zooz Zen21 Central Scene Switch",
