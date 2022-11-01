@@ -1,5 +1,5 @@
-/* Iris v3 contact sensor
-Iris v3 contact sensor for hubitat
+/* Iris v2 contact sensor
+Iris v2 contact sensor for hubitat
 iMagic by GreatStar  model: 1116-S
 
 FCC ID:2AM121L06 model iL06_1
@@ -41,7 +41,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-definition (name: "Iris v3 Contact Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v3-contact.groovy") {
+definition (name: "Iris v2 Contact Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-contact.groovy") {
 
     capability "Health Check"
    
