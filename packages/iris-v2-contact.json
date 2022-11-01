@@ -12,7 +12,7 @@
     {
       "name": "Iris v2 Contact Sensor-custom",
       "namespace": "tmastersmart",
-      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v3-contact.groovy",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-contact.groovy",
       "required": "true",
       "description": "Iris v2 contact sensor with presence. ",
       "id": "4b17450a-4dab-4075-b8c6-13afdda23597"
