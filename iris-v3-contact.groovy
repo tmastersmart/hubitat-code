@@ -41,7 +41,7 @@ import hubitat.zigbee.clusters.iaszone.ZoneStatus
 
 metadata {
 
-definition (name: "Iris v3 Contact Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Iris v3 Contact Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v3-contact.groovy") {
 
     capability "Health Check"
    
