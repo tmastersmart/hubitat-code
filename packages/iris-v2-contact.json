@@ -6,8 +6,8 @@
   "releaseNotes": "",
   "version": "1.2.0",
   "dateReleased": "2022-22-09",
-  "category":"Doors & Windows",
-  "tags":  [ "Alarm Systems", "Doors & Windows","Zigbee"],
+  "category":  "Doors & Windows",
+  "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
   "drivers": [
     {
       "name": "Iris v2 Contact Sensor-custom",
