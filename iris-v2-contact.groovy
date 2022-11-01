@@ -60,7 +60,7 @@ command "checkPresence"
     
 attribute "batteryVoltage", "string"
     
-fingerprint model: "1116-S",manufacturer: "iMagic by GreatStar", deviceJoinName: "Iris V3 Contact Sensor", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters:"0003,0019", application:"00"
+fingerprint model: "1116-S",manufacturer: "iMagic by GreatStar", deviceJoinName: "Iris V2 Contact Sensor", profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters:"0003,0019", application:"00"
     
 }
 preferences {
