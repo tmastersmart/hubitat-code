@@ -195,13 +195,7 @@
 
  },
 	  
-   {
-  "name":"Iris v2 Contact Sensor",
-"category":  "Security",
-"tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-contact.json",
-  "description": "Iris v2 Contact Sensor With presence "
-   },	  
+	  
 
  {
   "name":"Zooz Zen21 Central Scene Switch",
