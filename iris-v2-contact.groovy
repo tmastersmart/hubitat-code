@@ -4,10 +4,17 @@ iMagic by GreatStar  model: 1116-S
 
 FCC ID:2AM121L06 model iL06_1
 
+this driver should be considered a beta test as in testing 2 of 6 sensors had problems
+1 had false open 1 had 10000 deg temp when it should have been - 1 
+More work is needed on why false open alarm and why neg numbers corrupted temp.
+
+No not use on production system................
+
+THIS driver is stalled on BETA while I do more work on it....Removed from HPM
 
 
-
-1.3.1    11/04/2021 Rewrites Second major release. All looks working
+1.4.0    11/04/2022 Bugs detected in  temp and contact. 2 of the 6 sensors had problems.
+1.3.0    11/04/2021 Rewrites Second major release.
 1.2.0    10/31/2021 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
@@ -31,7 +38,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.1"
+    TheVersion="1.4.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -69,7 +76,7 @@ fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0
 preferences {
 		
 	input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: true,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
    input name: "pingYes",type: "bool", title: "Enable schedule Ping", description: "", defaultValue: false,required: true
@@ -304,7 +311,7 @@ text= ""
 if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
         logging("Ignoring ${descMap.cluster} ${text}", "debug") 
 }else if (descMap.cluster == "0013") {
-        logging("Device Announcement (bat change?) ${descMap.data}", "warn")
+        logging("Responding to Enroll Request. Likely Battery Change ${descMap.data}", "warn")
         zigbee.enrollResponse()
         configure()
 
