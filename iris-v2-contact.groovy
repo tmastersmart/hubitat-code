@@ -4,15 +4,13 @@ iMagic by GreatStar  model: 1116-S
 
 FCC ID:2AM121L06 model iL06_1
 
-this driver should be considered a beta test as in testing 2 of 6 sensors had problems
-1 had false open 1 had 10000 deg temp when it should have been - 1 
-More work is needed on why false open alarm and why neg numbers corrupted temp.
-
-No not use on production system................
-
-THIS driver is stalled on BETA while I do more work on it....Removed from HPM
+this driver should be considered a beta test 
+Do not use on production system................
 
 
+
+1.5.1    11/04/2022 Temp code replaced with rewritten code now working.
+                    error checking added cluster 500 sending strange values
 1.4.0    11/04/2022 Bugs detected in  temp and contact. 2 of the 6 sensors had problems.
 1.3.0    11/04/2021 Rewrites Second major release.
 1.2.0    10/31/2021 First release
@@ -38,7 +36,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.4.0"
+    TheVersion="1.5.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -104,15 +102,17 @@ def initialize(){
 }
 
 
-def uninstall() {
-	unschedule()
-    
+def uninstall() {// need to clear everything before manual driver change. 
   delayBetween([
-	state.remove("presenceUpdated"),    
+    unschedule(),
+    state.icon = "",
+    state.donate = "",
+    state.remove("presenceUpdated"),    
 	state.remove("version"),
     state.remove("checkPhase"),
     state.remove("lastCheckInMin"),
-    state.remove("logo"),
+    state.remove("icon"),
+    state.remove("logo"),  
     state.remove("DataUpdate"),
     state.remove("lastCheckin"),
     state.remove("lastPoll"),
@@ -122,8 +122,8 @@ def uninstall() {
     state.remove("poll"),
     state.remove("ping"),
     state.remove("tempAdj"),
-    logging("Uninstalled", "info") , 
-    ], 900)  
+    logging("Uninstalled - States removed you may now switch drivers", "info") , 
+    ], 200)  
 }
 
 def updated(){
@@ -133,15 +133,17 @@ def updated(){
 }
 
 def refresh() {
-    if(state.DataUpdate){ logging("Refreshing MFR:${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    if(state.DataUpdate){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
 
     delayBetween([
+    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002)),// contact     
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
     sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0020)),// battery
     sendZigbeeCommands(zigbee.readAttribute(0x0402, 0x0000)),// temp
-    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002)),// contact 
+    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002)),// contact
+    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0003)),// contact     
    ], 900)  
     
 }
@@ -213,7 +215,7 @@ def parse(String description) {
      return  
     }  
     
-   	if (description.startsWith("zone status")) {
+   	if (description.startsWith("zone status")) {// iaszone.ZoneStatus
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
 		processStatus(zoneStatus)
         return
@@ -246,26 +248,33 @@ def parse(String description) {
 
         }
         
-    }  else if (descMap.cluster == "0402" ) {//?Temp null 2409 0
+    }  else if (descMap.cluster == "0402" ) {
          if (descMap.attrInt == 0) {
         tempLast = device.currentValue("temperature")
         if(!tempAdj){tempAdj = 0}  
         def rawValue = Integer.parseInt(descMap.value,16)
-        temperatureF = convertTemperatureIfNeeded((rawValue / 100), "C", 2)
-        Double temperatureF = Double.valueOf(temperatureF)    
-        temperatureU = temperatureF     
+        float temp = Integer.parseInt(descMap.value,16)/100   
+        temp = (temp > 100) ? (temp - 655.35) : temp    
+        temperatureC = temp.round(2)    
+        temp = (location.temperatureScale == "F") ? ((temp * 1.8) + 32) : temp    
+        temp = tempOffset ? (temp + tempOffset) : temp
+	    temp = temp.round(2)     
+        temperatureF = temp     
         Double correctNum = Double.valueOf(tempAdj) 
-        if (correctNum > 0 || correctNum < 0){ temperatureF = (temperatureF + correctNum)}
-           logging("Temp:${temperatureF}F Last:${tempLast}F adjust:${correctNum}F [Sensor:${temperatureU}F]  ", "debug")
+        if (correctNum > 0 || correctNum < 0){ 
+            temperatureF = (temp + correctNum)
+            temperatureF = temperatureF.round(2) 
+        }
+ //          logging("${descMap}", "warn")  
+           logging("Temp:${temperatureF}F Last:${tempLast}°${location.temperatureScale} adjust:${correctNum} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C] raw:${rawValue}", "debug")
         if (tempLast != temperatureF){     
-           logging("Temp:${temperatureF}F adjust:${correctNum}F [Sensor:${temperatureU}F]", "info")
-           sendEvent(name: "temperature", value: temperatureF, unit: "F")
+           logging("Temp:${temperatureF}F adjust:${correctNum}°${location.temperatureScale} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C]", "info")
+           sendEvent(name: "temperature", value: temperatureF, unit: location.temperatureScale)
          }  
         return     
 		}
         
-      
-        
+
         
 }else if (descMap.cluster == "0000" ) {
         if (descMap.attrId== "0004" && descMap.attrInt ==4){
@@ -289,10 +298,20 @@ def parse(String description) {
 }else if (descMap.cluster == "0500"){
 
         if (descMap.attrId == "0002" ) {
-         value = Integer.parseInt(descMap.value, 16)
-            if(value== 0){contactClosed()}
-            else {contactOpen()}
-            return
+         value = Integer.parseInt(descMap.value, 16)// non iaszone.ZoneStatus report
+            if(value== 0){
+                logging("Contact event cluster:5000 value:${value} CLOSED", "debug")
+                contactClosed()
+                return
+            }
+            else if(value== 1){
+                logging("Contact event cluster:5000 value:${value} OPEN", "debug")
+                contactOpen()
+                return
+            }
+            // events seen from some sensors  37=1 36=0 ignoring them for now because not sure
+            else {logging("ERROR: ignoring event cluster:5000 not a 1/0 Contact event. Unknown value:${value}", "debug")}
+            
       } else if (descMap.commandInt == "07") {
                     if (descMap.data[0] == "00") {
                         logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
@@ -301,7 +320,7 @@ def parse(String description) {
                     } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
                 return
                 }   
-
+if (descMap.value){text ="cluster:${descMap.cluster} command:${descMap.command} options:${descMap.options} value:${descMap.value}" }
    
         
         
@@ -327,6 +346,7 @@ if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.comm
 
 void contactOpen(){
     test = device.currentValue("contact")
+    logging("Contact: Open our state was:${test}", "debug")
     if (test != "open"){
         sendEvent(name: "contact", value: "open")
         logging("Contact: Open our state was:${test}", "info")
@@ -335,9 +355,10 @@ void contactOpen(){
 
 void contactClosed(){
     test = device.currentValue("contact")
+    logging("Contact: Closed our state was:${test}", "debug")
     if (test != "closed"){
         sendEvent(name: "contact", value: "closed")
-        logging("Contact: closed our state was:${test}", "info")
+        logging("Contact: Closed our state was:${test}", "info")
     }
 }
 
@@ -358,7 +379,7 @@ def checkPresence() {
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins","trace")
     if (state.lastCheckInMin <= checkMin){ 
         test = device.currentValue("presence")
         if (test != "present"){
