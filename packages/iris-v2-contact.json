@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "FALSE alarms moved back to beta",
+  "releaseNotes": "Detection for 3320-L working diffrent than 1116-S",
   "version": "1.4.0",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-contact.groovy",
       "required": "true",
-      "description": "Iris v2 contact sensor with presence. BETA do not use on production systems false alarms may result",
+      "description": "Iris v2 contact sensor with presence. iMagic by GreatStar  model: 1116-S & CentraLite Model:3320-L",
       "id": "4b17450a-4dab-4075-b8c6-13afdda23597"
     }
     ]
