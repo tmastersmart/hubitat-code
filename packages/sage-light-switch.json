@@ -15,7 +15,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/sage_light_switch.groovy",
       "required": "true",
-        "description": "Sage light switch echostar",
+        "description": "Sage Light Switch driver. With presence and virtual switch,Button support and simulated battery value",
       "id": "d9e1896a-f2e2-483e-b542-d42c43d87998"
     }
     ]
