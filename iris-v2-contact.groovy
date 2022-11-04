@@ -1,14 +1,34 @@
 /* Iris v2 contact sensor
 Iris v2 contact sensor for hubitat
+
+iMagic by GreatStar  model: 1116-S/ CentraLite Model:3320-L
+
+
 iMagic by GreatStar  model: 1116-S
-
-FCC ID:2AM121L06 model iL06_1
-
-this driver should be considered a beta test 
-Do not use on production system................
-
+FCC ID:2AM121L06 model iL06_1 
+https://fccid.io/2AMI2IL06
+https://www.lowes.com/pd/Iris-Iris-Indoor-Door-And-Window-Sensor/999925302
+https://pdf.lowes.com/productdocuments/16980bd0-70b9-43b9-ba5b-068f24729eef/05380669.pdf
 
 
+CentraLite Model:3320-L
+http://pdf.lowes.com/useandcareguides/812489023025_use.pdf
+FCC ID: T3L-SS011
+
+
+To Reset device:
+Remove battery. Insert a paper clip into the reset hole on the side of the device. While
+holding down the reset button, reinsert battery. LED will stay RED release reset LED will
+Flash GREEN 3 times then enter pairing mode flashing BLUE. When paired it will flash GREEN 3 times.
+
+If any problems remove device from Hubitat then Reset device. 
+
+To go back to internal drivers without removing use uninstall then change drivers.
+
+
+===================================================================================================
+
+1.6.0    11/04/2022 Production release. Looks to all be working, CentraLite Model:3320-L added
 1.5.1    11/04/2022 Temp code replaced with rewritten code now working.
                     error checking added cluster 500 sending strange values
 1.4.0    11/04/2022 Bugs detected in  temp and contact. 2 of the 6 sensors had problems.
@@ -66,9 +86,9 @@ command "uninstall"
     
 attribute "batteryVoltage", "string"
     
-// Cant use auto install until I get config working right. Right now must pair with internal driver to configure. 
 fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters:"0003,0019", model:"1116-S", manufacturer:"iMagic by GreatStar"    
-    
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3320-L", manufacturer:"CentraLite"
+
     }
     
 preferences {
@@ -299,17 +319,17 @@ def parse(String description) {
 
         if (descMap.attrId == "0002" ) {
          value = Integer.parseInt(descMap.value, 16)// non iaszone.ZoneStatus report
-            if(value== 0){
-                logging("Contact event cluster:5000 value:${value} CLOSED", "debug")
+            if(value== 0 ||value == 36 ){
+                logging("${state.MFR} Contact event cluster:5000 value:${value} CLOSED", "debug")
                 contactClosed()
                 return
             }
-            else if(value== 1){
-                logging("Contact event cluster:5000 value:${value} OPEN", "debug")
+            else if(value== 1 ||value == 37 ){
+                logging("${state.MFR} Contact event cluster:5000 value:${value} OPEN", "debug")
                 contactOpen()
                 return
             }
-            // events seen from some sensors  37=1 36=0 ignoring them for now because not sure
+            // CentraLite Model:3320-L uses 37=1 36=0 iMagic uses 1/0
             else {logging("ERROR: ignoring event cluster:5000 not a 1/0 Contact event. Unknown value:${value}", "debug")}
             
       } else if (descMap.commandInt == "07") {
