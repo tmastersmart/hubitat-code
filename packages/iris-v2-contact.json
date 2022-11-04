@@ -3,8 +3,8 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
-  "releaseNotes": "Major rework. All code now orginal. New options added",
-  "version": "1.3.0",
+  "releaseNotes": "FALSE alarms moved back to beta",
+  "version": "1.4.0",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-contact.groovy",
       "required": "true",
-      "description": "Iris v2 contact sensor with presence. ",
+      "description": "Iris v2 contact sensor with presence. BETA do not use on production systems false alarms may result",
       "id": "4b17450a-4dab-4075-b8c6-13afdda23597"
     }
     ]
