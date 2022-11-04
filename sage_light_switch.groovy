@@ -64,7 +64,7 @@ def clientVersion() {
 
 
 metadata {
-    definition (name: "Sage light switch echostar", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+    definition (name: "Sage light switch echostar", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/sage_light_switch.groovy") {
 
 		capability "Configuration"
         capability "Pushable Button"
