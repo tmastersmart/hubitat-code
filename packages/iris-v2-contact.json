@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "Detection for 3320-L working diffrent than 1116-S",
-  "version": "1.4.0",
+  "version": "1.6.0",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
