@@ -1,0 +1,22 @@
+{
+  "packageName": "Sage light switch echostar",
+  "author": "TheMaster",
+  "releaseNotes":   "",
+  "gitHubUrl": "https://github.com/djdizzyd/hubitat/tree/master/Drivers/zooz",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "version": "2.7.0",
+  "dateReleased": "2022-10-28",
+  "category":"Control",
+  "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+  "drivers": [
+    {
+      "name":"Sage light switch echostar",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/sage_light_switch.groovy",
+      "required": "true",
+        "description": "Sage light switch echostar",
+      "id": ""
+    }
+    ]
+}
