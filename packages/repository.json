@@ -167,16 +167,22 @@
 	  {
 	"name":"sage doorbell echostar",  
 	"category": "Security",
-      "tags": [
-        "Buttons",
-	"Alarm Systems",      
-        "Safety & Security",
-	"Presence & Location",     
-        "Zigbee"
-      ],
+   "tags": [ "Buttons","Alarm Systems","Safety & Security","Presence & Location","Zigbee"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage_doorbell_echostar.json",
-   "description": "Doorbell driver created to stop false button presses. Detect dead bat with presence detection,  And support debug,trace logs."
+   "description": "Doorbell driver. Detect dead bat with presence detection,  And support debug,trace logs."
    },
+	  {
+	"name":"Sage light switch echostar",  
+  "category":"Control",
+  "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage-light-switch.json",
+   "description": "Sage Light Switch driver. With presence and virtual switch,Button support and simulated battery value"
+   },	  
+	  
+	  
+	  
+	  
+	  
 	  {
 	"name":"Zigbee Sonoff - generic relays",  
 	"category": "Control",
