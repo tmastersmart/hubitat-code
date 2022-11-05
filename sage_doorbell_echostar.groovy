@@ -294,11 +294,11 @@ def parse(String description) {
    logging("Ignoring ${descMap.cluster} ${text}", "debug") 
        
 }else if (descMap.cluster == "0013") {
-        logging("cluster:${descMap.cluster} Responding to Enroll Request. Likely Battery Change ${descMap.data}", "warn")
+        logging("cluster:${descMap.cluster} 0013 Responding to Enroll Request. Likely Battery Change", "info")
         zigbee.enrollResponse()
-        configure()
+
 }else if (descMap.cluster == "0006") {
-        logging("cluster:${descMap.cluster} Seen after a Enroll Request. Unknown", "debug")
+        logging("cluster:${descMap.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
         zigbee.enrollResponse()
         
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
