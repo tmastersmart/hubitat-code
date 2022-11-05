@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-contact.groovy",
       "required": "true",
-      "description": "Iris v2 contact sensor with presence. iMagic by GreatStar  model: 1116-S & CentraLite Model:3320-L",
+      "description": "Iris v2 contact sensor with presence. iMagic by GreatStar 1116-S & CentraLite 3320-L",
       "id": "4b17450a-4dab-4075-b8c6-13afdda23597"
     }
     ]
