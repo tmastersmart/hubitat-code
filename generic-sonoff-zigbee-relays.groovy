@@ -1,10 +1,10 @@
-/** Zigbee Sonoff - generic relays
+/** Zigbee Sonoff - generic Relays/Outlets
 driver for hubitat
 
 Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
 Generic zigbee relays
 Lamp_01, SA-003-Zigbee, 01MINIZB, BASICZBR3, LXN59-1S7LX1.0
-
+Sylvania Smart + LEDVANCE
 
 This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
 These relays all use the same formats but have diffrent problems with internal drivers.
@@ -13,10 +13,14 @@ Suports alarm,strobe,siren,refreash and presence.
 
 Send me your fingerprints so they can be added.
 
-NOTES:
+-----Warning --------
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
+
 ---------------------------------------------------------------------------------------------------------
+ 1.5.7 11/05/2022   SA-003-Zigbee images added. This Fingerprint can be a relay or a round outlet same ID 
+ 1.5.6 11/03/2022   Added ping. Added disable presence schedule
+ 1.5.5 11/01/2022   Removed unschedule. Rewrites
  1.5.4 10/30/2022   Store last status human form. Polling Options added
  1.5.3 10/30/2022   More minor rewrites.
  1.5.1 10/29/2022   Rewrote on off detection / Model detection/ Poll routine
@@ -49,7 +53,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.5.4"
+    TheVersion="1.5.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -60,8 +64,9 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "Zigbee - Sonoff - generic relays", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
+	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
 
+        capability "Health Check"
 		capability "Actuator"
 		capability "Configuration"
 		capability "EnergyMeter"
@@ -72,12 +77,8 @@ metadata {
 		capability "Switch" 
         capability "Alarm"
 
-
-
-        command "unschedule" 
         command "uninstall"
         command "checkPresence"
-
 
 		attribute "strobe", "string"
 		attribute "siren", "string"
@@ -87,9 +88,14 @@ metadata {
         fingerprint model:"SA-003-Zigbee", manufacturer:"eWeLink",         deviceJoinName:"eWeLink Relay",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
         fingerprint model:"Lamp_01",       manufacturer:"SZ",              deviceJoinName:"Generic Relay",         profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
         fingerprint model:"LXN59-1S7LX1.0",manufacturer:"3A Smart Home DE",deviceJoinName:"Inline Switch",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"", application:"01"
+        fingerprint model:"PLUG",          manufacturer:"LEDVANCE"        ,deviceJoinName:"Sylvania Smart +",      profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B05,FC01,FC08", outClusters:"0003,0019" 
+        
+// 2 devices share the same fingerprint "SA-003-Zigbee""eWeLink" one a relay one a round outlet
+    
     }
 
 }
+// If the above fingerprint doesnt work please send me yours. You can get it using internal GENERIC DEVICE driver Just press info
 
 
 //https://zigbee.blakadder.com/Zemismart_ZW-EU-01.html
@@ -101,9 +107,8 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
 	input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
-    input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
-//    input name: "timeOut" ,	    type: "enum", title: "Timeout in mins",description: "",options: ["40","80","100","200","250"], defaultValue: "100",required: true 
-    
+    input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. 0=disable Press config after saving",options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
+   
 }
 
 
@@ -127,6 +132,7 @@ def uninstall() {
     state.remove("lastPoll")
     state.remove("donate")
     state.remove("model")
+    state.remove("MFD")
 
     logging("Uninstalled", "info")  
 }
@@ -143,6 +149,8 @@ state.remove("icon")
 state.remove("logo")
 state.remove("flashing")    
 state.remove("timeOut")
+state.remove("bin")
+state.remove("checkPhase")    
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")
     configure()
@@ -156,17 +164,26 @@ state.remove("timeOut")
 
 
 def configure() {
+    logging("Config", "info") 
 	// Runs on reboot paired or rejoined
 	unschedule()
-	state.poll = pollHR
-    if (!state.poll){ state.poll= 10}
-    // Schedule presence in hrs
+    
+    
+ 
+
+    if (!pollHR){ pollHR= 8}
+    state.poll = pollHR
+    if (state.poll != 0){ 
 	randomSixty = Math.abs(new Random().nextInt() % 60)
-    randomSixty2 = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)    
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", checkPresence)	
-    logging("Configure - Presence Check Every ${state.poll}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
-     
+    logging("CHRON: ${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", "debug") 
+    schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", checkPresence)	
+    logging("Presence Check Every ${state.poll}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+    }     
+    
+    
+    
 }
 
 
@@ -174,7 +191,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
 	loggingUpdate()
-    refresh() 
+    ping() 
     getIcons()
 }
 
@@ -183,12 +200,13 @@ def updated() {
 
 
 void refresh(cmd) {
-    if(state.DataUpdate){ logging("Refreshing MFR:${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    if(state.DataUpdate){ logging("Refreshing ${state.MFR} ${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
 delayBetween([
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
    ], 1000)    
 
     
@@ -199,31 +217,45 @@ delayBetween([
     }
 }
 
-
+def ping() {
+    logging("Ping ", "info")
+        delayBetween([
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch      
+   ], 900) 
+    
+    if(resendState){
+      Test = device.currentValue("switch")  
+      if (Test =="on"){runIn(4,on)}
+      else {runIn(4,off)} 
+    }
+    
+}
 
 
 
 
 def alarm(cmd){
     logging("Alarm ON", "info")
-    sendEvent(name: "alarm", value: "on")
+    sendEvent(name: "alarm", value: "on",isStateChange: true)
   on()
 }
                    
 def siren(cmd){
     logging("siren ON", "info")
-    sendEvent(name: "siren", value: "on")
+    sendEvent(name: "siren", value: "on",isStateChange: true)
   on()
 }
 def strobe(cmd){
     logging("strobe ON", "info")
-    sendEvent(name: "strobe", value: "on")
+    sendEvent(name: "strobe", value: "on",isStateChange: true)
   on()
 }
 def both(cmd){
     logging("both ON", "info")
-    sendEvent(name: "siren", value: "on")
-    sendEvent(name: "strobe", value: "on")
+    sendEvent(name: "siren", value: "on",isStateChange: true)
+    sendEvent(name: "strobe", value: "on",isStateChange: true)
   on()
 }
 
@@ -257,7 +289,7 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // New shorter presence routine. v2 10-30-22
+    // New shorter presence routine. v3 10-30-22
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     def checkMin = 200// [not present] and 0 batt
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
@@ -279,53 +311,29 @@ def checkPresence() {
         value = "not present"
         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        runIn(6,refresh)
+        runIn(6,ping)
         }
     }
 
 }
 
-def enrollResponse() {
-    logging("Sending enroll response", "info")
-	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
-   
-    delayBetween([
-            sendZigbeeCommands(["zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}"]),// send CIE
-            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 ${endpointId}"]),
-            sendZigbeeCommands(["raw 0x500 {01 23 00 00 00}"]),// enrole res
-            sendZigbeeCommands(["send 0x${device.deviceNetworkId} 1 1"]),	
-   ], 1000)
-    
-}
+
 
 def parse(String description) {
     state.lastCheckin = now()
     checkPresence()
     logging("Raw: [${description}]", "trace")
-    Map descMap = zigbee.parseDescriptionAsMap(description) 
-    logging("${descMap}", "debug")
+
 
     if (description?.startsWith('enroll request')) { 
-        enrollResponse()
+        zigbee.enrollResponse() 
         return  
     }  
     
 
+    Map map = zigbee.parseDescriptionAsMap(description) 
+    logging("map: ${map}", "trace")
 
-    if (descMap) {processMap(descMap)}
-        else{
-            logging("Error ${description} ${descMap}", "error") 
-        }
-	
-}
-
-
-
-
-
-//profileId:0104, clusterId:0006, clusterInt:6, sourceEndpoint:01, destinationEndpoint:01, options:0040, messageType:00, dni:697F, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:0B, direction:01, data:[00, 00]]
-def processMap(Map map) {
-	String[] receivedData = map.data
 
     // fix parse Geting 2 formats so merge them
     if (map.clusterId) {map.cluster = map.clusterId} 
@@ -339,6 +347,10 @@ def processMap(Map map) {
      
 
 }else if (map.cluster == "0000" ) {
+        if (map.attrId== "0001" ){
+        logging("Application ID :${map.value}", "debug")
+        // should be 0x0104=Home Automation 
+        } 
         if (map.attrId== "0004" && map.attrInt ==4){
         logging("Manufacturer :${map.value}", "debug") 
         state.MFR = map.value 
@@ -352,47 +364,52 @@ def processMap(Map map) {
         state.DataUpdate = true    
         }
        
+ 
+}else if (map.cluster == "8001" || map.cluster == "8032" ||map.cluster == "8031" || map.cluster == "8021" ||map.cluster == "0500" || map.cluster == "0000" ||map.cluster == "0001" || map.cluster == "0402" || map.cluster == "8038" || map.cluster == "8005") {
+   text= "unknown"
+      if (map.cluster =="8001"){text="GENERAL"}
+ else if (map.cluster =="8021"){text="BIND RESPONSE"}
+ else if (map.cluster =="8031"){text="Link Quality"}
+ else if (map.cluster =="8032"){text="Routing Table"}
+ 
+   
+   if (map.data){text ="${text} clusterInt:${map.clusterInt} command:${map.command} options:${map.options} data:${map.data}" }
+   logging("Ignoring ${map.cluster} ${text}", "debug") 
+       
+}else if (map.cluster == "0013") {
+        logging("cluster:${map.cluster} 0013 Responding to Enroll Request.", "info")
+        zigbee.enrollResponse()
+
+}else if (map.cluster == "0006") {
+        logging("cluster:${map.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
+        zigbee.enrollResponse()
         
-//New unknown Cluster Detected: clusterId:8001, attrId:null, command:00, value:null data: [B6, 00, 37, EE, C8, 24, 00, 4B, 12, 00, 97, 36]        
-   }else if (map.cluster == "8001" ) { 
-        logging("General event :8001 ${map.data}", "debug") 
-        logging("Device may need CONFIG on internal drivers to stop this cluster", "debug") 
-   }else if (map.cluster == "8021") {
-        logging("Blind Cluster event :8021 ${map.data}", "debug")
-   }else if (map.cluster == "8038") {
-        logging("General Catchall :8038 ${map.data}", "debug")      
-   }else if (map.cluster == "0013") {
-        logging("Device Announcement Cluster ${map.data}", "warn")      
-    
-   }else {
-        logging("New unknown Cluster Detected: ${map}", "warn")
-    
-    }
-    
-
+ }  else{logging("New unknown Cluster${map.cluster} Detected: ${map}", "warn")}// report to dev
 }
 
-
-
-// prevents dupe events
+// prevent dupe events
 def onEvents(){
-    alarmTest = device.currentValue("switch")
-    if (alarmTest != "on"){sendEvent(name: "switch", value: "on")}    
-    logging("is ON our state was:${alarmTest}", "info")
-
+    Test = device.currentValue("switch")
+    if (Test != "on"){
+        logging("is ON our state was:${Test}", "info")
+        sendEvent(name: "switch", value: "on",isStateChange: true)
+    }
+    else {logging("is ON our state was:${Test}", "debug")}
 }
-
 def offEvents(){
     alarmTest = device.currentValue("alarm")   
-    if (alarmTest != "off"){sendEvent(name: "alarm",  value: "off")}
+    if (alarmTest != "off"){sendEvent(name: "alarm",  value: "off",isStateChange: true)}
     alarmTest = device.currentValue("siren") 
-    if (alarmTest != "off"){sendEvent(name: "siren",  value: "off")} 
+    if (alarmTest != "off"){sendEvent(name: "siren",  value: "off",isStateChange: true)} 
     alarmTest = device.currentValue("strobe") 
-    if (alarmTest != "off"){sendEvent(name: "strobe", value: "off")}
-    alarmTest = device.currentValue("switch")
-    if (alarmTest != "off"){sendEvent(name: "switch", value: "off")}
-    logging("is OFF our state was:${alarmTest}", "info")
-   
+    if (alarmTest != "off"){sendEvent(name: "strobe", value: "off",isStateChange: true)}
+
+    Test = device.currentValue("switch")
+    if (Test != "off"){
+        logging("is OFF our state was:${Test}", "info")
+        sendEvent(name: "switch", value: "off",isStateChange: true)
+    }
+    else {logging("is OFF our state was:${Test}", "debug")}
 }
     
 
@@ -440,9 +457,12 @@ void getIcons(){
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
     if (state.model == "BASICZBR3"){     state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/BASICZBR3.jpg' >"}
     if (state.model == "01MINIZB"){      state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/01MINIZB.jpg' >"  }                                  
-    if (state.model == "SA-003-Zigbee"){ state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Lamp_01.jpg' >"}
+    if (state.model == "SA-003-Zigbee"){ state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/SA-003-Zigbee.jpg' >"}
     if (state.model == "Lamp_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Lamp_01.jpg' >"}                             
     if (state.model == "LXN59-1S7LX1.0"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/LXN59-1S7LX1.0.jpg' >"}
+    if (state.model == "PLUG" && state.MFR =="LEDVANCE"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sylvania-smart-plus.jpg' >"}
+    
+
  }
 
 // Logging block v4 10/24/2022
