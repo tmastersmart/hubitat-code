@@ -178,18 +178,14 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage-light-switch.json",
    "description": "Sage Light Switch driver. With presence and virtual switch,Button support and simulated battery value"
    },	  
-	  
-	  
-	  
-	  
-	  
-	  {
-	"name":"Zigbee Sonoff - generic relays",  
-	"category": "Control",
+
+{
+"name":"Zigbee Sonoff - generic relays",  
+"category": "Control",
 "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
-   "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. Refreash and Presence"
-   },	  
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
+"description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. And generic outlets. Presence,Lamp_01,SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE"
+ },	  
 	  
 	
     {
