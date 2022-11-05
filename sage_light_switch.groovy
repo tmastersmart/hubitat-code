@@ -11,15 +11,15 @@ Adds battery support (simlated) if stops reporting bat goes to 0
 
 If device keeps sending 0000 0006 pings switch to internal driver 
 and use config option then switch back.
-Help is needed do you know the command to send to stop the reporting above?
+Help is needed do you know the command to stop the above?
 
 
  Factory reset:
- UNKNOWN has no reset button.
+ Hold down ON while inserting battery it will start flashing red
 
 
 ================================================================================
-
+v2.7.1  11/05/2022 added schedule options
 v2.7.0  11/04/2022 Imported Sage doorbell code and modified into a switch
 v2.6.0  10/30/2022  Presence Bug Fix Was not warning first
 
@@ -55,7 +55,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.7.0"
+    TheVersion="2.7.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -76,7 +76,7 @@ metadata {
 		capability "Switch"
         
         command "checkPresence"
-        command "enrollResponse"
+
         command "uninstall"
 
  
@@ -90,6 +90,9 @@ fingerprint model:" Switch", manufacturer:" Echostar", profileId:"0104", endpoin
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
+    input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
+    input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 15 ,required: true 
+    
    }
  } 
 def installed() {
@@ -124,18 +127,24 @@ def updated(){
 def configure() {
     state.remove("ignore01")
     state.remove("ignore00")
-    state.remove("waitForGetInfo")
-    state.remove("timeBetweenPresses")
+    state.remove("lastButton1Updated")
+    state.remove("lastButton2Updated")
  //   removeDataValue("softwareBuild")//00000009
  //   removeDataValue("firmwareMT")//1014-0002-00000009
 
+    getIcons()
     
     unschedule()
-    loggingUpdate()
-    // Schedule presence in hrs
+    
+    
+    if (pollYes){ 
 	randomSixty = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)    
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${12} * * ? *", checkPresence)	
+    logging("CHRON: ${randomSixty2} ${randomSixty} ${randomTwentyFour}/${pollHR} * * ? *", "debug") 
+    schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${pollHR} * * ? *", checkPresence)	
+    logging("Presence Check Every ${pollHR}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+    }
 
     buttons = device.currentValue("numberOfButtons")
     if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
@@ -184,6 +193,7 @@ def checkPresence() {
         value = "present"
         logging("Creating presence event: ${value}","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
         return    
         }
     }
@@ -234,10 +244,11 @@ def parse(String description) {
            
 
 
-}else if (descMap.cluster == "0001" && descMap.attrId == "0020") {//Power configuration
-        battery = Integer.parseInt(descMap.value, 16)
-        logging("Battery:${battery} FALSE data ignored", "debug")
-   
+//}else if (descMap.cluster == "0001" && descMap.attrId == "0020") {//Power configuration
+//        battery = Integer.parseInt(descMap.value, 16)
+//        logging("Battery: is TRUE", "info")
+//        logging("${descMap}", "warn")
+// device does not support battery cluster   
     
 }else if (descMap.cluster == "0000"){
     if( descMap.attrId == "0004") {
@@ -287,7 +298,7 @@ def push(cmd){
     if (cmd ==1){ Name = "on"}
     if (cmd ==2){ Name = "off"}
     logging("${Name} button ${cmd} Pressed!", "info")
-    sendEvent(name: "pushed", value: cmd, isStateChange: true)
+    sendEvent(name: "pushed", value: cmd, isStateChange: true,descriptionText:"${Name} button Pressed! ${state.version}")
 
 }
 
@@ -296,7 +307,7 @@ def on(){
     logging("Switch On our State:${Test}", "debug")
     if(Test != "on"){
      logging("Switch On", "info")
-     sendEvent(name: "switch", value: "on" , isStateChange: true)
+     sendEvent(name: "switch", value: "on" , isStateChange: true,descriptionText:"Virtual Switch ON ${state.version}")
     }    
 
 }
@@ -305,7 +316,7 @@ def off(){
     logging("Switch Off our State:${Test}", "debug")
     if(Test != "off"){
      logging("Switch Off", "info")
-     sendEvent(name: "switch", value: "off" , isStateChange: true)
+     sendEvent(name: "switch", value: "off" , isStateChange: true,descriptionText:"Virtual Switch OFF ${state.version}")
     }    
 
 }
@@ -385,3 +396,6 @@ private logging(String message, String level) {
     if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
 
+void getIcons(){
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+ }
