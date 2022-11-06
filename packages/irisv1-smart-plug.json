@@ -1,14 +1,14 @@
 {
   "packageName": "Iris v1 Smart Plug custom",
   "author": "TheMaster",
-  "releaseNotes":   "Presence fix",
+  "releaseNotes":   "minor updates, Human readable operating code,better uninstall,logo updates",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "3.9.0",
+  "version": "3.9.1",
   "dateReleased": "2022-09-03",
   "category":"Control",
-  "tags":["Misc. Devices"],
+  "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
   "drivers": [
     {
       "name":"Iris v1 Smart Plug custom",
