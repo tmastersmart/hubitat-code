@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.1.1 11/06/2022 Logos added
 v3.1.0 10/30/2022 Bug fix in presence routine. not sending warning before timeout
 v3.0.5 10/16/2022 Reduced precision of bat voltage to reduce events .xxx to .xx
 v3.0.4 10/10/2022 Min voltage reset, Config delays changed
@@ -93,7 +94,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.1.0"
+    TheVersion="3.1.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -175,31 +176,48 @@ def installed() {
 }
 
 def uninstall() {
-	unschedule()
-	state.remove("rangingPulses")
-	state.remove("operatingMode")
-	state.remove("batteryOkay")
-	state.remove("presenceUpdated")    
-	state.remove("version")
-	state.remove("battery")
-    state.remove("LQI")
-    state.remove("batteryOkay")
-    state.remove("Config")
-    state.remove("batteryState") 
-    state.remove("Config")
-    state.remove("lastCheckin")
-
-    
-removeDataValue("battery")
-removeDataValue("battertState")
-removeDataValue("batteryVoltage")
-removeDataValue("contact")
-removeDataValue("lqi")
-removeDataValue("operation")
-removeDataValue("presence")
-removeDataValue("tamper")    
-removeDataValue("temperature")
-logging("${device} : Uninstalled", "info")   
+ 
+  delayBetween([
+    unschedule(),
+    state.icon = "",
+    state.donate = "",
+    state.remove("presenceUpdated"),    
+	state.remove("version"),
+    state.remove("checkPhase"),
+    state.remove("lastCheckInMin"),
+    state.remove("icon"),
+    state.remove("logo"),  
+    state.remove("DataUpdate"),
+    state.remove("lastCheckin"),
+    state.remove("lastPoll"),
+    state.remove("donate"),
+    state.remove("model"),
+    state.remove("MFR"),
+    state.remove("poll"),
+    state.remove("ping"),
+    state.remove("tempAdj"),
+	state.remove("rangingPulses"),
+	state.remove("operatingMode"),
+	state.remove("batteryOkay"),
+	state.remove("battery"),
+    state.remove("LQI"),
+    state.remove("batteryOkay"),
+    state.remove("Config"),
+    state.remove("batteryState"), 
+removeDataValue("battery"),
+removeDataValue("battertState"),
+removeDataValue("batteryVoltage"),
+removeDataValue("contact"),
+removeDataValue("lqi"),
+removeDataValue("operation"),
+removeDataValue("presence"),
+removeDataValue("tamper")  ,  
+removeDataValue("temperature"),
+ logging("Uninstalled - States removed you may now switch drivers", "info") , 
+    ], 200)  
+      
+// Works better with a delay. Some were not getting removed      
+      
 }
 
 
@@ -249,7 +267,7 @@ def configure() {
     state.remove("batteryState") 
     state.remove("Config")
     state.remove("presenceUpdated")
-    
+    getIcons()
 	unschedule()
 
 
@@ -633,6 +651,13 @@ private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
 }
+
+
+void getIcons(){
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-v1-contact.jpg' >"
+
+ }
 
 // Logging block 
 //	device.updateSetting("infoLogging",[value:"true",type:"bool"])
