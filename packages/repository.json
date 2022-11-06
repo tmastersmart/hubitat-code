@@ -49,7 +49,7 @@
      {
   "name":"Iris v1 Smart Plug custom",
 	     "category": "Control",
-      "tags": ["Lights & Switches","Energy Monitoring", "Presence & Location", "Zigbee"],
+	"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
   "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
    },   
