@@ -295,7 +295,7 @@ def checkPresence() {
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${timeOut}","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin}","debug")
     if (state.lastCheckInMin <= checkMin){ 
         test = device.currentValue("presence")
         if (test != "present"){
