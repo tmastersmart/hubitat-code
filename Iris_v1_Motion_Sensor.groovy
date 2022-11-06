@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 Tested on Firmware [2012-09-20]
 ======================================================
+v2.3.1 11/06/2022 Logos added
 v2.3.0 10/30/2020 Bug fix in presence not giving warning before timeout
 v2.2.5 10/26/2022 Reduced min voltage again to prevent -results
 v2.2.4 10/19/2022 force motion ON/OFF from driver page
@@ -68,7 +69,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.3.0"
+    TheVersion="2.3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -141,30 +142,46 @@ def installed() {
 }
 
 def uninstall() {
-	unschedule()
-	state.remove("rangingPulses")
-	state.remove("operatingMode")
-	state.remove("batteryOkay")
-   
-	state.remove("version")
-	state.remove("battery")
-    state.remove("LQI")
-    state.remove("batteryOkay")
-    state.remove("Config")
-    state.remove("presenceUpdated")
-    state.remove("lastCheckin")
-
     
-removeDataValue("battery")
-removeDataValue("battertState")
-removeDataValue("batteryVoltage")
-removeDataValue("contact")
-removeDataValue("lqi")
-removeDataValue("operation")
-removeDataValue("presence")
-removeDataValue("tamper")    
-removeDataValue("temperature")
-logging("${device} : Uninstalled", "info")   
+  delayBetween([
+    unschedule(),
+    state.icon = "",
+    state.donate = "",
+    state.remove("presenceUpdated"),    
+	state.remove("version"),
+    state.remove("checkPhase"),
+    state.remove("lastCheckInMin"),
+    state.remove("icon"),
+    state.remove("logo"),  
+    state.remove("DataUpdate"),
+    state.remove("lastCheckin"),
+    state.remove("lastPoll"),
+    state.remove("donate"),
+    state.remove("model"),
+    state.remove("MFR"),
+    state.remove("poll"),
+    state.remove("ping"),
+    state.remove("tempAdj"),
+	state.remove("rangingPulses"),
+	state.remove("operatingMode"),
+	state.remove("batteryOkay"),
+	state.remove("battery"),
+    state.remove("LQI"),
+    state.remove("batteryOkay"),
+    state.remove("Config"),
+    state.remove("batteryState"), 
+removeDataValue("battery"),
+removeDataValue("battertState"),
+removeDataValue("batteryVoltage"),
+removeDataValue("contact"),
+removeDataValue("lqi"),
+removeDataValue("operation"),
+removeDataValue("presence"),
+removeDataValue("tamper")  ,  
+removeDataValue("temperature"),
+ logging("Uninstalled - States removed you may now switch drivers", "info") , 
+    ], 200)      
+ 
 }
 
 
@@ -204,6 +221,8 @@ def configure() {
     state.remove("LQI")
     state.remove("batteryOkay")
     state.remove("Config")
+    getIcons()
+    
 	unschedule()
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -571,6 +590,14 @@ private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
 }
+
+void getIcons(){
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-v1-motion.jpg' >"
+
+ }
+
+
 
 // Logging block 
 //	device.updateSetting("infoLogging",[value:"true",type:"bool"])
