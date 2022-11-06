@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v3.9.1 11/06/2022 Logos added. Bug fix on config delay. operating Mode human form
 v3.9  10/30/2022 Bug fix in presence routine
 v3.8  10/11/2022 Energy usage moved to debug from info
 v3.7  09/21/2022 Adjustments to ranging
@@ -69,7 +70,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="3.9.0"
+    TheVersion="3.9.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -131,30 +132,47 @@ def installed() {
 }
 
 def uninstall() {
-	unschedule()
-	state.remove("rangingPulses")
-	state.remove("operatingMode")
-	state.remove("batteryOkay")
-	state.remove("presenceUpdated")    
-	state.remove("version")
-	state.remove("battery")
-    state.remove("LQI")
-
-
     
-removeDataValue("battery")
-removeDataValue("battertState")
-removeDataValue("batteryVoltage")
-removeDataValue("batteryVoltageWithUnit")
-removeDataValue("batteryWithUnit")     
-removeDataValue("contact")
-removeDataValue("lqi")
-removeDataValue("operation")
-removeDataValue("presence")
-removeDataValue("tamper")    
-removeDataValue("temperature")
-removeDataValue("temperatureWithUnit")    
-logging("${device} : Uninstalled", "info")   
+  delayBetween([
+    unschedule(),
+    state.icon = "",
+    state.donate = "",
+    state.remove("presenceUpdated"),    
+	state.remove("version"),
+    state.remove("checkPhase"),
+    state.remove("lastCheckInMin"),
+    state.remove("icon"),
+    state.remove("logo"),  
+    state.remove("DataUpdate"),
+    state.remove("lastCheckin"),
+    state.remove("lastPoll"),
+    state.remove("donate"),
+    state.remove("model"),
+    state.remove("MFR"),
+    state.remove("poll"),
+    state.remove("ping"),
+    state.remove("tempAdj"),
+	state.remove("rangingPulses"),
+	state.remove("operatingMode"),
+    state.remove("operatingModeCode"),  
+	state.remove("batteryOkay"),
+	state.remove("battery"),
+    state.remove("LQI"),
+    state.remove("batteryOkay"),
+    state.remove("Config"),
+    state.remove("batteryState"), 
+removeDataValue("battery"),
+removeDataValue("battertState"),
+removeDataValue("batteryVoltage"),
+removeDataValue("contact"),
+removeDataValue("lqi"),
+removeDataValue("operation"),
+removeDataValue("presence"),
+removeDataValue("tamper")  ,  
+removeDataValue("temperature"),
+ logging("Uninstalled - States removed you may now switch drivers", "info") , 
+    ], 200)      
+
 }
 
 def initialize() {
@@ -163,12 +181,11 @@ def initialize() {
 	state.operatingMode = "normal"
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
-    state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-switch.jpg' >"
 
 	// Remove disused state variables from earlier versions.
 state.remove("powerWithUnit")
 state.remove("energyWithUnit")
-state.remove("icon")
+state.remove("logo")    
 state.remove("relayClosed")	
 state.remove("battery")
 state.remove("batteryVoltage")
@@ -194,7 +211,9 @@ state.remove("operation")
 
 def configure() {
 	// Runs on reboot paired or rejoined
-    state.DataUpdate = false  
+    state.DataUpdate = false
+    state.remove("operatingModeCode")
+    getIcons()
 	unschedule()
 
 	// Schedule randon ranging in hrs
@@ -208,18 +227,13 @@ def configure() {
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
 
    
-// Schedule presence check in mins
-//	int checkEveryMinutes = 20							
-//	randomSixty = Math.abs(new Random().nextInt() % 60)
-//	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", checkPresence)	
-    
-	// Run a ranging report and then switch to normal operating mode.
-    // Randomise so we dont get several running at the same time
-    random = Math.abs(new Random().nextInt() % 33500)
-    logging("${device} : configure pause:${random}", "info")
-    pauseExecution(random)
+
 	rangeAndRefresh()
-	runIn(10,normalMode)
+
+    
+    runIn(randomSixty,rangeAndRefresh)
+    logging("${device} : configure", "info")
+    
 }
 def updated() {
 	// Runs whenever preferences are saved.
@@ -269,6 +283,7 @@ def rangeAndRefresh() {
 	state.rangingPulses = 0
 	runIn(6, normalMode)
 }
+
 
 
                    
@@ -367,14 +382,15 @@ def processMap(Map map) {
     logging("${device} : State:${map.clusterId} :${map.command} :${map.data}", "debug")
 
        if (map.command == "80") { //State:00EE command:80 data:[07, 01] 
-       state.operatingModeCode  = receivedData[0]
+           
+       state.operatingMode = Integer.parseInt(receivedData[0],16)     
+       operatingModeCode   = receivedData[0]
                         onOff   = receivedData[1]
-
                         current = device.currentValue("switch")
                    currentSiren = device.currentValue("siren")
                   currentStrobe = device.currentValue("strobe")
 
-        if (onOff == "00" || state.operatingModeCode =="06" ) {
+        if (onOff == "00" || operatingModeCode =="06" ) {
   	     if (current == "on"){
            sendEvent(name: "switch", value: "off",descriptionText: "${state.uptime} V${state.version}")
            if (currentSiren  != "off"){sendEvent(name: "siren",  value: "off")}
@@ -382,7 +398,7 @@ def processMap(Map map) {
            logging("${device} : Switch : OFF ", "info")
 		   }  else {logging("${device} : Switch :OFF Our state:${current}", "info")}    
         }
-       if (onOff == "01" || state.operatingModeCode =="07") {
+       if (onOff == "01" || operatingModeCode =="07") {
 	       if (current != "on"){
                if(state.alarmcmd == 1){
                     sendEvent(name: "siren", value: "on")
@@ -407,14 +423,17 @@ def processMap(Map map) {
     // 0E power up in off 
     // 0F Power up in ON
     // 0D power up in ON 
-    // 06 and 07 are on off   
-    logging("${device} : Mode :${state.operatingModeCode} ", "trace")
+    // 06 and 07 are on off
+          
+    logging("${device} : Mode :${state.operatingMode} Hex:${operatingModeCode}", "trace")
    
-    if (state.operatingModeCode == "0D" || state.operatingModeCode == "0F"){
-           logging("${device} : Mode :${state.operatingModeCode} Powered up in ON mode", "debug")
+    if (operatingModeCode == "0D" || operatingModeCode == "0F"){
+           logging("${device} : Mode :${state.operatingMode} Powered up in ON mode", "debug")
+           state.operatingMode = state.operatingMode + " Powered up in ON mode" 
        }     
-    if (state.operatingModeCode == "0E"){
-        logging("${device} : Mode :${state.operatingModeCode} Powered up in OFF mode", "debug")
+    if (operatingModeCode == "0E"){
+        logging("${device} : Mode :${state.operatingMode} Powered up in OFF mode", "debug")
+        state.operatingMode = state.operatingMode + " Powered up in OFF mode" 
        }
      
        
@@ -618,6 +637,15 @@ private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
 }
+
+
+void getIcons(){
+    state.remove("logo")
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-v1-smartplug.jpg' >"
+//  state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-switch.jpg' >"
+
+ }
 
 // Logging block 
 //	device.updateSetting("infoLogging",[value:"true",type:"bool"])
