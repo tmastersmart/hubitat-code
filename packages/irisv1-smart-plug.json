@@ -8,7 +8,7 @@
   "version": "3.9.1",
   "dateReleased": "2022-09-03",
   "category":"Control",
-  "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+  "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"], 
   "drivers": [
     {
       "name":"Iris v1 Smart Plug custom",
