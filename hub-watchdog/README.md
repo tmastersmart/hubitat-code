@@ -1,4 +1,4 @@
-This is a archived project 
+This is a archived project. The orginal was deleted
 No instructions upload all files to the hub then run it.
 
 
@@ -8,7 +8,7 @@ If I later decide to work on updating and modifying it I will ad installer supor
 This is mainaly a place to store these files so If I uninstall them they wont get lost.
 
 
-====================================================================================================================
+===================================================================================
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
