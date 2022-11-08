@@ -58,7 +58,7 @@ definition (name: "Hub Watchdog Driver", namespace: "BPTWorld", author: "Bryan T
 
 metadata {
 	
-	definition (name: "Hub Watchdog Driver", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/hubitat-hub-watchdog.groovy") {
+	definition (name: "Hub Watchdog Driver", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
 	
 	
    		capability "Initialize"
