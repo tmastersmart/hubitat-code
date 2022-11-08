@@ -1,11 +1,12 @@
 /**hubitat-hub-watchdog
 
 Forked from orginal which is no longer online
-
+http://www.apache.org/licenses/LICENSE-2.0
 
 
 v 2.0.0  Rereleased and adjusted to new file location.
 
+==============================================================================================================================
 
 
  *  ****************  Hub Watchdog Driver  ****************
@@ -47,10 +48,19 @@ v 2.0.0  Rereleased and adjusted to new file location.
  *  1.1.0 - 05/01/20 - Removed some old code
  *  ---
  *  1.0.0 - 09/24/19 - Initial release
+ 
+ 
+ 
+definition (name: "Hub Watchdog Driver", namespace: "BPTWorld", author: "Bryan Turcotte", importUrl: "https://raw.githubusercontent.com/bptworld/Hubitat/master/Apps/Hub%20Watchdog/HW-driver.groovy") {
+
+ 
  */
 
 metadata {
-	definition (name: "Hub Watchdog Driver", namespace: "BPTWorld", author: "Bryan Turcotte", importUrl: "https://raw.githubusercontent.com/bptworld/Hubitat/master/Apps/Hub%20Watchdog/HW-driver.groovy") {
+	
+	definition (name: "Hub Watchdog Driver", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/hubitat-hub-watchdog.groovy") {
+	
+	
    		capability "Initialize"
 		capability "Actuator"
         capability "Switch"
