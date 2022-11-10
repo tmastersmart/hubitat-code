@@ -128,7 +128,7 @@
 "category":  "Security",
 "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-contact.json",
-  "description": "Iris v2 contact sensor with presence. iMagic by GreatStar 1116-S & CentraLite 3320-L"
+  "description": "Iris v2 contact sensor with presence. Automatic bad battery detection presence, iMagic by GreatStar 1116-S & CentraLite 3320-L"
    },	  
 
  {
