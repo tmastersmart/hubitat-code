@@ -9,11 +9,13 @@ FCC ID:2AM121L06 model iL06_1
 https://fccid.io/2AMI2IL06
 https://www.lowes.com/pd/Iris-Iris-Indoor-Door-And-Window-Sensor/999925302
 https://pdf.lowes.com/productdocuments/16980bd0-70b9-43b9-ba5b-068f24729eef/05380669.pdf
+https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_GreatStar_ContactSensor_2_10.driver
 
 
 CentraLite Model:3320-L
 http://pdf.lowes.com/useandcareguides/812489023025_use.pdf
 FCC ID: T3L-SS011
+https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_CentraLite_ContactSensor_2_3.driver
 
 
 To Reset device:
@@ -27,7 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-
+1.6.1    11/10/2022 Auto min bat voltage added. You must let it run down to 0 once for it to work.
 1.6.0    11/04/2022 Production release. Looks to all be working, CentraLite Model:3320-L added
 1.5.1    11/04/2022 Temp code replaced with rewritten code now working.
                     error checking added cluster 500 sending strange values
@@ -56,7 +58,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.5.1"
+    TheVersion="1.6.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -87,9 +89,13 @@ command "uninstall"
 attribute "batteryVoltage", "string"
     
 fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05,FC01,FC02", outClusters:"0003,0019", model:"1116-S", manufacturer:"iMagic by GreatStar"    
-fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3320-L", manufacturer:"CentraLite"
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3320-L", manufacturer:"CentraLite"// -L indicates sold by lowels
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3320", manufacturer:"CentraLite"
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3322", manufacturer:"CentraLite"
+ }
+    
 
-    }
+    
     
 preferences {
 		
@@ -127,6 +133,7 @@ def uninstall() {// need to clear everything before manual driver change.
     unschedule(),
     state.icon = "",
     state.donate = "",
+    state.remove("minVoltTest"), 
     state.remove("presenceUpdated"),    
 	state.remove("version"),
     state.remove("checkPhase"),
@@ -180,10 +187,13 @@ def ping() {
 
 def configure() {
     logging("Config", "info")
-   
 
-    
-    
+// Set up the min volts auto adj. 
+	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
+		state.minVoltTest= 2.45 
+		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
+	 }
+
     
   getIcons() 
   sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
@@ -221,7 +231,11 @@ def configure() {
     logging("PING every ${pingIt} mins  ", "info")   
     }
 }
-
+// IN Clusters
+//   0x0000     Basic
+//   0x0001     Power Configuration
+//   0x0003     Identify
+//   0x0B05     Diagnostics
 
 
 
@@ -252,10 +266,15 @@ def parse(String description) {
            powerLast = device.currentValue("battery")
            def rawValue = Integer.parseInt(descMap.value,16) 
            def batteryVoltage = rawValue / 10
+   
+          if (batteryVoltage < state.minVoltTest){
+             state.minVoltTest = batteryVoltage
+             logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
+          } 
+        
            if (!(rawValue == 0 || rawValue == 255)) {
-           def minVolts = 2
-           def maxVolts = 2.9  // on my sensor 3v =2.9
-           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
+           def maxVolts = 2.9 // fixes false reading 
+           def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
