@@ -4,9 +4,6 @@ Forked from orginal which is no longer online
 http://www.apache.org/licenses/LICENSE-2.0
 
 
-v 2.0.0  Rereleased and adjusted to new file location.
-
-==============================================================================================================================
 
 
  *  ****************  Hub Watchdog Driver  ****************
