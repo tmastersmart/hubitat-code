@@ -37,7 +37,12 @@ As only changes are recorded. Im also hoping for better reliabilaty and less dro
 To reset hold button for 5 seconds and led will flash.
 
 
+
+
 ====================================================================================================
+v1.7  11/11/2022 Schedule added to recover from sleep
+v1.6  09/19/2022 Logging code changed
+v1.5  09/09/2022 auto adjust min battery level
 v1.4  09/01/2022 Log cleanups. Renamed V2
 v1.3  08/31/2022 Minor changes
 v1.2  08/30/2022 Refresh added
@@ -71,7 +76,7 @@ https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetype
  *
  */
 def clientVersion() {
-    TheVersion="1.4"
+    TheVersion="1.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -93,11 +98,11 @@ metadata {
 		capability "Battery"
         capability "Configuration"
         capability "Chime"
-//        capability "Health Check"
+        capability "Health Check"
 
         attribute "batteryVoltage", "string"
 
-        command "stopTimer"
+//        command "stopTimer"
         
         
 
@@ -113,55 +118,68 @@ metadata {
 }
 preferences {
 	
-	input name: "infoLogging", type: "bool", title: "Enable logging", defaultValue: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", defaultValue: false
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", defaultValue: false
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+    
 	input("Interval",  "number", title: "Presence Timeout", description: "Time in mins driver sets not present",defaultValue: 15,required: true)
 
 }
 
 def installed(){
-logging("${device} : Paired!", "info")
+logging("Paired!", "info")
 configure()
   
 }
 
 def configure() {
-    logging("${device} : Configure Driver v${state.version}", "info")
-	device.updateSetting("infoLogging",[value:"true",type:"bool"])
-	device.updateSetting("debugLogging",[value:"false",type:"bool"])
-	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+    logging("Configure Driver v${state.version}", "info")
+
+    getIcons()
+
     updated() 
 }
 
 def updated() {
     clientVersion()
-    loggingStatus()
-	runIn(3600,debugLogOff)
-	runIn(3500,traceLogOff)
+    loggingUpdate()
 }
 
 def stop(){
-logging("${device} : Stop Ignored ", "info")
+logging("Stop Ignored ", "info")
 }
 
 def beep() {
-    logging("${device} : Beep for 5 seconds ", "info")
+    logging("Beep for 5 seconds ", "info")
     return zigbee.command(0x0003, 0x00, "0500")
 }
 
 def playSound(cmd){
     if(cmd <2){return}
-    logging("${device} : Chime for ${cmd} seconds ", "info")
+    logging("Chime for ${cmd} seconds ", "info")
     cmd = cmd * 100
     return zigbee.command(0x0003, 0x00, "${cmd}")
     
 }    
 def refresh() {
-    def cmds =
-        zigbee.readAttribute(0x001, 0x0020) //Battery percentage
-    logging("${device} : refresh ", "info")
-    return cmds
+    
+ delayBetween([
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
+    sendZigbeeCommands(zigbee.readAttribute(0x001, 0x0020)),//Battery percentage
+   ], 1000)      
+    logging("refresh ", "info")
+}
+
+def ping() {
+    logging("Ping", "info")
+    sendZigbeeCommands(zigbee.readAttribute(0x001, 0x0020))//Battery percentage   
+}
+
+
+void sendZigbeeCommands(List<String> cmds) {
+    logging("sending:${cmds}", "trace")
+    sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
 // [raw:E131010001082000201A, dni:E131, endpoint:01, cluster:0001, size:08, attrId:0020, encoding:20, command:0A, value:1A, clusterInt:1, attrInt:32]
@@ -171,29 +189,29 @@ def refresh() {
 def parse(String description) {
     state.lastCheckin = now()
     def descMap = zigbee.parseDescriptionAsMap(description)
-    logging("${device} : Parse :${descMap} ", "trace")
+    logging("Parse :${descMap} ", "trace")
     handlePresenceEvent(true)
     if (descMap.clusterInt == 0x0001 && descMap.attrInt == 0x0020) { 
         handleBatteryEvent(Integer.parseInt(descMap.value, 16)) 
     }
     if (descMap.command == "00") { // options 0040 (when rejoining we get this)
-    logging("${device} : Rejoining Mesh", "info")
+    logging("Rejoining Mesh", "info")
     return
     }
     if (descMap.command == "01") {
-    logging("${device} : Reply to refresh ", "info")
+    logging("Reply to refresh ", "info")
     return
     }
     if (descMap.command == "0B") {
-        logging("${device} : Beep Processed ", "info")
+        logging("Beep Processed ", "info")
         return
     }
     if (descMap.command == "0A") {
-        logging("${device} : Ping  Driver V${state.version}", "debug")
+        logging("Ping", "debug")
         return
      }
     else{
-    logging("${device} : Unknown command:${descMap.command} Options:${descMap.options} Value:${descMap.value}", "warn")
+    logging("Unknown command:${descMap.command} Options:${descMap.options} Value:${descMap.value}", "warn")
     }    
     
     
@@ -208,17 +226,27 @@ private handleBatteryEvent(batteryVoltage) {
         return
     }
     else {
-        BigDecimal batteryVoltageScaleMin = 1.5
+         // Auto adjustment  
+        if (state.minVoltTest < 0.90){ 
+            state.minVoltTest= 1.50 
+            logging("Min Voltage Reset to ${state.minVoltTest}v", "info") 
+        }
+        if (batteryVoltage < state.minVoltTest){
+            state.minVoltTest = batteryVoltage
+            logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
+        } 
+        BigDecimal batteryVoltageScaleMin = state.minVoltTest
 		BigDecimal batteryVoltageScaleMax = 3.0
         batteryVoltage = batteryVoltage/10
         BigDecimal batteryPercentage = 0
+  
         batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-        logging("${device} : Battery ${batteryVoltage}V: ${batteryPercentage}%  Last:${state.lastBattery}v","debug")
+        logging("Battery ${batteryVoltage}V: ${batteryPercentage}%  Last:${state.lastBattery}v","debug")
         
         if (state.lastBattery != batteryVoltage){
-         logging("${device} : Battery ${batteryVoltage}V ${batteryPercentage}%","info")   
+         logging("Battery ${batteryVoltage}V ${batteryPercentage}%","info")   
     	 sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V",descriptionText:"${value}V ${state.version}", isStateChange: true)
      	 sendEvent(name: "battery", value: batteryPercentage, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true)
          state.lastBattery = batteryVoltage
@@ -230,30 +258,34 @@ private handleBatteryEvent(batteryVoltage) {
 }
 // To limit logs only report in log on change
 private handlePresenceEvent(present) {
-    logging("${device} : Received presence event: ${present}","trace")
+    logging("Received presence event: ${present}","trace")
     if(present){value="present"}
     else{value="not present"}
 
     def wasPresent = device.currentState("presence")?.value == "present"
     if (!wasPresent && present) {
-        logging("${device} : Creating presence event: ${value}","info")
+        logging("${value}","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         startTimer()
     } else if (!present) {
-        logging("${device} : Creating presence event: ${value}","info")
+        logging("${value}","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         stopTimer()
     }
 }
 
 private startTimer() {
-    logging("${device} : Scheduling periodic timer","info")
+    unschedule()
+    logging("Checking ever min","info")
     runEvery1Minute("checkPresenceCallback")
 }
 
-private stopTimer() {
-    logging("${device} : Stoping periodic timer","info")
+private stopTimer() {// Check presence every hr
     unschedule()
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *",checkPresenceCallback)	
+    logging("Checking ever hr","info")
 }
 
 
@@ -263,57 +295,38 @@ def checkPresenceCallback() {
 //  Interval set by driver
     min = timeSinceLastCheckin/60
 //  sensor checks in every  0.13 seconds. We have to mimimize log entry.
-    logging("${device} : Sensor Checkin its been ${min} mins","debug")
-    if (min >= Interval-5){
-        logging("${device} : Sensor timing out ${min} min ago","info")
-        refresh()// Ping Perhaps we can wake it up...
-    }
+    logging("Check ${min} mins","debug")
+    if (min >= Interval-5){ping()}
     if (min >= Interval) { handlePresenceEvent(false)}
 }
 
+void getIcons(){
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/tagv4.jpg' >"
+ }
 
-
-void loggingStatus() {
-	log.info  "${device} : Info  Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
+// Logging block v5 11/2022
+//	
+void loggingUpdate() {
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    if (disableLogsOff){return}
+    if (debugLogging){runIn(4000,debugLogOff)}
+    if (traceLogging){runIn(1000,traceLogOff)}
 }
-
 
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
 }
-
-
 void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-
-private boolean logging(String message, String level) {
-	boolean didLog = false
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-	return didLog
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
