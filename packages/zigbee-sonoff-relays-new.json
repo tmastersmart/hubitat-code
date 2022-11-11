@@ -1,10 +1,10 @@
 {
   "packageName": "Zigbee Sonoff - generic relays",
   "author": "TheMaster",
-  "releaseNotes":   "Added LEDVANCE, Reduces log traffic, Better chron setup",
+  "releaseNotes":   "Presence bug fixes.Added LEDVANCE, Reduces log traffic, Better chron setup",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.5.7",
+  "version": "1.6.0",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
