@@ -19,6 +19,7 @@ Help is needed do you know the command to stop the above?
 
 
 ================================================================================
+v2.8.0  11/11/2022 Presence Upgraded with retries
 v2.7.1  11/05/2022 added schedule options
 v2.7.0  11/04/2022 Imported Sage doorbell code and modified into a switch
 v2.6.0  10/30/2022  Presence Bug Fix Was not warning first
@@ -55,7 +56,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.7.1"
+    TheVersion="2.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -173,45 +174,45 @@ def configure() {
    ], 1000)
 //  “send-me-a-report” cluster, attribute, data type, min report, max report,       
 runIn(8,refresh)     
-  
-
-
 }
+
+
 def checkPresence() {
-    def checkMin  = 1400 // 24 hrs warning
-    def checkMin2 = 2800 // 48 hrs [not present] and 0 batt
-    // New shorter presence routine. v2 10/22
-//    def checkMin  = 5  // 5 min warning
-//    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 2800
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","trace")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-        logging("Creating presence event: ${value}","info")
+            logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
-        runIn(60,refresh) 
-        }
-    } 
-    if (state.lastCheckInMin >= checkMin){ 
-      logging("Sensor timing out ${state.lastCheckInMin} min ago","warn")
-      runIn(60,refresh)// Ping Perhaps we can wake it up...
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)   
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,ping)
+     runIn(30,checkPresence) 
     }
 }
+
+
 // parse =====================================================
 def parse(String description) {
     state.lastCheckin = now()
@@ -251,6 +252,10 @@ def parse(String description) {
 // device does not support battery cluster   
     
 }else if (descMap.cluster == "0000"){
+    if (map.attrId== "0001" ){
+    logging("Application ID :${map.value}", "debug")
+    // should be 0x0104=Home Automation   
+    }   
     if( descMap.attrId == "0004") {
     logging("Manufacturer:${descMap.value} ", "debug")
     state.MFR = descMap.value     
@@ -264,19 +269,22 @@ def parse(String description) {
     updateDataValue("partNo", "206611")
     updateDataValue("model", "SWITCH")
     updateDataValue("fcc", "DKN-301LM")
-    }   
+    }
+   // model Identifier Was pinging us with this.  
    if (descMap.clusterId == "0006" ){
     logging("Cluster 0000 id:0006 ${descMap}", "warn")
     zigbee.enrollResponse()
    }      
-//}else if (descMap.profileId == "0000" && descMap.clusterId == "8021") {logging("Replying to cfg? clusterInt:${descMap.clusterInt} data:${descMap.data}", "debug")
-//}else if (descMap.profileId == "0000" && descMap.clusterId == "8031") {logging("Link Quality Cluster Event  data:${descMap.data}", "debug")
-//}else if (descMap.profileId == "0000" && descMap.clusterId == "8032") {logging("Routing Table Cluster Event  data:${descMap.data}", "debug")
-
+      
 }else if (descMap.cluster == "8032" ||descMap.cluster == "8031" || descMap.cluster == "8021" ||descMap.cluster == "0500" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8038" || descMap.cluster == "8005") {
       
-   text= ""
-   if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+ text= "unknown"
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+      
+      if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
    logging("Ignoring ${descMap.cluster} ${text}", "debug") 
        
 }else if (descMap.cluster == "0013") {
