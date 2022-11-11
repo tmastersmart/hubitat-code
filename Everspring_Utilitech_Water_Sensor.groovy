@@ -31,6 +31,7 @@ not know what to do. I think it was said after several reboots it will go away b
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
+v2.8.0 11/11/2022 New presence routine with retry 
 v2.7.0 10/30/2022 Presence FIX was not doing warning before expiring
 v2.6.0 10/28/2022 Fix for last date not updating on hub. 
 Resends the current water value on a wake up. To force hub to update the last date
@@ -72,7 +73,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.7.0"
+    TheVersion="2.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -158,41 +159,40 @@ def updated() {
 	runIn(randomSixty,refresh) // Refresh in random time
 }
 
-def checkPresence() {
-    def checkMin  = 1400 // 24 hrs warning
-    def checkMin2 = 2800 // 48 hrs [not present] and 0 batt //1372
 
-    // New shorter presence routine. v2 10/22
-//    def checkMin  = 5  // 5 min warning
-//    def checkMin2 = 10 // 10 min [not present] and 0 batt
+def checkPresence() {
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 2800
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-        logging("${device} : Creating presence event: ${value}","info")
+            logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
-        runIn(60,refresh) 
-        }
-    } 
-    if (state.lastCheckInMin >= checkMin){ 
-      logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-      runIn(60,refresh)// Ping Perhaps we can wake it up...
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,ping)
+     runIn(30,checkPresence) 
     }
 }
+
 
 
 
