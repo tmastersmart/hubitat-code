@@ -29,7 +29,8 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-1.6.1    11/10/2022 Auto min bat voltage added. You must let it run down to 0 once for it to work.
+1.6.2    11/10/2022 Auto min bat voltage added. You must let it run down to 0 once for it to work.
+                    icon updates
 1.6.0    11/04/2022 Production release. Looks to all be working, CentraLite Model:3320-L added
 1.5.1    11/04/2022 Temp code replaced with rewritten code now working.
                     error checking added cluster 500 sending strange values
@@ -58,7 +59,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.6.1"
+    TheVersion="1.6.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -450,10 +451,11 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
+    if(state.model == "1116-S"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/1116-S.jpg' >"}
+    else{state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/irisv2contact.jpg' >"}
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
-    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/irisv2contact.jpg' >"
-
  }
+
 
 
 // Logging block ${device} added to routine v2
