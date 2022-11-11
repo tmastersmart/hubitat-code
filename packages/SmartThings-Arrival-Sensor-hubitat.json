@@ -3,8 +3,8 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "Smart things arival sensor with adjustable chime",
-  "version": "1.4.0",
+  "releaseNotes": "Recovery code to waik up sensor",
+  "version": "1.7.0",
   "dateReleased": "2022-09-08",
   "category": "Convenience",
   "tags":  [  "Presence & Location"   ],
@@ -15,7 +15,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy",
       "required": "true",
-      "description": "Smart things arival sensor with adjustable chime",
+      "description": "BETA: Smart things arival sensor with adjustable chime. Fix for device requiring reboot to reconnect. if v1.7 works as expected will be out of beta",
       "id": "74e8b3b3-ca82-400c-b12d-522095aa7415"
     }
     ]
