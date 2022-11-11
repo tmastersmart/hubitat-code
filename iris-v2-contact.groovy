@@ -29,6 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.7.0    11/11/2022 Presence retry rewrote
 1.6.2    11/10/2022 Auto min bat voltage added. You must let it run down to 0 once for it to work.
                     icon updates
 1.6.0    11/04/2022 Production release. Looks to all be working, CentraLite Model:3320-L added
@@ -59,7 +60,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.6.2"
+    TheVersion="1.7.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -413,35 +414,35 @@ def processStatus(ZoneStatus status) {
 
 
 def checkPresence() {
-    // New shorter presence routine. v2 10/22
-    def checkMin  = 45 // 5 min warning
-    def checkMin2 = 50 // 10 min [not present] and 0 batt
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 50
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","trace")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-        logging("Creating presence event: ${value}","info")
+            logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
-        runIn(60,ping) 
-        }
-    } 
-    if (state.lastCheckInMin >= checkMin){ 
-      logging("Sensor timing out ${state.lastCheckInMin} min ago","warn")
-      runIn(60,ping)// Ping Perhaps we can wake it up...
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,ping)
+     runIn(30,checkPresence) 
     }
 }
 
