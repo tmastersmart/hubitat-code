@@ -1,12 +1,12 @@
 {
   "packageName": "sage doorbell echostar",
   "author": "TheMaster",
-  "releaseNotes": "Options for scheduler and improvements in parsing. ",
+  "releaseNotes": "Presence bug fix.Options for scheduler and improvements in parsing. ",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "documentationLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
   "communityLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "dateReleased": "2022-25-09",
 	"category": "Security",
       "tags": [
