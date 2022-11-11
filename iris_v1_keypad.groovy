@@ -18,6 +18,8 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
+  v7.0.0 11/11/2022 Rewrote logging code (smaller code size) Added improvements from my iris drivers
+  v6.9.0 10/30/2022 Bug fix in presence routine was not giving warning before timing out.
   v6.8.5 10/10/2022 Bat 2 detection removed more work needed.
   v6.8.4 10/10/2022 Cancel/Disarm code rewritten. Switch capability added. Routines can now turn off/on
    alarm by switch. 2 new tones added depends on your firmware if they work. 
@@ -263,7 +265,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="6.8.5"
+    TheVersion="7.0.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -380,7 +382,7 @@ def installed() {	// Runs after first pairing.
     infoLogging=true
     debugLogging=false
     traceLogging=false
-	logging("${device} : Paired!", "info")
+	logging("Paired!", "info")
     loggingUpdate()
     initialize()
     getStatus()
@@ -389,7 +391,7 @@ def installed() {	// Runs after first pairing.
  
 def initialize() {
 /// Runs on reboot also    
-logging("${device} : initialize", "info")
+logging("initialize", "info")
 // Set defaults they will be updated by HSM
 // Survive a reboot    
 if (!state.armNightDelay){state.armNightDelay = 30}
@@ -407,8 +409,6 @@ state.rangingPulses = 0
 state.validPIN = false  
 state.PinName = "NA"
 state.PIN = "NA"
-state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-keypad.jpg'>"
-state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
     
 state.message = "Keypad supports 14 diffrent chimes under play command. Not supported on all Firmware"
     
@@ -443,13 +443,13 @@ device.deleteCurrentState("HSMAlert")
   
 // Stagger init refreshes On reboot
 randomSixty = Math.abs(new Random().nextInt() % 60)
-logging("${device} : refresh in ${randomSixty}sec", "info")
+logging("refresh in ${randomSixty}sec", "info")
 runIn(randomSixty,refresh)    
 randomSixty = Math.abs(new Random().nextInt() % 60)
-logging("${device} : getStatus in ${randomSixty}sec", "info")    
+logging("getStatus in ${randomSixty}sec", "info")    
 runIn(randomSixty,getStatus)
 randomSixty = Math.abs(new Random().nextInt() % 60)
-logging("${device} : getCodes in ${randomSixty}sec", "info")    
+logging("getCodes in ${randomSixty}sec", "info")    
 runIn(randomSixty,getCodes)    
 //clientVersion()
 }
@@ -457,7 +457,7 @@ runIn(randomSixty,getCodes)
 
 def configure() {
 	initialize()
-    
+    state.Config = false
     state.remove("operatingMode")
     state.remove("LQI")
     state.remove("batteryOkay")
@@ -473,12 +473,13 @@ def configure() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${8} * * ? *", rangeAndRefresh)	
-
+    logging("Configure - Ranging Every 8hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty} ", "info") 
+ 
     // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
 	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
-    
+    logging("Configure - checkPresence Every hr starting at ${randomTwentyFour}:${randomSixty}:${randomSixty} ", "info")    
     runIn(randomSixty,rangeAndRefresh)
 //	runIn(12,normalMode)
 }
@@ -486,6 +487,7 @@ def updated() {
 	// Runs whenever preferences are saved.
     clientVersion()
     loggingUpdate()
+    getIcons()
     refresh()
 }
 // Sample Hubitat pin store code is not opensource
@@ -493,7 +495,7 @@ def updated() {
 def setCode(code,pinCode,userCode){
     size = pinCode.size() 
     if (size < 4 || size >15){
-        logging( "${device} : Invalid PIN size :${size} Rejected","warn")
+        logging( "Invalid PIN size :${size} Rejected","warn")
         return
     }
 	if (code == 1){ save= "code1";}
@@ -519,11 +521,11 @@ def setCode(code,pinCode,userCode){
         if (device.currentValue("code8") == pinCode){saveit = false} 
         if (device.currentValue("code9") == pinCode){saveit = false}        
         if (device.currentValue("code10") == pinCode){saveit = false} 
-          logging( "${device} : ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","debug")
-          logging( "${device} : ADD code#${code} PIN:XXXX User:${userCode}","info") 
+          logging( "ADD code#${code} PIN:${pinCode} User:${userCode} [OK to save:${saveit}]","debug")
+          logging( "ADD code#${code} PIN:XXXX User:${userCode}","info") 
         if (saveit){    
-          logging( "${device} : Saving ...${save}...","debug")        
-          logging( "${device} : Saving User:${userCode}","info")
+          logging( "Saving ...${save}...","debug")        
+          logging( "Saving User:${userCode}","info")
 	      sendEvent(name: "${save}", value: pinCode)
 	      sendEvent(name: "${save}n",value: userCode)
     
@@ -570,8 +572,8 @@ def deleteCode(code) {
 	if (code == 10){ save= "code10"}    
     thecode = device.currentValue("${save}")
     thename = device.currentValue("${save}n")
-    logging ("${device} : deleteCode  #${code}   code:${thecode} name:${thename}","debug")    
-    logging ("${device} : deleteCode  #${code}   code:XXXX name:${thename}","info") 
+    logging ("deleteCode  #${code}   code:${thecode} name:${thename}","debug")    
+    logging ("deleteCode  #${code}   code:XXXX name:${thename}","info") 
 	if (code < 11) {
      device.deleteCurrentState("${save}")    
      device.deleteCurrentState("${save}n")
@@ -744,8 +746,8 @@ def getCodes(){
     codeStore = "${codeStore}}"
     sendEvent(name: "lockCodes",value: codeStore)
     // Dont show codes in normal log for security
-    logging("${device} : lockCode Database ${codeStore}", "trace")          
-    logging("${device} : getCodes (Lockcode Database rebuilt)", "info")
+    logging("lockCode Database ${codeStore}", "trace")          
+    logging("getCodes (Lockcode Database rebuilt)", "info")
  }
 
 // using state.delayExit 
@@ -754,19 +756,19 @@ void setExitDelay(Map delays){
     state.armNightDelay = (delays?.nightDelay ?: 0).toInteger()
     state.armHomeDelay = (delays?.homeDelay ?: 0).toInteger()
     state.delay = state.delayExit
-    logging("${device} : setExitDelay ${delays}", "info")
+    logging("setExitDelay ${delays}", "info")
 }
 def setEntryDelay(cmd){
     state.delayEntry = (cmd ?: 0).toInteger()
-    logging("${device} : setEntryDelay ${cmd}", "info")
+    logging("setEntryDelay ${cmd}", "info")
     }
 
 def setExitDelay(cmd){
-    logging("${device} : setExitDelay ${cmd} Not used", "debug")
+    logging("setExitDelay ${cmd} Not used", "debug")
 }
 
 def setCodeLength(cmd){
-    logging("${device} : setCodeLength ${cmd} ignored we us 15", "debug")
+    logging("setCodeLength ${cmd} ignored we us 15", "debug")
 }
 
 // Arming commands
@@ -780,7 +782,7 @@ def setCodeLength(cmd){
 // if disarmed during countdown dont arm. 
 def setAway(){
 if (state.Command == "off"){
-    logging ("${device} : Disarmed while arming. Abort","warn")
+    logging ("Disarmed while arming. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)
     return}    
@@ -790,7 +792,7 @@ SendState()
 }
 def setHome(){
 if (state.Command == "off"){
-    logging ("${device} : Disarmed while arming. Abort","warn")
+    logging ("Disarmed while arming. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)
     return}     
@@ -800,7 +802,7 @@ SendState()
 }
 def setNight(){
 if (state.Command == "off"){
-    logging ("${device} : Disarmed while arming. Abort","warn")
+    logging ("Disarmed while arming. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)
     return}     
@@ -810,24 +812,24 @@ SendState()
 }
 
 void setPartialFunction(cmd){
-logging ("${device} : HSM sent >> ${cmd}","warn")
+logging ("HSM sent >> ${cmd}","warn")
 }
 // =====================Incomming command==HSM RECEIVED =======================================
 def armAway(cmd){
     delay = (cmd ?: 0).toInteger()
     if (delay != state.delayExit){
       state.delayExit = delay 
-      logging ("${device} : Received >> new Delay:${state.delayExit} for delayExit", "info")
+      logging ("Received >> new Delay:${state.delayExit} for delayExit", "info")
     }
     state.received = true
     if (state.Command == "armingAway" | state.Command == "away" ){
-    logging ("${device} : Ignored HSM CMD [ArmAWAY] State:${state.Command}","info")
+    logging ("Ignored HSM CMD [ArmAWAY] State:${state.Command}","info")
     return
     }
     MakeLockCodeIN()
     state.delay = state.delayExit // state.delay used by the timeout loop also
     sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "armed away [digital] Delay:${state.delayExit}")
-    logging ("${device} : Received >> [ArmAWAY] Delay:${state.delayExit}  Our State:${state.Command}  [digital] SilentArm${SilentArmAway}", "info")
+    logging ("Received >> [ArmAWAY] Delay:${state.delayExit}  Our State:${state.Command}  [digital] SilentArm${SilentArmAway}", "info")
     state.Command = "armingAway"
     if (SilentArmAway == false){SendState()}
     runIn(state.delay,setAway)
@@ -837,17 +839,17 @@ def armHome(cmd){
     delay = (cmd ?: 0).toInteger()
     if (delay != state.armHomeDelay){
     state.armHomeDelay = delay    
-    logging ("${device} : Received >> new Delay:${state.armHomeDelay} for armHomeDelay", "info")
+    logging ("Received >> new Delay:${state.armHomeDelay} for armHomeDelay", "info")
     }
     state.received = true
     if (state.Command == "armingHome" | state.Command == "home"){
-    logging ("${device} : Ignored HSM CMD [ArmHOME] State:${state.Command}","info")
+    logging ("Ignored HSM CMD [ArmHOME] State:${state.Command}","info")
     return
     }
     MakeLockCodeIN()
     state.delay = state.armHomeDelay 
     sendEvent(name: "securityKeypad",value: "armed home",data: lockCode, type: "digital",descriptionText: "armed home [digital] Delay:${state.armHomeDelay}")
-    logging ("${device} : Received >> [ArmHome] Delay:${state.armHomeDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmHome}", "info")
+    logging ("Received >> [ArmHome] Delay:${state.armHomeDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmHome}", "info")
     state.Command = "armingHome"
     if (SilentArmHome == false){SendState()}
     runIn(state.delay,setHome)
@@ -857,17 +859,17 @@ def armNight(cmd){
     delay = (cmd ?: 0).toInteger()
     if (delay != state.armNightDelay){
     state.armNightDelay = delay    
-    logging ("${device} : Received >> new Delay:${state.armNightDelay} for armNightDelay", "info")
+    logging ("Received >> new Delay:${state.armNightDelay} for armNightDelay", "info")
     }
     state.received = true
     if (state.Command == "armingNight" | state.Command == "night"){
-        logging ("${device} : Ignored HSM CMD [ArmNight] State:${state.Command}","info")
+        logging ("Ignored HSM CMD [ArmNight] State:${state.Command}","info")
         return
     }
     MakeLockCodeIN()
     state.delay = state.armNightDelay // state.delay used by the timeout loop also
     sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "digital",descriptionText: "armed night [digital] Delay:${state.armNightDelay}")
-    logging ("${device} : Received >> [ArmNight] Delay:${state.armNightDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmNight}", "info")
+    logging ("Received >> [ArmNight] Delay:${state.armNightDelay}  Our State:${state.Command}  [digital] SilentArm${SilentArmNight}", "info")
     state.Command = "armingNight"
     if (SilentArmNight == false){SendState()}
     runIn(state.delay,setNight)
@@ -879,12 +881,12 @@ def disarm(cmd) {
     state.received = true
     offEvents()
    if (state.Command == "off" ){ // Ignore dupes cause a beep
-        logging ("${device} : HSM CMD [disarm] received but we are State:${state.Command}","info")
+        logging ("HSM CMD [disarm] received but we are State:${state.Command}","info")
         return
      }    
     MakeLockCodeIN()
     sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "disarmed [digital]")
-    logging ("${device} : Received >> [disarm]  Our State:${state.Command}  [digital] ", "info")
+    logging ("Received >> [disarm]  Our State:${state.Command}  [digital] ", "info")
     state.Command = "off"
     SendState()
     runIn(15,getSoftStatus)
@@ -903,21 +905,21 @@ def offEvents(){
     sendEvent(name: "status", value: "off")  
 }
 def softOFF(){
-  logging ("${device} : Alarm OFF ","info")  
+  logging ("Alarm OFF ","info")  
   offEvents() 
   getStatus() // Are we armed or not Reset state
 }
 
 def setNA(){// Alarm Part button
     if (state.Command == "off"){
-    logging ("${device} : Disarmed during Entry. Abort","warn")
+    logging ("Disarmed during Entry. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)    
     return
     } 
     state.Command ="alarmingNight"
     SendState() 
-    logging ("${device} : Alarm on ","info")
+    logging ("Alarm on ","info")
     sendEvent(name: "strobe",value: "on", displayed: true) 
     sendEvent(name: "alarm", value: "on", displayed: true)
     sendEvent(name: "switch",value: "on", displayed: true)
@@ -926,14 +928,14 @@ def setNA(){// Alarm Part button
 
 def setAA(){// Alarm ON button
     if (state.Command == "off"){
-    logging ("${device} : Disarmed during Entry. Abort","warn")
+    logging ("Disarmed during Entry. Abort","warn")
     SendState()
     runIn(1,getSoftStatus)   
     return} 
     
     state.Command ="alarmingAway"    
     SendState()
-    logging ("${device} : Alarm on ","info")
+    logging ("Alarm on ","info")
     sendEvent(name: "strobe",value: "on", displayed: true) 
     sendEvent(name: "alarm", value: "on", displayed: true)
     sendEvent(name: "switch",value: "on", displayed: true)
@@ -944,7 +946,7 @@ def entry(cmd){
     delay = (cmd ?: 0).toInteger()
     if (delay != state.delayEntry){
     state.delayEntry = delay    
-    logging ("${device} : Received >> new Delay:${state.delayEntry} for delayEntry", "info")
+    logging ("Received >> new Delay:${state.delayEntry} for delayEntry", "info")
     }
     sendEvent(name: "securityKeypad",value: "Entry",data: lockCode, type: "digital",descriptionText: "Entry delay:${state.delayEntry} state:${state.Command}")
 
@@ -963,7 +965,7 @@ def entry(cmd){
         if (state.delayEntry >5){SendState()}
         runIn(state.delayEntry+1,setAA)// ALARM
     }
-logging ("${device} : ENTRY in progress delay:${state.delayEntry} state:${state.Command} ","warn")
+logging ("ENTRY in progress delay:${state.delayEntry} state:${state.Command} ","warn")
 }    
         
 /* Old direct HSM cmds no longer needed
@@ -985,7 +987,7 @@ private MakeLockCode(cmd){
 // more compatibility code
 def isInitiator = true    
 def lockCode = JsonOutput.toJson(["${state.pinN}":["name":"${state.PinName}", "code":"${state.PIN}", "isInitiator":"${isInitiator}"]] )
-logging ("${device} : lockCode:${lockCode}]","trace")
+logging ("lockCode:${lockCode}]","trace")
 }
 
 private defaultLockCode(){
@@ -999,29 +1001,29 @@ private MakeLockCodeIN(cmd){
 defaultLockCode()
 def isInitiator = false    
 def lockCode = JsonOutput.toJson(["${state.pinN}":["name":"${state.PinName}", "code":"${state.PIN}", "isInitiator":"${isInitiator}"]] )
-logging ("${device} : lockCode:${lockCode}]","trace")
+logging ("lockCode:${lockCode}]","trace")
 }
 
 
 private MyarmAway() {
-    logging ("${device} : arming away in ${state.delayExit}","info")
+    logging ("arming away in ${state.delayExit}","info")
     HSMarmingIn("armed away")
     state.received = false
 }
 private MyarmHome() {
-    logging ("${device} : arming home in ${state.armHomeDelay}","info")
+    logging ("arming home in ${state.armHomeDelay}","info")
     HSMarmingIn("armed home")
     state.received = false
 }
 private MyarmNight() {
-    logging ("${device} : arming night in ${state.armNightDelay}","info")
+    logging ("arming night in ${state.armNightDelay}","info")
     HSMarmingIn("armed night")
     state.received =false
 }
 private MyDisarm(cmd) {
     if (state.validPIN == false){return}//safety it should never get this far
     if (state.Command == "panic") {
-        logging ("${device} : Panic cancled by [${state.PinName}]","info")
+        logging ("Panic cancled by [${state.PinName}]","info")
         sendEvent(name: "panic",  value: "off", descriptionText: "cancled by ${state.PinName} PIN", isStateChange: true,displayed: true)
      }
     if (state.Command == "off") {HSMarmingIn("cancel alerts")}
@@ -1035,7 +1037,7 @@ private MyDisarm(cmd) {
 
 
 def panic() {
-	logging ("${device} : Panic Pressed","warn")
+	logging ("Panic Pressed","warn")
     sendEvent(name: "panic", value: "on", displayed: true, isStateChange: true, isPhysical: true)
     state.Command = "panic"
     SendState()         
@@ -1065,7 +1067,7 @@ private HSMarmingIn(cmd){
     }
                                
     if(data){                           
-    logging ("${device} : ${cmd} [physical] by [${state.PinName}] state:${state.Command} Delay:${delay}","info")
+    logging ("${cmd} [physical] by [${state.PinName}] state:${state.Command} Delay:${delay}","info")
 	sendEvent(name: "securityKeypad", value: cmd, descriptionText: "[physical] ${cmd} by [${state.PinName}] Delay:${delay}", data: lockCode, type: "physical")
     sendEvent(name:"armingIn", value: delay, data:data, isStateChange:true,descriptionText: data) // The actual armming cmd                             
     }
@@ -1104,22 +1106,22 @@ if (state.Command =="armingAway" |state.Command =="armingHome"|state.Command =="
     if (status == "armedNight"| status == "armingNight") {test = "night"}
     
     if (status == "disarmed"  | status == "allDisarmed") {test = "off"}
-    if (test == state.Command){logging ("${device} : Verified in state with HSM No problems","info") }
+    if (test == state.Command){logging ("Verified in state with HSM No problems","info") }
     else {
-        logging ("${device} : Problem found HSM:${test} is <> State:${state.Command}","error")
-        logging ("${device} : Waiting for any events to finish Polling HSM in 50","info")
+        logging ("Problem found HSM:${test} is <> State:${state.Command}","error")
+        logging ("Waiting for any events to finish Polling HSM in 50","info")
         runIn(50, getStatus) 
     }          
 }
 
 def getStatus(status) {
    status = location.hsmStatus // Get status then match it. Polled HSM:armingNight state:armingNight
-   logging ("${device} : Polled HSM:${status} state:${state.Command}","debug") 
+   logging ("Polled HSM:${status} state:${state.Command}","debug") 
    MakeLockCodeIN() 
     if (status == "armedAway" | status == "armingAway" ){  
         if (state.Command != "away"){
             sendEvent(name: "securityKeypad",value: "armed away",data: lockCode, type: "digital",descriptionText: "${device} was armed away [digital]")
-            logging ("${device} : Polled HSM ${status} switching now","info")
+            logging ("Polled HSM ${status} switching now","info")
             state.Command = "away"
             SendState()
         }
@@ -1129,7 +1131,7 @@ def getStatus(status) {
     if (status == "armedHome" | status == "armingHome"){
         if (state.Command != "home"){
             sendEvent(name: "securityKeypad", value: "armed home",data: lockCode, type: "digital",descriptionText: "${device} was armed home [digital]")
-            logging ("${device} : Polled HSM ${status} switching now","info")
+            logging ("Polled HSM ${status} switching now","info")
             state.Command = "home"
             SendState()
         }
@@ -1139,7 +1141,7 @@ def getStatus(status) {
     if (status == "armedNight" | status == "armingNight"){
         if (state.Command != "night"){
             sendEvent(name: "securityKeypad",value: "armed night",data: lockCode, type: "digital",descriptionText: "${device} was armed night [digital]")
-            logging ("${device} : Polled HSM ${status} switching now","info")
+            logging ("Polled HSM ${status} switching now","info")
             state.Command = "night"
             SendState()
         }
@@ -1150,18 +1152,18 @@ def getStatus(status) {
     if (status == "disarmed" | status == "allDisarmed"){
         if (state.Command != "off"){
             sendEvent(name: "securityKeypad",value: "disarmed",data: lockCode, type: "digital",descriptionText: "${device} was disarmed [digital]")
-            logging ("${device} : Polled HSM ${status} switching now","info")
+            logging ("Polled HSM ${status} switching now","info")
             state.Command = "off"
             SendState()
         }
         return
     }
-  logging ("${device} : Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
+  logging ("Polling HSMStatus:${status} Ourstate:${state.Command}","debug") 
     
 }
 
 def purgePIN(){
-if (state.validPIN){logging ("${device} : PIN [${state.PinName}] Removed from memory", "info")}
+if (state.validPIN){logging ("PIN [${state.PinName}] Removed from memory", "info")}
 state.validPIN = false
 state.PinName = "none"
 state.PIN = "NA"    
@@ -1170,7 +1172,7 @@ state.PIN = "NA"
 
 def siren(cmd){
     if (state.Command == "armingNight" | state.Command == "armingHome"| state.Command == "armingAway" | state.Command == "alarmingNight"| state.Command == "alarmingAway" | state.Command == "alarmingHome"){
-    logging ("${device} : Unable to Play siren. ${state.Command} overides siren.","warn")
+    logging ("Unable to Play siren. ${state.Command} overides siren.","warn")
     sendEvent(name: "status", value: "Inuse")
     return
     }
@@ -1196,17 +1198,17 @@ def siren(cmd){
   if (AlarmTone == "CPU")     {soundCode(14)}  
   
     
-  logging ("${device} : Siren ${AlarmTone} ON", "warn")  
+  logging ("Siren ${AlarmTone} ON", "warn")  
 }
 def strobe(cmd){
     
     if (state.Command == "armingNight" | state.Command == "armingHome" | state.Command == "alarmingNight" | state.Command == "alarmingHome"){
-        logging ("${device} : Unable to Play strobe. ${state.Command} overides strobe.","warn")
+        logging ("Unable to Play strobe. ${state.Command} overides strobe.","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }  
     
-  logging ("${device} : Panic Strobe ON","info")  
+  logging ("Panic Strobe ON","info")  
   sendEvent(name: "strobe",value: "on", displayed: true) 
   sendEvent(name: "alarm", value: "on", displayed: true)
   sendEvent(name: "switch",value: "on", displayed: true)
@@ -1225,7 +1227,7 @@ siren()
 def off(cmd){
   sendEvent(name: "status", value: "off")   
   sendEvent(name: "securityKeypad",value: "siren OFF",data: lockCode, type: "digital",descriptionText: "${device} alarm siren OFF ${status}")  
-  logging ("${device} : OFF siren/strobe","info")
+  logging ("OFF siren/strobe","info")
   offEvents()  
   state.Command = "off"
   SendState()  
@@ -1254,7 +1256,7 @@ private BadPinTone(){
 def playSound(cmd){
 //   status = location.hsmStatus    
     if (state.Command == "armingNight" | state.Command == "armingHome"| state.Command == "armingAway" | state.Command == "alarmingNight"| state.Command == "alarmingAway" | state.Command == "alarmingHome"){
-        logging ("${device} : Unable to Play Chimes. ${state.Command} overides chime.","warn")
+        logging ("Unable to Play Chimes. ${state.Command} overides chime.","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }
@@ -1291,7 +1293,7 @@ def playSound(cmd){
 soundCode(cmd)
     
     if (chimeTime > 12){ 
-        logging ("${device} : Chime Delay ${chimeTime}","info")    
+        logging ("Chime Delay ${chimeTime}","info")    
         pauseExecution(chimeTime)
         soundCodeOff(0)
     }    
@@ -1309,7 +1311,7 @@ cluster = 0x00C0
 attributeId = 0x020
 dataType = DataType.ENUM8
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, cmdI, [destEndpoint :0x02]))    
-logging ("${device} : KeyPad set to [${state.Command}]","info")
+logging ("KeyPad set to [${state.Command}]","info")
 } 
 
 def stop(){
@@ -1320,11 +1322,11 @@ def stop(){
 def beep(){
    status = location.hsmStatus
    if (status != "disarmed" ){
-        logging ("${device} : ${status} overides entry chime. Ignored","warn")
+        logging ("${status} overides entry chime. Ignored","warn")
         sendEvent(name: "status", value: "Inuse")
         return
         }
-    logging ("${device} : Door Chime/Beep >> Send KeyPad CMD:${state.Command}","info")
+    logging ("Door Chime/Beep >> Send KeyPad CMD:${state.Command}","info")
     SendState()
 }    
 
@@ -1393,37 +1395,33 @@ attributeId = 0x26
 dataType = DataType.ENUM8
  
 sendZigbeeCommands(zigbee.writeAttribute(cluster, attributeId, dataType, value, [destEndpoint :0x02]))    
-    logging ("${device} : Playing Sound code ${name} - ${value} ","info")
+    logging ("Playing Sound code ${name} - ${value} ","info")
 }
 
 def shock(){
 sendEvent(name: "shock", value: "detected")    
-logging ("${device} : Shock Detected","info")
+logging ("Shock Detected","info")
  pauseExecution(6000)
-logging ("${device} : Shock Clear","info")    
+logging ("Shock Clear","info")    
 sendEvent(name: "shock", value: "clear")    
 }
 
 
 def tamper(){
 sendEvent(name: "tamper", value: "detected")
-logging ("${device} : Tamper Detected","info")
+logging ("Tamper Detected","info")
  pauseExecution(6000)
-logging ("${device} : Tamper Clear","info")    
+logging ("Tamper Clear","info")    
 sendEvent(name: "tamper", value: "clear")
 }
 
 def push (buttonNumber){
-   logging("${device} : Button ${buttonNumber}","info")
+   logging("Button ${buttonNumber}","info")
    sendEvent(name: "pushed", value: buttonNumber, isStateChange: true) 
 }
 
 
 
-void reportToDev(map) {
-	String[] receivedData = map.data
-	logging("${device} : New unknown Cluster Detected: clusterId:${map.clusterId}, attrId:${map.attrId}, command:${map.command}, value:${map.value} data: ${receivedData}", "warn")
-}
 
 def normalMode() {
     // This is the standard running mode.
@@ -1431,80 +1429,96 @@ def normalMode() {
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
 	], 3000)
-    logging("${device} : SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
+    logging("SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
 }
+
+void EnrollRequest(){
+    logging("Responding to Enroll Request. Likely Battery Change", "warn")
+    delayBetween([ // Once is not enough
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"]),//enrole 
+ 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"]),//enrole 
+    ], 3000)    
+}    
+
+void MatchDescriptorRequest (){
+	logging("Match Descriptor Request. Sending Reply","info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
+}
+
+
 void refresh() {
-	logging("${device} : Refreshing", "info")
+    logging("Refreshing v${state.version}", "info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
+
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
-    logging("${device} : StartMode : [Ranging]", "info")
+    logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
+ 
 }
 
+
+
 def checkPresence() {
-    // New shorter presence routine.
-    // Runs on every parse and a schedule.
-    def checkMin  = 5  // 5 min warning
-    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
+    def checkMin  = 10  
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("${device} : Check Presence its been ${state.lastCheckInMin} mins","debug")
-    if (state.lastCheckInMin <= checkMin){ 
+    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
+    if (state.lastCheckInMin <= checkMin){
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
-        value = "present"
-        logging("${device} : Creating presence event: ${value}","info")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        return    
+         value = "present"
+         logging("Creating presence event: ${value}","info")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin){ 
-        logging("${device} : Sensor timing out ${state.lastCheckInMin} min ago","warn")
-        runIn(60,refresh)// Ping Perhaps we can wake it up...
-    }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("${device} : Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
-        runIn(60,refresh) 
-        }
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,refresh)
+     runIn(30,checkPresence) 
     }
 }
+
 
 def parse(String description) {
-	logging("${device} : Parse : ${description}", "trace")
+	logging("Parse : ${description}", "trace")
+    clientVersion()
     state.lastCheckin = now()
     checkPresence()
-    if (description?.startsWith('enroll request')) {
-			logging("${device} : Responding to Enroll Request. Likely Battery Change", "info")
-			sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"])    
-    }else {
-		Map descriptionMap = zigbee.parseDescriptionAsMap(description)
-	    if (descriptionMap) {processMap(descriptionMap)}
-        else{
-        // we should never get here reportToDev is in processMap above
-            logging("${device} : Error ${description} ${descriptionMap}", "error")    
-        }
-	}
-}
-
-
-
-
-// =============================main processor=======================
-def processMap(Map map) {
-	logging ("${device} : ${map}","trace")
+    
+   if (description?.startsWith('enroll request')) {
+        EnrollRequest()
+        return
+    }
+ 
+//  processMap clusterId:00F0 command:FB [1F, 7C, 63, 16, 00, 3C, 0C, 90, 01, CF, FF, 03, 00] 13   
+//  new processing routine    
+    Map map = zigbee.parseDescriptionAsMap(description)
+    if (!map){
+        logging("Failed to parse", "debug")
+         return
+    }
+        
+    
 	String[] receivedData = map.data
     size = receivedData.size()// size of data field
-    logging("${device} : processMap clusterId:${map.clusterId} command:${map.command} ${receivedData} ${size}", "debug")
+    logging("${map}", "trace")// full parsed data
+    logging("Map clusterId:${map.clusterId} command:${map.command} map:${receivedData}", "debug")// all iris valid data
 
 
 // Iris KeyPad report cluster 00C0  
@@ -1513,7 +1527,7 @@ def processMap(Map map) {
          // Sends a undocumented error code on bad data May also crash and reboot
          mode1 = receivedData[0]
          mode2 = receivedData[1]
-         logging ("${device} : Error report: Cluster:${map.clusterId} CMD:${map.command} [${mode1} ${mode2}] ","warn")
+         logging ("Error report: Cluster:${map.clusterId} CMD:${map.command} [${mode1} ${mode2}] ","error")
      }
        
      // KeyPad is polling asking for the state
@@ -1525,13 +1539,13 @@ def processMap(Map map) {
 //       Atempting to stop runaway countdown on entry abort.
          if (state.Command == "off"){
            if (state.waiting > 3){ // We should be off so why are we still pollin
-           logging ("${device} : Polling while set to [OFF] Corecting state.","warn") 
+           logging ("Polling while set to [OFF] Corecting state.","warn") 
            getStatus(status)// verify our state from HSM
            SendState()// Reset the state
            } 
          }    
          if (state.waiting > state.waitingTo){ // Correct lost state after a delay
-          logging ("${device} : Requesting a Poll we lost state. waiting:${state.waiting}","warn")   
+          logging ("Requesting a Poll we lost state. waiting:${state.waiting}","warn")   
           getStatus(status) 
           SendState()
          }  
@@ -1546,7 +1560,7 @@ def processMap(Map map) {
 	  buttonNumber = 0 
       status = "Unknown"   
 	  size = receivedData.size()// size of data field
-    if (PinEnclosed  =="28" ){ logging ("${device} : Mode Change Error","error")}// should auto correct
+    if (PinEnclosed  =="28" ){ logging ("Mode Change Error","error")}// should auto correct
         
 // action button Logging. 
      if (PinEnclosed == "22"){ 
@@ -1562,37 +1576,37 @@ def processMap(Map map) {
           if (irsCMD == "P") {irsCMD1= "PANIC"}
           if (irsCMD == "#") {irsCMD1= "POUND"}
           if (irsCMD == "*") {irsCMD1= "STAR"}
-           logging("${device} : Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "debug")} 
+           logging("Action :IRIS:[${irsCMD1}] [${nextirsCMD}]", "debug")} 
     }     
          
 
 // Now check for our command buttons 
 // ====================================PANIC ==================================  
      if (keyRec == "50"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed PANIC] State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released PANIC] State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("Action :[Pressed PANIC] State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("Action :[Released PANIC] State:${state.Command}","debug")}
         
          if(state.Command != "panic"){
-             logging("${device} : Action [Pressed PANIC]","info") 
+             logging("Action [Pressed PANIC]","info") 
              state.Command = "panic"
              state.delay = 50 // Time out
              panic()
              return
          }
-       logging("${device} : Action [PANIC] I already sent cmd","debug") 
+       logging("Action [PANIC] I already sent cmd","debug") 
        return
    	  }    
 // ====================================ON =====================================         
       if (keyRec == "41"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed ON AWAY] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released ON AWAY] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("Action :[Pressed ON AWAY] Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("Action :[Released ON AWAY] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
         if (state.Command =="away" | state.Command =="armingAway" ){
           if (state.received == false ){
             MyarmAway() // send it again We got no reply
             return
             }
-        logging("${device} : Action [ON] already sent:${OnSet} state:${state.Command}","debug")    
+        logging("Action [ON] already sent:${OnSet} state:${state.Command}","debug")    
         return
         }
         
@@ -1603,15 +1617,15 @@ def processMap(Map map) {
          MyarmAway()
          return   
 
-        if (state.validPIN == false){logging("${device} : Invalid PIN Cant Arm","warn")}
+        if (state.validPIN == false){logging("Invalid PIN Cant Arm","warn")}
         if (PinEnclosed  =="22" ){BadPinTone()}
         return   
         }
 //=============================================PARTIAL================================	 
 //    PartSet =Arm Night,Arm Home         
      if (keyRec == "4E"){
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("Action :[Pressed PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("Action :[Released PARTIAL] ${PartSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
           if (PartSet =="Arm Night"){          
 		  if (state.Command =="night" | state.Command =="armingNight" ){
@@ -1620,7 +1634,7 @@ def processMap(Map map) {
             return
             }
          
-          logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
+          logging("Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return 
           }
            if (requirePIN){
@@ -1637,7 +1651,7 @@ def processMap(Map map) {
             MyarmHome() // send it again We got no reply
             return
             }  
-          logging("${device} : Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
+          logging("Action [PARTIAL] Ignored already sent:${PartSet} state${state.Command}","debug")  
           return }
           
           if (requirePIN){
@@ -1648,26 +1662,26 @@ def processMap(Map map) {
          return 
 
          }   
-      logging("${device} : Invalid PIN Ignoring","warn")   
+      logging("Invalid PIN Ignoring","warn")   
       if (PinEnclosed  =="22" ){BadPinTone()}
       return   
 	 }          
 
 //=============================================OFF==============================        
          if (keyRec == "48"){
-          if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed OFF] Valid PIN:${state.validPIN} State:${state.Command}","info")}
-          if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released OFF] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+          if (PinEnclosed  =="22" ){logging ("Action :[Pressed OFF] Valid PIN:${state.validPIN} State:${state.Command}","info")}
+          if (PinEnclosed  =="23" ){logging ("Action :[Released OFF] Valid PIN:${state.validPIN} State:${state.Command}","debug")}
           if (device.currentValue("panic")== "on"){state.Command == "panic"}// Fix being out of sync 
             if (state.validPIN == true){              
              if (state.Command == "off" && PinEnclosed  =="23"){
-             logging("${device} : Action [OFF] Ignored already sent state${state.Command}","debug")  
+             logging("Action [OFF] Ignored already sent state${state.Command}","debug")  
              return
              }
             MyDisarm()
             return
          }
              
-         logging("${device} : Invalid PIN Ignoring","warn")
+         logging("Invalid PIN Ignoring","warn")
          if (PinEnclosed  =="22" ){BadPinTone()}  
          return  
 	 }         
@@ -1678,8 +1692,8 @@ def processMap(Map map) {
  //     StarSet =Disabled,Arm Night,Arm Home,Arm Away
          
      if (keyRec == "2A"){
-      if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
-      if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+      if (PinEnclosed  =="22" ){logging ("Action :[Pressed * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+      if (PinEnclosed  =="23" ){logging ("Action :[Released * STAR] ${StarSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
 
       if (StarSet == "Arm Home"){
 		 if (state.Command =="home" | state.Command =="armingHome" ){
@@ -1687,7 +1701,7 @@ def processMap(Map map) {
           MyarmHome() 
           return
           }
-         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
+         logging("Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
 
          if (requirePIN){
@@ -1706,7 +1720,7 @@ def processMap(Map map) {
             return
             } 
              
-         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
+         logging("Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
  
           if (requirePIN){
@@ -1723,7 +1737,7 @@ def processMap(Map map) {
             MyarmAway() // send it again We got no reply
             return
             }
-         logging("${device} : Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
+         logging("Action [STAR] Ignored already sent:${StarSet} state${state.Command}","debug")
          return }
  
           if (requirePIN){
@@ -1735,7 +1749,7 @@ def processMap(Map map) {
          }     
      
      // disabled
-     logging("${device} :${StarSet} Valid PIN:${state.validPIN} Ignoring","info")   
+     logging("${StarSet} Valid PIN:${state.validPIN} Ignoring","info")   
      if (PinEnclosed  =="22" ){BadPinTone()}
      return
      }        
@@ -1747,8 +1761,8 @@ def processMap(Map map) {
          
      if (keyRec == "23"){
          
-        if (PinEnclosed  =="22" ){logging ("${device} : Action :[Pressed # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
-        if (PinEnclosed  =="23" ){logging ("${device} : Action :[Released # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
+        if (PinEnclosed  =="22" ){logging ("Action :[Pressed # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","info")}
+        if (PinEnclosed  =="23" ){logging ("Action :[Released # POUND] ${PoundSet} Valid PIN:${state.validPIN} State:${state.Command}","debug")}
     
       if (PoundSet == "Arm Home"){
 		 if (state.Command =="home" | state.Command =="armingHome" ){
@@ -1756,7 +1770,7 @@ def processMap(Map map) {
             MyarmHome() // send it again We got no reply
             return
             }
-         logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
+         logging("Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
          return 
          }
 
@@ -1774,7 +1788,7 @@ def processMap(Map map) {
             MyarmNight() // send it again We got no reply
             return
             }
-         logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
+         logging("Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
          return
          }
  
@@ -1791,7 +1805,7 @@ def processMap(Map map) {
             MyarmAway() // send it again We got no reply
             return
             }
-       logging("${device} : Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
+       logging("Action [POUND] Ignored already sent:${PoundSet} state:${state.Command}","debug")
          return 
          }
               if (requirePIN){
@@ -1807,7 +1821,7 @@ def processMap(Map map) {
               }   
          }     
      
-     logging("${device} : ${PoundSet} Valid PIN:${state.validPIN} Ignoring","info")   
+     logging("${PoundSet} Valid PIN:${state.validPIN} Ignoring","info")   
      if (PinEnclosed  =="22" ){BadPinTone()}     
      return
      } 
@@ -1827,15 +1841,15 @@ def processMap(Map map) {
 
       sendEvent(name: "lastCodeName", value: "${state.PinName}", descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")// May be needed by other aps.
       sendEvent(name: "lastCodePIN",  value: "${state.PIN}",     descriptionText: "${state.PinName} [${state.PIN}] valid:${state.validPIN}")         
-      logging("${device} : valid:${state.validPIN} Pin:${state.PIN} Name:${state.PinName} Size:${pinSize} State:${state.Command}","debug")
+      logging("valid:${state.validPIN} Pin:${state.PIN} Name:${state.PinName} Size:${pinSize} State:${state.Command}","debug")
       runIn(97, "purgePIN")// Purge time must allow repeating to finish
       if (state.validPIN == true){
-          logging("${device} : [Valid PIN]:Name:${state.PinName} State:${state.Command}","info")
+          logging("[Valid PIN]:Name:${state.PinName} State:${state.Command}","info")
      	  return  
         }   
       // The pin was not valid         
       BadPinTone()
-      logging("${device} : [Invalid PIN]:Pin:${state.PIN} State:${state.Command}","warn")
+      logging("[Invalid PIN]:Pin:${state.PIN} State:${state.Command}","warn")
       if(tamperPIN){tamper()}
       else {shock()} 
       return	 
@@ -1897,20 +1911,29 @@ if (keyRec == "30"){push(10)}
             batteryPercentage = ((batteryVoltage1 - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 			batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 			batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-
-        powerLast = device.currentValue("battery")
+//        if (!state.DualBat){state.DualBat=0}
+//        state.DualBat = state.DualBat + 1
+//        if (state.DualBat < 1 | state.DualBat >2 ){stateDualBat = 1}
+        
+        evntBat = "battery"
+        evntVol = "batteryVoltage"
+        powerLast = device.currentValue(evntBat)
+            
+//        if (state.DualBat == 2){  not working
+//        evntBat = "battery2"
+//         evntVol = "batteryVoltage2" 
+//         powerLast2 = device.currentValue(evntBat)   
+//        }
+        
         
         if ( batteryVoltage2 < state.minVoltTest){state.minVoltTest = batteryVoltage2}  // Record the min volts seen working 
        
-        logging("${device} : battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage2}V", "debug")
+        logging("${evntBat}: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage2}V", "debug")
         if (powerLast == batteryPercentage){return}
-           sendEvent(name: "battery", value:batteryPercentage, unit: "%")
-           sendEvent(name: "batteryVoltage", value: batteryVoltage2, unit: "V", descriptionText: "Volts:${batteryVoltage2}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-          if (batteryPercentage > 19) {logging("${device} : Battery:${batteryPercentage}% ${batteryVoltage2}V", "info")}
-          else { logging("${device} : Battery :LOW ${batteryPercentage}% ${batteryVoltage2}V", "info")}
-            
-          state.bat2 = state.bat1
-          state.bat1 = powerLast
+           sendEvent(name: evntBat, value: batteryPercentage, unit: "%")
+           sendEvent(name: evntVol, value: batteryVoltage2, unit: "V", descriptionText: "Volts:${batteryVoltage2}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
+        logging("${evntBat}:${batteryPercentage}% ${batteryVoltage2}V", "info")
+        
         }// end battery           
   }// FB
 }// 00F0
@@ -1924,18 +1947,18 @@ if (keyRec == "30"){push(10)}
             lqiLast = device.currentValue("lqi")
             if(lqiRanging != lqiLast){
 			 sendEvent(name: "lqi", value: lqiRanging)
-			 logging("${device} : LQI: ${lqiRanging}", "info")
+			 logging("LQI: ${lqiRanging}", "info")
             }   
 		if (receivedData[1] == "77" || receivedData[1] == "FF") { // Ranging running in a loop
 			state.rangingPulses++
-            logging("${device} : Ranging ${state.rangingPulses}", "debug")    
- 			 if (state.rangingPulses > 14) {
+            logging("Ranging ${state.rangingPulses}", "debug")    
+ 			 if (state.rangingPulses > 8) {
               normalMode()
               return   
              }   
         } else if (receivedData[1] == "00") { // Ranging during a reboot
 				// when the keypad reboots we must answer
-				logging("${device} : reboot ranging report received", "info")
+				logging("reboot ranging report received", "info")
 				refresh()
                 return
 			} 
@@ -1954,7 +1977,22 @@ if (keyRec == "30"){push(10)}
 	String[] versionInfoBlocks = versionInfo.split("\\s")
 	int versionInfoBlockCount = versionInfoBlocks.size()
 	String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
-	logging("${device} : Ident:${versionInfoDump}","trace")
+            
+             // taken from iris source code
+            mfgIdhex = receivedData[11] + receivedData[10]  
+            def mfgIddec = Integer.parseInt(mfgIdhex,16)
+            dvcType = receivedData[13] + receivedData[12]
+            def appRel = Integer.parseInt(receivedData[14],16)
+            def appVer = Integer.parseInt(receivedData[15],16)
+            hwVerHex = receivedData[17] + receivedData[16]
+            def hwVer = Integer.parseInt(hwVerHex,16)        
+            
+            String deviceFirmwareDate = versionInfoBlocks[versionInfoBlockCount - 1]
+            firmwareVersion = "appV.appRel.hwV-" +appVer + "." + appRel + "." + hwVer+"-date-" + deviceFirmwareDate
+            logging("Ident Block: ${versionInfoDump} ${firmwareVersion}", "trace")
+    
+            state.firmware =  appVer + "." + appRel + "." + hwVer 
+
 	String deviceManufacturer = "IRIS/Everspring"
 	String deviceModel = ""
 	String deviceFirmware = versionInfoBlocks[versionInfoBlockCount - 1]
@@ -1965,7 +2003,7 @@ if (keyRec == "30"){push(10)}
       if(deviceFirmware == "2013-06-28" ){reportFirm = "v3 Ok"}
   
       
-	if(reportFirm == "unknown"){state.reportToDev="Report Unknown firmware [${deviceFirmware}] " }
+	if(reportFirm == "unknown"){state.reportToDev="Unknown firmware [${firmwareVersion}] ${deviceFirmwareDate}" }
     else{state.remove("reportToDev")}
       
 	// Sometimes the model name contains spaces.
@@ -1974,7 +2012,7 @@ if (keyRec == "30"){push(10)}
 	} else {
 	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
 	}
-      logging("${device} : ${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "debug")
+      logging("${deviceModel} Firmware :[${deviceFirmware}] ${reportFirm} Driver v${state.version}", "debug")
         if(!state.Config){
         state.Config = true    
         updateDataValue("manufacturer", deviceManufacturer)
@@ -1984,60 +2022,57 @@ if (keyRec == "30"){push(10)}
         updateDataValue("fcc", "FU5TSA04")
         updateDataValue("partno", "TSA04-0")
         }
-     } else { reportToDev(map)}
+     } 
 
+// Standard IRIS USA Cluster detection block v4
 
-// Standard IRIS USA Cluster detection block v3 10/7/2022
-// Delay to prevent spamming the log on a routing messages    
-	} else if (map.clusterId == "8001" ) {
-        pauseExecution(new Random().nextInt(10) * 1000)
-		logging("${device} : ${map.clusterId} Routing and Neighbour Information", "info")  
-	} else if (map.clusterId == "8032" ) {
-        pauseExecution(new Random().nextInt(10) * 1000)
-		logging("${device} : ${map.clusterId} New join has triggered a routing table reshuffle.", "info")
-    } else if (map.clusterId == "8034" ) {
-		logging("${device} : ${map.clusterId} Seen during REMOVE. ", "warn")
-    } else if (map.clusterId == "8038") {
-        logging("${device} : ${map.clusterId} Seen before but unknown", "debug")    
-    } else if (map.clusterId == "0006") {
-		logging("${device} : Match Descriptor Request. Sending Response","info")
-		sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])
-	} else if (map.clusterId == "0013" ) {
-        pauseExecution(new Random().nextInt(10) * 1000)
-		logging("${device} : ${map.clusterId} Re-routeing around dead devices. (power Falure?)", "warn")
-	} else {
-		reportToDev(map)// unknown cluster
-	}
-
+    } else if (map.clusterId == "8038")  {logging("${map.clusterId} Seen before but unknown", "debug")
+	} else if (map.clusterId == "8001" ) {logging("${map.clusterId} Routing and Neighbour Information", "info")    
+	} else if (map.clusterId == "8032" ) {logging("${map.clusterId} New join has triggered a routing table reshuffle.", "info")
+    } else if (map.clusterId == "8034" ) {logging("${map.clusterId} Seen during REMOVE. ", "warn")    
+    } else if (map.clusterId == "0006")  {MatchDescriptorRequest()
+	} else if (map.clusterId == "0013" ) {logging("${map.clusterId} Re-routeing", "warn")
+    } else {logging("New unknown Cluster Detected: ${map}", "warn")}// report to dev improved
 }
+        
+        
+
 void sendZigbeeCommands(List<String> cmds) {
-    logging("${device} : sending:${cmds}", "trace")
+    logging("sending:${cmds}", "trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
-private String[] millisToDhms(int millisToParse) {
-	long secondsToParse = millisToParse / 1000
-	def dhms = []
-	dhms.add(secondsToParse % 60)
-	secondsToParse = secondsToParse / 60
-	dhms.add(secondsToParse % 60)
-	secondsToParse = secondsToParse / 60
-	dhms.add(secondsToParse % 24)
-	secondsToParse = secondsToParse / 24
-	dhms.add(secondsToParse % 365)
-	return dhms
-}
+
+
+
 private BigDecimal hexToBigDecimal(String hex) {
     int d = Integer.parseInt(hex, 16) << 21 >> 21
     return BigDecimal.valueOf(d)
 }
 
-// Logging block 
+void getIcons(){
+state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-keypad.jpg'>"
+state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    
+    
+ }
+
+
+
+// Logging block  v4
+
 void loggingUpdate() {
-    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -2047,10 +2082,11 @@ void debugLogOff(){
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
 private logging(String message, String level) {
-    if (level == "infoBypass"){log.info  "$message"}
-	if (level == "error"){     log.error "$message"}
-	if (level == "warn") {     log.warn  "$message"}
-	if (level == "trace" && traceLogging) {log.trace "$message"}
-	if (level == "debug" && debugLogging) {log.debug "$message"}
-    if (level == "info"  && infoLogging)  {log.info  "$message"}
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
+
