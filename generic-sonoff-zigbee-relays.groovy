@@ -9,15 +9,19 @@ Sylvania Smart + LEDVANCE
 This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
 These relays all use the same formats but have diffrent problems with internal drivers.
 
+It also works with Sylvania Smart + LEDVANCE outlets as likely many more generic outlets.
+
 Suports alarm,strobe,siren,refreash and presence.
 
-Send me your fingerprints so they can be added.
+If it works with your relay and outlet and its not listed Send me your fingerprints so they can be added.
+To create a fingerprint switch driver to DEVICE and press get info....The fingerprint will be in the log
 
 -----Warning --------
 If you are switching from another driver you must FIRST switch to internal driver (zigbee generic outlet)
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.0 11/10/2022   Added retry to recovery mode was creating false non present alarms
  1.5.7 11/05/2022   SA-003-Zigbee images added. This Fingerprint can be a relay or a round outlet same ID 
  1.5.6 11/03/2022   Added ping. Added disable presence schedule
  1.5.5 11/01/2022   Removed unschedule. Rewrites
@@ -53,7 +57,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.5.7"
+    TheVersion="1.6.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -106,7 +110,9 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-	input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
+	input name: "disableLogsOff",type: "bool", title: "Disable Auto Logs off", description: "For debugging doesnt auto disable", defaultValue: false
+
+    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
     input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. 0=disable Press config after saving",options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
    
 }
@@ -133,6 +139,7 @@ def uninstall() {
     state.remove("donate")
     state.remove("model")
     state.remove("MFD")
+    state.remove("tries")
 
     logging("Uninstalled", "info")  
 }
@@ -289,14 +296,16 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // New shorter presence routine. v3 10-30-22
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
-    def checkMin = 200// [not present] and 0 batt
+    def checkMin = 200
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin}","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
@@ -306,15 +315,17 @@ def checkPresence() {
         }
     }
     if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        runIn(6,ping)
-        }
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,ping)
+     runIn(30,checkPresence) 
     }
-
 }
 
 
@@ -377,11 +388,11 @@ def parse(String description) {
    logging("Ignoring ${map.cluster} ${text}", "debug") 
        
 }else if (map.cluster == "0013") {
-        logging("cluster:${map.cluster} 0013 Responding to Enroll Request.", "info")
+        logging("cluster:${map.cluster} Responding to Enroll Request.", "info")
         zigbee.enrollResponse()
 
 }else if (map.cluster == "0006") {
-        logging("cluster:${map.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
+        logging("cluster:${map.cluster} Seen after a Enroll Request. Unknown", "debug")
         zigbee.enrollResponse()
         
  }  else{logging("New unknown Cluster${map.cluster} Detected: ${map}", "warn")}// report to dev
@@ -465,10 +476,11 @@ void getIcons(){
 
  }
 
-// Logging block v4 10/24/2022
+// Logging block v5 11/2022
 //	
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    if (disableLogsOff){return}
     if (debugLogging){runIn(4000,debugLogOff)}
     if (traceLogging){runIn(1000,traceLogOff)}
 }
