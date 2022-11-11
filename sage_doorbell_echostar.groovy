@@ -22,6 +22,7 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
+v2.8.0  11/11/2022  Presence updated with retries
 v2.7.0  11/05/2022  Merged in changes made in Light switch driver,added schedule options
 v2.6.0  10/30/2022  Presence Bug Fix Was not warning first
 v2.5.6  10/17/2022  bug fixes and cleanup
@@ -68,7 +69,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.7.0"
+    TheVersion="2.8.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -188,41 +189,51 @@ runIn(8,refresh)
 
 
 }
+
+
 def checkPresence() {
-    def checkMin  = 1400 // 24 hrs warning
-    def checkMin2 = 2800 // 48 hrs [not present] and 0 batt
-    // New shorter presence routine. v2 10/22
-//    def checkMin  = 5  // 5 min warning
-//    def checkMin2 = 10 // 10 min [not present] and 0 batt
+    // New shorter presence routine. v4 11-10-22
+    if(!state.tries){state.tries = 0} 
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 2800
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-        logging("Creating presence event: ${value}","info")
+            logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
-    if (state.lastCheckInMin >= checkMin2) { 
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
         test = device.currentValue("presence")
-        if (test != "not present"){
-        value = "not present"
-        logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago","warn")
-        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"${value}% ${state.version}", isStateChange: true) 
-        runIn(60,refresh) 
-        }
-    } 
-    if (state.lastCheckInMin >= checkMin){ 
-      logging("Sensor timing out ${state.lastCheckInMin} min ago","warn")
-      runIn(60,refresh)// Ping Perhaps we can wake it up...
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         }
+     if (state.tries >=3){return} // give up
+     runIn(6,ping)
+     runIn(30,checkPresence) 
     }
 }
+
+
+
+
+
+
+
+
+
 def parse(String description) {
     state.lastCheckin = now()
     checkPresence()
