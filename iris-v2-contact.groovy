@@ -60,7 +60,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.0"
+    TheVersion="1.7.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -439,6 +439,7 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)   
          }
      if (state.tries >=3){return} // give up
      runIn(6,ping)
