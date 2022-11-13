@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.2.1 11/12/2022 Another bug fix for presence
 v3.2.0 11/11/2022 Added retry and recovery mode.New firmware detection
 v3.1.3 11/07/2022 compacted logging code.Rewriting sections of code
 v3.1.2 11/06/2022 Trace looking bug zigbee rec should be send
@@ -101,7 +102,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.0"
+    TheVersion="3.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -133,7 +134,7 @@ metadata {
 
 	command "checkPresence"
 	command "normalMode"
-	command "rangeAndRefresh"
+    command "rangeAndRefresh"
     command "ForceClosed"
     command "ForceOpen"
     command "ClearTamper"
@@ -314,17 +315,13 @@ def updated() {
     refresh() 
 }
 
-// To be used later on a schedule. 
-def quietMode() {
-	// Turns off all reporting except for a ranging message every 2 minutes.
-    delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    ], 3000)    
-	logging ("Mode: Quiet  [FA:03.01]","info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
-}
+
+// useless mode shuts down the device? Unknown 
+// ranging message every 2 minutes.
+//void offMode() {
+//	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"])// shut off device
+//	logging ("Mode: Quiet  [FA:03.01]","info")
+//}
 
 def normalMode() {
     // This is the standard running mode.
@@ -366,34 +363,44 @@ def rangeAndRefresh() {
 
 
 def checkPresence() {
-    // New shorter presence routine. v4 11-10-22
+    // presence routine. v5.1 11-12-22
+    // simulated 0% battery detection
     if(!state.tries){state.tries = 0} 
-    def checkMin  = 10  
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 20
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
-    if (state.lastCheckInMin <= checkMin){
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+    if (state.lastCheckInMin <= checkMin){ 
         state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
-         value = "present"
-         logging("Creating presence event: ${value}","info")
-         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         return    
+        value = "present"
+            logging("Creating presence event: ${value}  ","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
         }
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
+      if (state.tries >=5){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         return // we dont want a ping after this or it could toggle
          }
-     if (state.tries >=3){return} // give up
-     runIn(6,refresh)
-     runIn(30,checkPresence) 
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
     }
 }
 
