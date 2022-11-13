@@ -18,7 +18,7 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
-  v7.0.1 11/12/2022 Another bug fix for presence
+  v7.0.2 11/12/2022 Another bug fix for presence
   v7.0.0 11/11/2022 Rewrote logging code (smaller code size) Added improvements from my iris drivers
   v6.9.0 10/30/2022 Bug fix in presence routine was not giving warning before timing out.
   v6.8.5 10/10/2022 Bat 2 detection removed more work needed.
@@ -266,7 +266,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="7.0.1"
+    TheVersion="7.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -1444,6 +1444,10 @@ void EnrollRequest(){
 void MatchDescriptorRequest (){
 	logging("Match Descriptor Request. Sending Reply","info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
+}
+def ping(){
+    logging("Ping", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
 
 
