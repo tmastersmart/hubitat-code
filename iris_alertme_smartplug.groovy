@@ -13,7 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
-v4.0.1  11/12/2022 Bug fix presence
+v4.0.2  11/12/2022 Bug fix presence
 v4.0  11/11/2022 Bug fix on presence. Improvements from other iris drivers added
 v3.9.1 11/06/2022 Logos added. Bug fix on config delay. operating Mode human form
 v3.9  10/30/2022 Bug fix in presence routine
@@ -72,7 +72,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.0.1"
+    TheVersion="4.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -281,6 +281,10 @@ void EnrollRequest(){
 void MatchDescriptorRequest (){
 	logging("Match Descriptor Request. Sending Reply","info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
+}
+void ping() {
+    logging("ping", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
 }
 
 
