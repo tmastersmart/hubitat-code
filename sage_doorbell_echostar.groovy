@@ -22,7 +22,7 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
-v2.8.1  11/12/2022  nother bug fix for presence
+v2.8.2  11/12/2022  nother bug fix for presence
 v2.8.0  11/11/2022  Presence updated with retries
 v2.7.0  11/05/2022  Merged in changes made in Light switch driver,added schedule options
 v2.6.0  10/30/2022  Presence Bug Fix Was not warning first
@@ -70,7 +70,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.1"
+    TheVersion="2.8.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -352,7 +352,10 @@ def refresh() {
         
 }
 
-
+def ping() {
+    logging("ping", "info")
+      sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005))// model
+}
 
 
 
