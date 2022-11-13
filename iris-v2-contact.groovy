@@ -29,6 +29,8 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.7.3    11/12/2022 Another bug fix for presence
+1.7.2    11/11/2022 Min bat null if not configured fixed
 1.7.0    11/11/2022 Presence retry rewrote
 1.6.2    11/10/2022 Auto min bat voltage added. You must let it run down to 0 once for it to work.
                     icon updates
@@ -60,7 +62,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.1"
+    TheVersion="1.7.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -268,7 +270,7 @@ def parse(String description) {
            powerLast = device.currentValue("battery")
            def rawValue = Integer.parseInt(descMap.value,16) 
            def batteryVoltage = rawValue / 10
-   
+        if(!state.minVoltTest){state.minVoltTest = 2.45}
           if (batteryVoltage < state.minVoltTest){
              state.minVoltTest = batteryVoltage
              logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
@@ -276,6 +278,7 @@ def parse(String description) {
         
            if (!(rawValue == 0 || rawValue == 255)) {
            def maxVolts = 2.9 // fixes false reading 
+          //     logging("${batteryVoltage} -${state.minVoltTest} / ${maxVolts} - ${state.minVoltTest}", "trace")     
            def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
@@ -414,10 +417,11 @@ def processStatus(ZoneStatus status) {
 
 
 def checkPresence() {
-    // New shorter presence routine. v4 11-10-22
+    // presence routine. v5.1 11-12-22
+    // simulated 0% battery detection
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
-    def checkMin = 50
+    def checkMin = 20
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
@@ -434,18 +438,26 @@ def checkPresence() {
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
+      if (state.tries >=5){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)   
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         return // we dont want a ping after this or it could toggle
          }
-     if (state.tries >=3){return} // give up
-     runIn(6,ping)
-     runIn(30,checkPresence) 
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
     }
 }
+
 
 void sendZigbeeCommands(List<String> cmds) {
     logging("sending:${cmds}", "trace")
