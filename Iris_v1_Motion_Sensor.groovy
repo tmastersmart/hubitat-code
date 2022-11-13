@@ -8,7 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
-v2.4.1 11/12/2022 Another bug fix for presence
+v2.4.2 11/12/2022 Another bug fix for presence
 v2.4.0 11/11/2022 Added Retries to presence. Rewrote logging code.
                   cleaned up parsing code. New firmware detection
 v2.3.2 11/06/2022 Trace log Zigbee send was displaying rec
@@ -73,7 +73,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.1"
+    TheVersion="2.4.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -294,7 +294,10 @@ void MatchDescriptorRequest (){
 	logging("Match Descriptor Request. Sending Reply","info")
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
 }
-
+def ping(){
+    logging("Ping", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
+}
 
 void refresh() {
     logging("Refreshing ${state.model} v${state.version}", "info")
