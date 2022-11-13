@@ -5,7 +5,7 @@
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "4.0.0",
+  "version": "4.0.1",
   "dateReleased": "2022-09-03",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"], 
