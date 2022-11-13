@@ -5,7 +5,7 @@
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Bug fix in presence",
   "communityLink": "https://community.hubitat.com/t/release-iris-v1-senior-care-pendant-driver/81814",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "dateReleased": "2022-22-09",
   "category":"Security",
   "tags":   [    "Safety & Security"    ],
