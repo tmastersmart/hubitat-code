@@ -19,6 +19,7 @@ Help is needed do you know the command to stop the above?
 
 
 ================================================================================
+v2.8.1  11/12/2022 Another bug fix for presence
 v2.8.0  11/11/2022 Presence Upgraded with retries
 v2.7.1  11/05/2022 added schedule options
 v2.7.0  11/04/2022 Imported Sage doorbell code and modified into a switch
@@ -56,7 +57,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.0"
+    TheVersion="2.8.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -178,7 +179,8 @@ runIn(8,refresh)
 
 
 def checkPresence() {
-    // New shorter presence routine. v4 11-10-22
+    // presence routine. v5.1 11-12-22
+    // simulated 0% battery detection
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     def checkMin = 2800
@@ -193,22 +195,28 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
+      if (state.tries >=5){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)   
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         return // we dont want a ping after this or it could toggle
          }
-     if (state.tries >=3){return} // give up
-     runIn(6,ping)
-     runIn(30,checkPresence) 
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
     }
 }
 
