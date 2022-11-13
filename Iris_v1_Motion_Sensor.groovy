@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.1 11/12/2022 Another bug fix for presence
 v2.4.0 11/11/2022 Added Retries to presence. Rewrote logging code.
                   cleaned up parsing code. New firmware detection
 v2.3.2 11/06/2022 Trace log Zigbee send was displaying rec
@@ -72,7 +73,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.0"
+    TheVersion="2.4.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -312,36 +313,49 @@ def rangeAndRefresh() {
 
 
 def checkPresence() {
-    // New shorter presence routine. v4 11-10-22
+    // presence routine. v5.1 11-12-22
+    // simulated 0% battery detection
     if(!state.tries){state.tries = 0} 
-    def checkMin  = 10  
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 20
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins","debug")
-    if (state.lastCheckInMin <= checkMin){
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+    if (state.lastCheckInMin <= checkMin){ 
         state.tries = 0
         test = device.currentValue("presence")
         if (test != "present"){
-         value = "present"
-         logging("Creating presence event: ${value}","info")
-         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         return    
+        value = "present"
+            logging("Creating presence event: ${value}  ","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
         }
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
+      if (state.tries >=5){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         return // we dont want a ping after this or it could toggle
          }
-     if (state.tries >=3){return} // give up
-     runIn(6,refresh)
-     runIn(30,checkPresence) 
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
     }
 }
+
+       
+
 
 
 def ClearTamper (){
