@@ -31,7 +31,7 @@ not know what to do. I think it was said after several reboots it will go away b
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
-v2.8.1 11/12/2022 Another bug fix for presence
+v2.8.2 11/12/2022 Another bug fix for presence
 v2.8.0 11/11/2022 New presence routine with retry 
 v2.7.0 10/30/2022 Presence FIX was not doing warning before expiring
 v2.6.0 10/28/2022 Fix for last date not updating on hub. 
@@ -74,7 +74,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.8.1"
+    TheVersion="2.8.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -328,6 +328,10 @@ def pollDevice() {
     poll()
 }
 def refresh() {
+    poll()
+}
+
+def ping() {
     poll()
 }
 def poll() {
