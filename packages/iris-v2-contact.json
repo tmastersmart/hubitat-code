@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "presence code rewrite. Detection for 3320-L working diffrent than 1116-S. Auto adjust for min bat voltage. You must let bat run down to 0 one time.",
-  "version": "1.7.1",
+  "version": "1.7.3",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
