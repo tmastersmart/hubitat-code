@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "New presence routine. firmware detection.rewrites",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
   "tags":   [ "Alarm Systems", "Motion Control" ],
