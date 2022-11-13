@@ -22,7 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
-v3.2.1 11/12/2022 Another bug fix for presence
+v3.2.2 11/12/2022 Another bug fix for presence
 v3.2.0 11/11/2022 Added retry and recovery mode.New firmware detection
 v3.1.3 11/07/2022 compacted logging code.Rewriting sections of code
 v3.1.2 11/06/2022 Trace looking bug zigbee rec should be send
@@ -102,7 +102,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.1"
+    TheVersion="3.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -345,6 +345,10 @@ void MatchDescriptorRequest (){
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
 }
 
+def ping(){
+    logging("Ping", "info")
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
+}
 
 void refresh() {
     logging("Refreshing ${state.model} v${state.version}", "info")
