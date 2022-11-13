@@ -21,6 +21,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.1 11/12/2022   More bug fixes in presence
  1.6.0 11/10/2022   Added retry to recovery mode was creating false non present alarms
  1.5.7 11/05/2022   SA-003-Zigbee images added. This Fingerprint can be a relay or a round outlet same ID 
  1.5.6 11/03/2022   Added ping. Added disable presence schedule
@@ -57,7 +58,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.0"
+    TheVersion="1.6.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -296,7 +297,7 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // New shorter presence routine. v4 11-10-22
+    // presence routine. v5 11-12-22
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     def checkMin = 200
@@ -316,15 +317,22 @@ def checkPresence() {
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
+      if (state.tries >=5){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value} ${state.lastCheckInMin} min ago ","warn")
+         logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         return // we dont want a ping after this or it could toggle
          }
-     if (state.tries >=3){return} // give up
-     runIn(6,ping)
-     runIn(30,checkPresence) 
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
     }
 }
 
