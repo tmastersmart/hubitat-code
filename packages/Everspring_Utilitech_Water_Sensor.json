@@ -5,7 +5,7 @@
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "Fix to keep last date in hub updated. Presence fix again. Prease read info in driver on how to re-pair Undocumented hubitat bug with this device. I have a FIX",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "dateReleased": "2022-09-03",
   "category":"Security",
   "tags":   [ "Safety & Security,valve" ],
