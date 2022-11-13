@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.2 11/12/2022 Logging module update. Autofix installed
  v5.5.1 10/20/2022 Null on line 401. Error checking added/ Swing and DIff auto saved
  v5.5.0 10/15/2022 Null detection added in event 11
  v5.4.2 10/10/2022 Split info logs 
@@ -103,7 +104,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.1"
+    TheVersion="5.5.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -214,14 +215,14 @@ preferences {
     input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["10","15","20","30","40","50"],defaultValue: 15,required: true)
 
     
-//    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
-//    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 3,required: true)
+    input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
+    input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 5,required: true)
 
 
 }
 
 def installed(){
-logging("${device} : Radio Thermostat Paired!", "info")
+logging("Radio Thermostat Paired!", "info")
 cleanState()    
 configure()
 }
@@ -277,24 +278,23 @@ updateDataValue("protocolVersion", "")
 updateDataValue("lastRunningMode", "")
 updateDataValue("zwNNUR", "")
 
-    logging("${device} : Garbage Collection.", "info")    
+    logging("Garbage Collection.", "info")    
    
 }
 
 def uninstall() {
 	unschedule()
     cleanState()
-    logging("${device} : Uninstalled", "info")   
+    logging("Uninstalled", "info")   
 }
 
 def configure() {
     unschedule()
     state.remove("paypal") 
-    state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/radio-thermostat.jpg'>"
-    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
-
+    getIcons()
+    
     state.info ="All thermostats do not work with all settings. Only settings reported in the log as being received will work."
-    logging("${device} : Configure Driver v${state.version}", "info")
+    logging("Configure Driver v${state.version}", "info")
 
 	updated()
     state.cwire =0 
@@ -324,7 +324,7 @@ def updated() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	schedule("${randomSixty} 0/${checkEveryMinutes} * * * ? *", poll)
     schedule("${randomSixty} 0 12 * * ? *", setTheClock)
-    logging("${device} :Setting Chron Poll: every ${checkEveryMinutes}mins  Clock: 12:${randomSixty}", "info")
+    logging("Setting Chron Poll: every ${checkEveryMinutes}mins  Clock: 12:${randomSixty}", "info")
 
     loggingUpdate()
     
@@ -350,7 +350,7 @@ def poll() {
     
     def nowCal = Calendar.getInstance(location.timeZone)
     Timecheck = "${nowCal.getTime().format("EEE MMM dd", location.timeZone)}"
-    logging("${device} : Poll E=Event# ${Timecheck} v${state.version}", "info")
+    logging("Poll E=Event# ${Timecheck} v${state.version}", "info")
 //zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // testing
 //zwave.batteryV1.batteryGet().format(),
 //zwave.commands.versionv2.VersionReport
@@ -396,12 +396,12 @@ def parse(String description)
    CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1]   
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
    if (!map) {
-   logging("${device} : Unable to Parse", "error")   
+   logging("Unable to Parse", "error")   
        return
    }
 	def result = [map]
-    logging("${device} : Raw:${description} [${map}]", "trace")
-    logging("${device} : Parse ${result}", "debug")
+    logging("Raw:${description}", "trace")
+    logging("Parse ${map}", "debug")
     zwaveEvent(map)
 }
 
@@ -410,7 +410,7 @@ def parse(String description)
 // Termostat setpoints -------------------------------------------------------
 def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointReport cmd)
 {
-    logging("${device} : received E1 ${cmd}", "debug")
+    logging("received E1 ${cmd}", "debug")
     def cmdScale = cmd.scale == 1 ? "F" : "C"
 	def map = [:]
 	map.value = convertTemperatureIfNeeded(cmd.scaledValue, cmdScale, cmd.precision)
@@ -430,42 +430,29 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 //           tempCheck = "77.0"
 			break;
 		default:
-        logging("${device} : error Unknown ${map.value}", "warn")
+        logging("error Unknown ${map.value}", "warn")
 			return [:]
 	}
     if (map.name != null){
 
-    logging("${device} : E1 ${map.name} ${map.value} ${cmdScale}", "info")
+    logging("E1 ${map.name} ${map.value} ${cmdScale}", "info")
     sendEvent(name: map.name , value: map.value,unit: cmdScale,descriptionText:"${map.name} ${map.value} ${state.version}", isStateChange:true)    
     }
     tempCheck2 = map.value.toDouble() 
     if(tempCheck){ // needed in case of no last setpoints set
      if(tempCheck == tempCheck2){
-      logging("${device} : E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "debug") //moved to debug
-//      state.error = 0 
+      logging("E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "debug") //moved to debug
+      state.error = 0 
       }
-     if(tempCheck != tempCheck2){
-         logging("${device} : E1 ${map.name} Last Point does not match Last${tempCheck}<>Current${tempCheck2} ", "warn") 
-// This doesnt work wont take set cmd from here? Why.
-//         state.error = state.error +1
-//         if (state.error >= autocorrectNum) {
-//           if (autocorrect == true){ // Set in config. optional
-//                 setCoolingSetpoint(state.SetCool) doesnt work
-//                 setHeatingSetpoint(state.SetHeat) doesnt work
-         
-//        logging("${device} : E1 Resetting cool:${state.SetCool}/Heat:${state.SetHeat}", "info")
-//        logging("${device} : E1 (setpointType: 1, scale: ${state.scale}, precision: ${state.precision}, scaledValue: ${state.SetHeat})", "info")
-//        logging("${device} : E1 (setpointType: 2, scale: ${state.scale}, precision: ${state.precision}, scaledValue: ${state.SetCool})", "info")        
-               
-//        state.error = 0 eben sending cmd from here doesnt work..
- //       delayBetween([
-//        zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: state.scale, precision: state.precision, scaledValue: state.SetHeat) ,   
-//        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1),
-//        zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: state.scale, precision: state.precision, scaledValue: state.SetCool),
-//        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2)    
-//	], delay)   
-//           }    
-//         }   
+     if(tempCheck != tempCheck2 & autocorrect == true){
+         logging("E1 ${map.name} Last Point does not match Last${tempCheck}<>Current${tempCheck2} error:${state.error} fixOn:${autocorrectNum}", "warn")
+         state.error = state.error + 1
+         if (state.error >= autocorrectNum ){
+          runIn(1,FixHeat)
+          runIn(5,FixCool)
+          logging("Resetting cool:${state.SetCool}/Heat:${state.SetHeat}", "info")
+          //state.error = 0    
+         }    
       }
    }// end if not null
 
@@ -477,7 +464,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
 // E2 
 def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport cmd)
 {
-	logging("${device} : received E2 ${cmd}", "debug")
+	logging("received E2 ${cmd}", "debug")
     def map = [:]
     map.displayed = true
     map.isStateChange = true
@@ -492,17 +479,17 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport 
 		map.name = "humidity"
 	}
     if (map.value != null){
-    logging("${device} : E2 ${map.name} ${map.value} ${map.unit}", "info")
+    logging("E2 ${map.name} ${map.value} ${map.unit}", "info")
     sendEvent(name:map.name ,value:map.value ,unit: map.unit, descriptionText:"${map.name} ${map.value} ${state.version}", isStateChange: true)
     }
-    else {logging("${device} : E2 Unknown data ${cmd}", "warn")}
+    else {logging("E2 Unknown data ${cmd}", "warn")}
 	map
 }
 // E3
 def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport cmd)
 {
 	def map = [:]
-    logging("${device} : received E3 ${cmd}", "debug")
+    logging("received E3 ${cmd}", "debug")
     map.name = "thermostatOperatingState"
     map.value = "unknown"
 	switch (cmd.operatingState) {
@@ -529,13 +516,13 @@ def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOpera
 			break
 	}
 	
-    logging("${device} : E3 ${map.name} - ${map.value} ", "info2")
+    logging("E3 ${map.name} - ${map.value} ", "info2")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
 	map
 }
 // E4
 def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateReport cmd) {
-    logging("${device} : received E4 ${cmd}", "debug")
+    logging("received E4 ${cmd}", "debug")
 	def map = [:]
     map.name = "thermostatFanState"    
     map.value = "unknown"
@@ -550,14 +537,14 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateRep
 			map.value = "running high"
 			break
 	}
-    logging("${device} : received E4 ${map.name} - ${map.value} ", "info2")
+    logging("received E4 ${map.name} - ${map.value} ", "info2")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
 	map
 }
 
 def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd) {
 	def map = [:]
-    logging("${device} : received E5 ${cmd}", "debug")
+    logging("received E5 ${cmd}", "debug")
     map.name = "thermostatMode"
     map.value = "unknown"
 	switch (cmd.mode) {
@@ -578,7 +565,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 			break
 	}
 	
-    logging("${device} : E5 ${map.name} - ${map.value} ", "info")
+    logging("E5 ${map.name} - ${map.value} ", "info")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
     
 	map
@@ -586,7 +573,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport cmd) {
 	def map = [:]
-    logging("${device} : received E6 ${cmd}", "debug")
+    logging("received E6 ${cmd}", "debug")
     map.name = "thermostatFanMode"
     map.value = "unknown"
 	switch (cmd.fanMode) {
@@ -601,7 +588,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 			break
 	}
 	
-    logging("${device} : E6 ${map.name} - ${map.value} ", "info2")
+    logging("E6 ${map.name} - ${map.value} ", "info2")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
  
 	map.displayed = false
@@ -610,7 +597,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 
 def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedReport cmd) {
 	def supportedModes = ""
-    logging("${device} : received E7 ${cmd}", "debug")
+    logging("received E7 ${cmd}", "debug")
 	if(cmd.off) { supportedModes += "off," }
 	if(cmd.heat) { supportedModes += "heat," }
 	if(cmd.auxiliaryemergencyHeat) { supportedModes += "emergency heat," }
@@ -631,7 +618,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
         
 
 //	state.supportedModes = supportedModes
-    logging("${device} : E7 supportedModes [${supportedModes}]", "info2")
+    logging("E7 supportedModes [${supportedModes}]", "info2")
     sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: "${supportedModes} ${state.version}", isStateChange:true)
 
   
@@ -641,34 +628,34 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
 // E8
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
 	def supportedFanModes = ""
-    logging("${device} : received E8 ${cmd}", "debug")
+    logging("received E8 ${cmd}", "debug")
 	if(cmd.auto) { supportedFanModes += "fanAuto," }
 	if(cmd.low) { supportedFanModes += "fanOn," }
 	if(cmd.circulation) { supportedFanModes += "fanCirculate, " } // not used
 //  if(cmd.humidityCirculation)supportedFanModes += "fanHumCirculate, " } // not used
 //	if(cmd.high) { supportedFanModes += "fanHigh," } // not used
-    logging("${device} : E8 supportedFanModes[${supportedFanModes}]", "info2")
+    logging("E8 supportedFanModes[${supportedFanModes}]", "info2")
     sendEvent(name: "supportedFanModes", value: "[${supportedModes}]",descriptionText: "${supportedModes} ${state.version}", isStateChange:true)
 
     
 }
 // these are untrapped log them...
 def zwaveEvent(hubitat.zwave.commands.basicv1.BasicReport cmd) {
-    logging("${device} : Received E9 ${cmd}", "debug")
+    logging("Received E9 ${cmd}", "debug")
 }
 
 def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
-    logging("${device} : Received E10 ${cmd}", "debug")
+    logging("Received E10 ${cmd}", "debug")
 //  ConfigurationReport(parameterNumber: 4, size: 1, configurationValue: [1], scaledConfigurationValue: 1)
     if (cmd.parameterNumber== 4){
 //      state.cwire = cmd.configurationValue[0]
         state.cwire = cmd.scaledConfigurationValue
         if (state.cwire == 1){
-            logging("${device} : E10-4 C-Wire :TRUE PowerSouce :mains", "info2")
+            logging("E10-4 C-Wire :TRUE PowerSouce :mains", "info2")
             sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         }
         if (state.cwire == 2){
-            logging("${device} : E10-4 C-Wire :FALSE PowerSouce :battery", "info2") 
+            logging("E10-4 C-Wire :FALSE PowerSouce :battery", "info2") 
             sendEvent(name: "powerSource", value: "battery",descriptionText: "Power Battery ${state.version}", isStateChange: true)
         }
     }    
@@ -686,7 +673,7 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
     if (test == 7){value = "3.5"}
     if (test == 8){value = "4.0"}    
     state.swing = value    
-    logging("${device} : E10-7 Temp Swing :${state.swing} ${locationScale} - #${test}", "info2")
+    logging("E10-7 Temp Swing :${state.swing} ${locationScale} - #${test}", "info2")
     sendEvent(name: "temperatureSwing", value: state.swing, descriptionText: "${state.swing}${locationScale} - #${test} ${state.version}",displayed: true, isStateChange:true)
     }    
     
@@ -694,13 +681,13 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
    if (cmd.parameterNumber== 8){
        state.heatDiff = cmd.configurationValue[0] 
        state.coolDiff = cmd.configurationValue[1] 
-       logging("${device} : E10-8 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info2")
+       logging("E10-8 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info2")
    }
 // ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
    if (cmd.parameterNumber== 9){
        if (cmd.configurationValue[0] == 1){state.fastrecovery = "fast"}
        if (cmd.configurationValue[0] == 2){state.fastrecovery = "economy"} 
-       logging("${device} : E10-9 Recovery :${state.fastrecovery} #${cmd.configurationValue[0]}", "info2")
+       logging(" E10-9 Recovery :${state.fastrecovery} #${cmd.configurationValue[0]}", "info2")
    }    
    
    
@@ -708,9 +695,9 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
 
 //No such property: manufacturerId for class: hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointSupportedReport on line 717 (method parse)
 def zwaveEvent(hubitat.zwave.Command cmd ){
-  logging("${device} : Received E11 (${cmd})", "debug")
+  logging("Received E11 (${cmd})", "debug")
   if(cmd == null |cmd.manufacturerId == null ) {
-      logging("${device} : Received E11 NULL", "warn")
+      logging("Received E11 NULL", "warn")
       return
   }  
  
@@ -719,7 +706,7 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
     map.mfr   = hubitat.helper.HexUtils.integerToHexString(cmd.manufacturerId, 2)
     map.model = hubitat.helper.HexUtils.integerToHexString(cmd.productId, 2)
     map.type  = hubitat.helper.HexUtils.integerToHexString(cmd.productTypeId, 2)
-    logging("${device} : E11 fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
+    logging("E11 fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
    
 //   state.remove("fingerprint")
    state.model ="unknown"
@@ -747,7 +734,7 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
      
       
     
-    logging("${device} : E11 fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
+    logging("E11 fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
     if (!getDataValue("manufacturer")) {updateDataValue("manufacturer", map.mfr)}
     if (!getDataValue("brand")){        updateDataValue("brand", "Radio Thermostat")}
     
@@ -767,13 +754,19 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
     
 // have yet to see data here
 def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
-    logging("${device} : Received E12 ${cmd}", "info")
+    logging("Received E12 ${cmd}", "info")
     device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
     device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
     device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
 }
 
 //==================heating
+def FixHeat(){
+//state.SetCool
+ logging("Recovery HEATing Setpoint", "warn")   
+ setCoolingSetpoint(state.SetHeat)
+}
+
 
 def setHeatingSetpoint(degrees, delay = 30000) {
 	setHeatingSetpoint(degrees.toDouble(), delay)
@@ -798,13 +791,13 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     	convertedDegrees = degrees
     }
     state.SetHeat = convertedDegrees
-    logging("${device} : Set Heat Setpoint ${convertedDegrees} ${locationScale} ---  Reset Last to ${state.SetHeat}", "info")
+    logging("Set Heat Setpoint ${convertedDegrees} ${locationScale} ---  Reset Last to ${state.SetHeat}", "info")
     sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
     sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
     
      
     
-    logging("${device} : Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
+    logging("Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
@@ -814,8 +807,14 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
 
 //==================cooling
 
+def FixCool(){
+//state.SetCool
+ logging("Recovery COOLing Setpoint", "warn")   
+ setCoolingSetpoint(state.SetCool)
+}
+
 def setCoolingSetpoint(degrees, delay = 30000) {
-    logging("${device} : Set Cool Setpoint ${degrees} delay:${delay}", "debug")
+    logging("Set Cool Setpoint ${degrees} delay:${delay}", "debug")
 	setCoolingSetpoint(degrees.toDouble(), delay)
 }
 
@@ -837,13 +836,13 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     	convertedDegrees = degrees
     }
     state.SetCool = convertedDegrees
-    logging("${device} : Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
+    logging("Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
     sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
     sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
 
     
     
-    logging("${device} :Set (cool type=2) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
+    logging("Set (cool type=2) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
 
     
 	delayBetween([
@@ -862,7 +861,7 @@ def getDataByName(String name) {
 
 // E20 receives Hub mode command
 def setThermostatMode(String value) {
-    logging("${device} : E20 setThermostatMode  ${value}", "trace")
+    logging("E20 setThermostatMode  ${value}", "trace")
     if(!value){return}
     if(value == "off"){ set= 0}
     if(value == "heat"){
@@ -895,7 +894,7 @@ def setThermostatMode(String value) {
      } 
     }
  
-    logging("${device} : E20 Set Mode:${value} #:${set}", "info")
+    logging("E20 Set Mode:${value} #:${set}", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: set).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -903,13 +902,13 @@ def setThermostatMode(String value) {
 }
 // E21
 def setThermostatFanMode(String value) {
-    logging("${device} : E21 setThermostatFanMode   ${value}", "trace")
+    logging("E21 setThermostatFanMode   ${value}", "trace")
     if (!value){return}
     if(value == "auto"){     set=0}
     if(value == "on"){       set=1}
     if(value == "circulate"){set=2}
     
-    logging("${device} : E21 Set Fan Mode:${value} #:${set}", "info")
+    logging("E21 Set Fan Mode:${value} #:${set}", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: set).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
@@ -920,14 +919,14 @@ def setThermostatFanMode(String value) {
 // -------------------------------------mode setting ------------------
 //   "onlyMode" ["off", "heatonly","coolonly"] 
 void coolOnly(){
-logging("${device} : Cooling Only Heat disabled", "info") 
+logging("Cooling Only Heat disabled", "info") 
 state.setHeat = ""    
 removeDataValue("heatingSetpoint")    
 removeDataValue("SetHeat")
   state.remove("setHeat")    
 }
 void heatingOnly(){
-logging("${device} : Heating Only Cool disabled", "info") 
+logging("Heating Only Cool disabled", "info") 
 state.setCool = ""    
 removeDataValue("coolingSetpoint")    
 removeDataValue("SetCool")
@@ -935,12 +934,12 @@ removeDataValue("SetCool")
 }
 
 void noAuto(){
-    logging("${device} : When in ${onlyMode} auto disabled", "info") 
+    logging("When in ${onlyMode} auto disabled", "info") 
 }
 
 // off = 0
 def off() {
-    logging("${device} : Set mode OFF", "info")
+    logging("Set mode OFF", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 0).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -953,7 +952,7 @@ def heat() {
        coolOnly()
        return
    }
-    logging("${device} : Set Mode heat", "info")
+    logging("Set Mode heat", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 1).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -968,7 +967,7 @@ def cool() {
     } 
 
     
-    logging("${device} : Set Mode Cool", "info")
+    logging("Set Mode Cool", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 2).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -981,7 +980,7 @@ def auto() {
          noAuto()
          return 
      }
-    logging("${device} : Set Mode Auto", "info")
+    logging("Set Mode Auto", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 3).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -994,7 +993,7 @@ def emergencyHeat() {
        coolOnly()
        return
     } 
-    logging("${device} : Set Mode Emergency heat", "info")
+    logging("Set Mode Emergency heat", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
@@ -1006,7 +1005,7 @@ def emergencyHeat() {
 
 
 def fanOn() {
-    logging("${device} : Set Fan ON", "info")
+    logging("Set Fan ON", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 1).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
@@ -1014,7 +1013,7 @@ def fanOn() {
 }
 
 def fanAuto() {
-    logging("${device} : Set Fan Auto", "info")
+    logging("Set Fan Auto", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 0).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
@@ -1022,7 +1021,7 @@ def fanAuto() {
 }
 
 def fanCirculate() {
-    logging("${device} : Set Fan Circulate", "info")
+    logging("Set Fan Circulate", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 6).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
@@ -1038,25 +1037,25 @@ def zwaveEvent(hubitat.zwave.commands.multiinstancev1.MultiInstanceCmdEncap cmd)
 //    Decapsulate command 
     def encapsulatedCommand = cmd.encapsulatedCommand([0x31: 2])
     if (encapsulatedCommand) {
-        logging("${device} : E14 ${encapsulatedCommand}", "debug")
+        logging("E14 ${encapsulatedCommand}", "debug")
         return zwaveEvent(encapsulatedCommand)
     }
 }
 // E15
 def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
-    logging("${device} : E15 battery  ${cmd}", "debug")
+    logging("E15 battery  ${cmd}", "debug")
     if (cmd.batteryLevel == 0xFF){ // I have never seen this but its in the spec.
-        logging("${device} : ---- Power Restored ----", "info")
+        logging("---- Power Restored ----", "info")
         sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         return
     }
                 
-    logging("${device} : E15 battery ${cmd.batteryLevel}% ", "info")
+    logging("E15 battery ${cmd.batteryLevel}% ", "info")
     sendEvent(name: "battery", value: cmd.batteryLevel ,unit: "%", descriptionText: "${cmd.batteryLevel}% ${state.version}", isStateChange:true)
 }
 
 private getBattery() {	
-        logging("${device} : Requesting Battery", "debug")
+        logging("Requesting Battery", "debug")
 		zwave.batteryV1.batteryGet().format()
   
 }
@@ -1081,7 +1080,7 @@ private setClock(cmd) {
         theTime ="${weekday} ${nowCal.get(Calendar.HOUR_OF_DAY)}:${nowCal.get(Calendar.MINUTE)}"
         weekdayZ = nowCal.get(Calendar.DAY_OF_WEEK) -1 // Gives us zwave weekday code (-1)
         if (weekdayZ <1){weekdayZ = 7} // rotate to up 7=sunday 
-    logging("${device} : Adjusting clock (${theTime}) ${state.LastTimeSet}", "info")
+    logging("Adjusting clock (${theTime}) ${state.LastTimeSet}", "info")
         sendEvent(name: "SetClock", value: theTime, descriptionText: "${theTime} ${state.version}",displayed: true, isStateChange:true)
 
         delayBetween([
@@ -1122,12 +1121,12 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
         setclock=true
          error = "${cmd.minute} <> ${nowCal.get(Calendar.MINUTE)} "
     }
-    if (setclock == false) {logging("${device} : E16 Rec   clock (${weekday} ${cmd.hour}:${cmd.minute}) ok", "info")}
-    if (setclock == true) {logging("${device} : E16 Rec   clock ${weekday} ${cmd.hour}:${cmd.minute}) (out of sync) ${error}", "warn")}
+    if (setclock == false) {logging("E16 Rec   clock (${weekday} ${cmd.hour}:${cmd.minute}) ok", "info")}
+    if (setclock == true) { logging("E16 Rec   clock ${weekday} ${cmd.hour}:${cmd.minute}) (out of sync) ${error}", "warn")}
 }
 
 def saveSettings(cmd){
- logging("${device} : SaveSettings", "debug")  
+ logging("SaveSettings", "debug")  
  delayBetween([
      setDiff(cmd),
      setSwing(cmd),
@@ -1146,7 +1145,7 @@ def setDiff(cmd){
     
    if (!coolDiff){coolDiff = 4}
    if (!heatDiff){heatDiff = 4}  
-   logging("${device} : Set 2 stage Differential Heat:${heatDiff} Cool:${coolDiff}", "info")
+   logging("Set 2 stage Differential Heat:${heatDiff} Cool:${coolDiff}", "info")
 
     delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
@@ -1169,7 +1168,7 @@ def setSwing(cmd){
     if (swing == "3.5"){value = 7}
     if (swing == "4.0"){value = 8}
 
-    logging("${device} : Set Temp Swing:${swing} ${locationScale}", "info")
+    logging("Set Temp Swing:${swing} ${locationScale}", "info")
 
     
    delayBetween([    
@@ -1186,7 +1185,7 @@ def setRecovery(cmd){
     if (recovery == "fast"){value = 1}
     if (recovery == "economy"){value = 2}
    
-    logging("${device} : Set Recovery to:${recovery} ", "info")
+    logging("Set Recovery to:${recovery} ", "info")
     
     
    delayBetween([    
@@ -1197,13 +1196,28 @@ def setRecovery(cmd){
 }
 
 
-// Logging block v3 10/10/22 4 mode logging
+void getIcons(){
+    state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/radio-thermostat.jpg'>"
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+ 
+ }
+
+
+// Logging block  v4.1
+// 4 mode logging mod
 void loggingUpdate() {
-    logging("${device} : Logging Info:[${infoLogging}] Info2:[${info2Logging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -1213,11 +1227,12 @@ void debugLogOff(){
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
 private logging(String message, String level) {
-    if (level == "infoBypass"){log.info  "$message"}
-	if (level == "error"){     log.error "$message"}
-	if (level == "warn") {     log.warn  "$message"}
-	if (level == "trace" && traceLogging) {log.trace "$message"}
-	if (level == "debug" && debugLogging) {log.debug "$message"}
-    if (level == "info"  && infoLogging)  {log.info  "$message"}
-    if (level == "info2" && info2Logging) {log.info  "$message"}
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
+    if (level == "info2" && info2Logging) {log.info  "${device} :* $message"}
 }
+
