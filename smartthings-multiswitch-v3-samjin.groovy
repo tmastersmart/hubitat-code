@@ -45,7 +45,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -183,7 +183,8 @@ def configure() {
 //	sendEvent(name: "acceleration", value: "inactive", descriptionText: "{{ device.displayName }} was $value", displayed: false)
 
 	log.debug "Configuring Reporting"
-    
+        removeDataValue("threeAxis")
+       removeDataValue("acceleration")
 
   sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
  
