@@ -1,0 +1,24 @@
+
+
+{
+  "packageName": "Smartthings multi Sensor V3 (motion disabled)",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
+  "releaseNotes": "",
+  "version": "1.7.3",
+  "dateReleased": "2022-22-09",
+  "category":  "Doors & Windows",
+  "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
+  "drivers": [
+    {
+      "name": "Smartthings multi Sensor V3 (motion disabled)",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-multiswitch-v3-samjin.groovy",
+      "required": "true",
+      "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence, motion disabled for bettery battery life",
+      "id": "d874f9c7-f9cb-4a53-b6ed-4f9206c1e2aa"
+    }
+    ]
+}
+
