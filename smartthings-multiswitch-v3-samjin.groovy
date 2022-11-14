@@ -45,7 +45,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -138,6 +138,8 @@ def uninstall() {// need to clear everything before manual driver change.
     state.remove("poll"),
     state.remove("ping"),
     state.remove("tempAdj"),
+    state.remove("sensorTemp"),  
+      
     logging("Uninstalled - States removed you may now switch drivers", "info") , 
     ], 200)  
 }
@@ -181,10 +183,10 @@ def configure() {
 	// Sets up low battery threshold reporting
 //	sendEvent(name: "DeviceWatch-Enroll", displayed: false, value: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, scheme: "TRACKED", checkInterval: 2 * 60 * 60 + 1 * 60, lowBatteryThresholds: [15, 7, 3], offlinePingable: "1"].encodeAsJSON())
 //	sendEvent(name: "acceleration", value: "inactive", descriptionText: "{{ device.displayName }} was $value", displayed: false)
-
-	log.debug "Configuring Reporting"
-        removeDataValue("threeAxis")
-       removeDataValue("acceleration")
+    logging("Configuring", "info")
+state.remove("sensorTemp")
+    removeDataValue("threeAxis")
+    removeDataValue("acceleration")
 
   sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
  
@@ -358,7 +360,20 @@ def parse(String description) {
         return    
         } 
 
-        
+    }else if (descMap.cluster == "FC02"){// these are motion events.
+// [raw:E44601FC020810001800, dni:E446, endpoint:01, cluster:FC02, size:08, attrId:0010, encoding:18, command:0A, value:00, clusterInt:64514, attrInt:16]    
+        logging("FC02 Motion Event. command:${descMap.command} value:${descMap.value} Must repair to disable", "debug")
+        if (descMap.value == "01"){
+           logging("acceleration active", "info")
+           sendEvent(name: "acceleration", value: "active")
+        }
+        if (descMap.value == "00"){
+           logging("acceleration inactive", "info")
+           sendEvent(name: "acceleration", value: "inactive" )
+        }
+            
+    return
+       
         
 
 }else if (descMap.cluster == "0500"){
@@ -496,14 +511,19 @@ if (state.MFR == "Samjin"){state.icon ="<img src='https://raw.githubusercontent.
 }
 
 
-
-// Logging block ${device} added to routine v2
+// Logging block  v4
 
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
 
 void traceLogOff(){
