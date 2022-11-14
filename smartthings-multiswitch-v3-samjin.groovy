@@ -6,8 +6,10 @@ Multipurpose Sensor V1
 
 
 
-This driver was created to fix that bad battery reports and to disable all teh motion events that eat up teh battery.
+This driver was created to fix that bad battery reports.
 It has been tested on the Samjin sensors. I dont have a smartthings version yet.
+
+beta version is not set to enable motion reporting but will detect it if already configured.
 
 
 To Reset device:
@@ -20,8 +22,8 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-
-1.2.0    11/12/2021 First release
+1.3.0    11/14/2022 Updates 
+1.2.0    11/12/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -45,7 +47,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -72,15 +74,18 @@ definition (name: "Smartthings multi Sensor V3 (motion disabled)", namespace: "t
 	
 command "checkPresence"
 command "uninstall"
-    
+ 
+// unable to test anything but Samjin    
 attribute "batteryVoltage", "string"
     
-		fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters: "0019", manufacturer: "CentraLite", model: "3320", deviceJoinName: "Multipurpose Sensor"
-		fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters: "0019", manufacturer: "CentraLite", model: "3321", deviceJoinName: "Multipurpose Sensor"
-		fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters: "0019", manufacturer: "CentraLite", model: "3321-S", deviceJoinName: "Multipurpose Sensor"
-		fingerprint inClusters: "0000,0001,0003,000F,0020,0402,0500,FC02", outClusters: "0019", manufacturer: "SmartThings", model: "multiv4", deviceJoinName: "Multipurpose Sensor"
-		fingerprint inClusters: "0000,0001,0003,0020,0402,0500,FC02", outClusters: "0019", manufacturer: "Samjin", model: "multi", deviceJoinName: "Multipurpose Sensor"
-        fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,FC02", outClusters:"0003,0019", model:"multi", manufacturer:"Samjin"
+    	fingerprint model:"3320",   manufacturer:"CentraLite", inClusters:"0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters:"0019",     deviceJoinName: "Multipurpose Sensor"
+		fingerprint model:"3321",   manufacturer:"CentraLite", inClusters:"0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters:"0019",     deviceJoinName: "Multipurpose Sensor"
+		fingerprint model:"3321-S", manufacturer:"CentraLite", inClusters:"0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters:"0019",     deviceJoinName: "Multipurpose Sensor"
+ 
+
+		fingerprint model:"multiv4",manufacturer:"SmartThings",inClusters:"0000,0001,0003,000F,0020,0402,0500,FC02", outClusters:"0019",     deviceJoinName: "Smartthings Multi Sensor v4"
+		fingerprint model:"multi",  manufacturer:"Samjin",     inClusters:"0000,0001,0003,0020,0402,0500,FC02",      outClusters:"0019",     deviceJoinName: "Smartthings Multi Sensor v3"
+        fingerprint model:"multi",  manufacturer:"Samjin",     inClusters:"0000,0001,0003,0020,0402,0500,FC02",      outClusters:"0003,0019",deviceJoinName: "Smartthings Multi Sensor v3",profileId:"0104", endpointId:"01"
       }
     
 
@@ -184,7 +189,14 @@ def configure() {
 //	sendEvent(name: "DeviceWatch-Enroll", displayed: false, value: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, scheme: "TRACKED", checkInterval: 2 * 60 * 60 + 1 * 60, lowBatteryThresholds: [15, 7, 3], offlinePingable: "1"].encodeAsJSON())
 //	sendEvent(name: "acceleration", value: "inactive", descriptionText: "{{ device.displayName }} was $value", displayed: false)
     logging("Configuring", "info")
-state.remove("sensorTemp")
+    
+    
+    if(state.tempOffset){
+        logging("Old Driver had a TempOffset of:${state.tempOffset} please manualy reselect", "warn")
+        state.remove("tempOffset")
+    }
+    
+    state.remove("sensorTemp")
     removeDataValue("threeAxis")
     removeDataValue("acceleration")
 
@@ -288,12 +300,13 @@ def parse(String description) {
            logging("value:${rawValue}  ${descMap.attrInt}  ${batteryVoltage}v", "trace")  
              
            
-        if(!state.minVoltTest){state.minVoltTest = 2.45}
+        if(!state.minVoltTest){state.minVoltTest = 2.25}
+        if(state.minVoltTest >=2.3){state.minVoltTest = 2.25}
           if (batteryVoltage < state.minVoltTest){
              state.minVoltTest = batteryVoltage
              logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
           } 
-        def maxVolts = 2.9
+        def maxVolts = 3
           if (state.MFR == "SmartThings") {
 			minVolts = 15
 			maxVolts = 28
