@@ -131,11 +131,11 @@
   "description": "Iris v2 contact sensor with presence. Automatic bad battery detection presence, iMagic by GreatStar 1116-S & CentraLite 3320-L"
    },
  {
-  "name":"Smartthings multi Sensor V3 (motion disabled)",
+  "name":"Smartthings multi Sensor V3 (custom)",
 "category":  "Security",
 "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-multiswitch-v3.json",
-  "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence, motion disabled for bettery battery life"
+  "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence"
    },  
 	  
 	  
