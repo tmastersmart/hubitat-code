@@ -1,0 +1,23 @@
+{
+  "packageName": "Smartthings Samjin button",
+  "author": "TheMaster",
+  "releaseNotes": "",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.0.1",
+  "dateReleased": "2022-14-11",
+	"category": "Security",
+      "tags": ["Buttons","Safety & Security","Zigbee"],  
+  "drivers": [
+    {
+      "name":"Smartthings Samjin button",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-samjin-button.groovy",
+      "required": "true",
+  "description": "Smartthings Samjin button with improved battery reports and Presence. Auto dead bat detection. 3 Button support for easer scripts",
+      "id": "cebc0af8-f9e4-42a3-b99e-f9b77a3ead04"
+    }
+    ]
+}
