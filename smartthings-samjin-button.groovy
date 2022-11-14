@@ -511,10 +511,8 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
-//if (state.MFR == "Samjin"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Samjin-button.jpg' >"}
-state.icon=""
+if (state.MFR == "Samjin"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/samjin-button.jpg' >"}
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
-
 }
 
 
