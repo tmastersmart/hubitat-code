@@ -57,7 +57,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "Smartthings Samjin button", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Smartthings Samjin button", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-samjin-button.groovy") {
 
 	capability "Initialize"
 	capability "PresenceSensor"
