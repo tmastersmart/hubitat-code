@@ -56,7 +56,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "Smartthings multi Sensor V3 (motion disabled)", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Smartthings multi Sensor V3 (motion disabled)", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-multiswitch-v3-samjin.groovy") {
 
     capability "Health Check"
 	capability "Battery"
