@@ -1,7 +1,7 @@
 
 
 {
-  "packageName": "Smartthings multi Sensor V3 (motion disabled)",
+  "packageName": "Smartthings multi Sensor V3 (custom)",
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
@@ -12,7 +12,7 @@
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
   "drivers": [
     {
-      "name": "Smartthings multi Sensor V3 (motion disabled)",
+      "name": "Smartthings multi Sensor V3 (custom)",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-multiswitch-v3-samjin.groovy",
       "required": "true",
