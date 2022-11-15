@@ -21,7 +21,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
- 1.6.2 11/15/2022   Cluster code rewrite
+ 1.6.3 11/15/2022   Cluster code rewrite
  1.6.1 11/12/2022   More bug fixes in presence
  1.6.0 11/10/2022   Added retry to recovery mode was creating false non present alarms
  1.5.7 11/05/2022   SA-003-Zigbee images added. This Fingerprint can be a relay or a round outlet same ID 
@@ -59,7 +59,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.2"
+    TheVersion="1.6.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -351,8 +351,8 @@ def parse(String description) {
     }  
     
 
-    Map map = zigbee.parseDescriptionAsMap(description) 
-    logging("map: ${map}", "trace")
+    Map descMap = zigbee.parseDescriptionAsMap(description) 
+    logging("map: ${descMap}", "trace")
 
 
     // fix parse Geting 2 formats so merge them
