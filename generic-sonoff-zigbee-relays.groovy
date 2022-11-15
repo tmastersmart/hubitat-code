@@ -21,6 +21,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.2 11/15/2022   Cluster code rewrite
  1.6.1 11/12/2022   More bug fixes in presence
  1.6.0 11/10/2022   Added retry to recovery mode was creating false non present alarms
  1.5.7 11/05/2022   SA-003-Zigbee images added. This Fingerprint can be a relay or a round outlet same ID 
@@ -58,7 +59,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.1"
+    TheVersion="1.6.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -355,56 +356,56 @@ def parse(String description) {
 
 
     // fix parse Geting 2 formats so merge them
-    if (map.clusterId) {map.cluster = map.clusterId} 
+    if (descMap.clusterId) {descMap.cluster = descMap.clusterId} 
    
-    if (map.cluster == "0006" | map.clusterId == "0006" ) {
-      if (map.value){status = map.value}
-      if (map.data) {status = map.data[0]} 
-      logging("ON/OFF report", "debug")
+    if (descMap.cluster == "0006" || descMap.clusterId == "0006" ) {
+      if (descMap.value){status = descMap.value}
+      if (descMap.data) {status = descMap.data[0]}
+        if(!status){
+            logging("Ignoring 0006 Wrong format for on/off ${descMap}", "warn")  
+            return
+        }
+        
+        logging("ON/OFF report [${status}]", "debug")
       if (status == "01"){onEvents()}
       if (status == "00"){offEvents()}
      
 
-}else if (map.cluster == "0000" ) {
-        if (map.attrId== "0001" ){
-        logging("Application ID :${map.value}", "debug")
+}else if (descMap.cluster == "0000" ) {
+        if (descMap.attrId== "0001" ){
+        logging("Application ID :${descMap.value}", "debug")
         // should be 0x0104=Home Automation 
         } 
-        if (map.attrId== "0004" && map.attrInt ==4){
-        logging("Manufacturer :${map.value}", "debug") 
-        state.MFR = map.value 
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        logging("Manufacturer :${mdescMap.value}", "debug") 
+        state.MFR = descMap.value 
         updateDataValue("manufacturer", state.MFR)
         state.DataUpdate = true                     
         } 
-        if (map.attrId== "0005" && map.attrInt ==5){
-        logging("Model :${map.value}", "debug")
-        state.model = map.value    
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        logging("Model :${descMap.value}", "debug")
+        state.model = descMap.value    
         updateDataValue("model", state.model)
         state.DataUpdate = true    
         }
        
  
-}else if (map.cluster == "8001" || map.cluster == "8032" ||map.cluster == "8031" || map.cluster == "8021" ||map.cluster == "0500" || map.cluster == "0000" ||map.cluster == "0001" || map.cluster == "0402" || map.cluster == "8038" || map.cluster == "8005") {
-   text= "unknown"
-      if (map.cluster =="8001"){text="GENERAL"}
- else if (map.cluster =="8021"){text="BIND RESPONSE"}
- else if (map.cluster =="8031"){text="Link Quality"}
- else if (map.cluster =="8032"){text="Routing Table"}
- 
+// just ignore these unknown clusters for now
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
    
-   if (map.data){text ="${text} clusterInt:${map.clusterInt} command:${map.command} options:${map.options} data:${map.data}" }
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
    logging("Ignoring ${map.cluster} ${text}", "debug") 
-       
-}else if (map.cluster == "0013") {
-        logging("cluster:${map.cluster} Responding to Enroll Request.", "info")
-        zigbee.enrollResponse()
 
-}else if (map.cluster == "0006") {
-        logging("cluster:${map.cluster} Seen after a Enroll Request. Unknown", "debug")
-        zigbee.enrollResponse()
-        
- }  else{logging("New unknown Cluster${map.cluster} Detected: ${map}", "warn")}// report to dev
-}
+
+ }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
+
+    }
 
 // prevent dupe events
 def onEvents(){
