@@ -29,6 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.7.5    11/15/2022 Cluster mapping rewrite
 1.7.3    11/12/2022 Another bug fix for presence
 1.7.2    11/11/2022 Min bat null if not configured fixed
 1.7.0    11/11/2022 Presence retry rewrote
@@ -62,7 +63,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.3"
+    TheVersion="1.7.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -344,17 +345,17 @@ def parse(String description) {
         if (descMap.attrId == "0002" ) {
          value = Integer.parseInt(descMap.value, 16)// non iaszone.ZoneStatus report
             if(value== 0 ||value == 36 ){
-                logging("${state.MFR} Contact event cluster:5000 value:${value} CLOSED", "debug")
+                logging("${state.MFR} Contact event cluster:500 value:${value} CLOSED", "debug")
                 contactClosed()
                 return
             }
             else if(value== 1 ||value == 37 ){
-                logging("${state.MFR} Contact event cluster:5000 value:${value} OPEN", "debug")
+                logging("${state.MFR} Contact event cluster:500 value:${value} OPEN", "debug")
                 contactOpen()
                 return
             }
-            // CentraLite Model:3320-L uses 37=1 36=0 iMagic uses 1/0
-            else {logging("ERROR: ignoring event cluster:5000 not a 1/0 Contact event. Unknown value:${value}", "debug")}
+            // 3320-L 37/36  iMagic 1/0  Samjin 32/33
+            else {logging("ERROR: ignoring event cluster:500 not a 1/0 Contact event. Unknown value:${value}", "debug")}
             
       } else if (descMap.commandInt == "07") {
                     if (descMap.data[0] == "00") {
@@ -364,23 +365,28 @@ def parse(String description) {
                     } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
                 return
                 }   
-if (descMap.value){text ="cluster:${descMap.cluster} command:${descMap.command} options:${descMap.options} value:${descMap.value}" }
-   
-        
-        
+if ( descMap.data){
+    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
+ return   
+}
+      
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8005") {
-text= ""
-if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-        logging("Ignoring ${descMap.cluster} ${text}", "debug") 
-}else if (descMap.cluster == "0013") {
-        logging("Responding to Enroll Request. Likely Battery Change ${descMap.data}", "warn")
-        zigbee.enrollResponse()
-        configure()
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
+   
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${map.cluster} ${text}", "debug") 
+
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
     }
+
 
 
 
@@ -472,13 +478,19 @@ void getIcons(){
 
 
 
-// Logging block ${device} added to routine v2
+// Logging block  v4
 
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
 
 void traceLogOff(){
