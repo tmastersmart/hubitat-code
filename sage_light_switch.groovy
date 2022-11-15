@@ -19,6 +19,7 @@ Help is needed do you know the command to stop the above?
 
 
 ================================================================================
+v2.8.3  11/15/2022 Cluster maps
 v2.8.2  11/12/2022 Another bug fix for presence
 v2.8.0  11/11/2022 Presence Upgraded with retries
 v2.7.1  11/05/2022 added schedule options
@@ -57,7 +58,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.2"
+    TheVersion="2.8.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -284,28 +285,20 @@ def parse(String description) {
     zigbee.enrollResponse()
    }      
       
-}else if (descMap.cluster == "8032" ||descMap.cluster == "8031" || descMap.cluster == "8021" ||descMap.cluster == "0500" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8038" || descMap.cluster == "8005") {
-      
- text= "unknown"
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8031" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
  else if (descMap.cluster =="8031"){text="Link Quality"}
  else if (descMap.cluster =="8032"){text="Routing Table"}
-      
-      if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
-       
-}else if (descMap.cluster == "0013") {
-        logging("cluster:${descMap.cluster} 0013 Responding to Enroll Request. Likely Battery Change", "info")
-        zigbee.enrollResponse()
-
-}else if (descMap.cluster == "0006") {
-        logging("cluster:${descMap.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
-        zigbee.enrollResponse()
-        
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
+   
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${map.cluster} ${text}", "debug") 
+     
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
-}    
+}  
 
 
 
