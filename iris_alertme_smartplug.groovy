@@ -284,9 +284,9 @@ void MatchDescriptorRequest (){
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x8006 {00 00 00 01 02} {0xC216}"])//match des    
 }
 void ping() {
-    logging("ping", "info")
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
+    refresh()
 }
+
 
 
 void refresh() {
