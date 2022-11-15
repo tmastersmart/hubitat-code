@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v4.1.0 11/15/2022 Bug fix in refreash and on off control
 v4.0.2  11/12/2022 Bug fix presence
 v4.0  11/11/2022 Bug fix on presence. Improvements from other iris drivers added
 v3.9.1 11/06/2022 Logos added. Bug fix on config delay. operating Mode human form
@@ -72,7 +73,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.0.2"
+    TheVersion="4.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -289,8 +290,11 @@ void ping() {
 
 
 void refresh() {
-    logging("Refreshing ${state.model} v${state.version}", "info")
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
+	logging("${device} : Refreshing", "info")
+    delayBetween([ 
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// get version info
+    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 01 01} {0xC216}"]),// get power info
+    ], 3000) 
 }
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
@@ -406,9 +410,7 @@ def parse(String description) {
     logging("Map clusterId:${map.clusterId} command:${map.command} map:${receivedData}", "debug")// all iris valid data
 
     if (map.clusterId == "00EE") {
-    logging("State:${map.clusterId} :${map.command} :${map.data}", "debug")
-
-       if (map.command == "80") { //State:00EE command:80 data:[07, 01] 
+        if (map.command == "80") { //State:00EE command:80 data:[07, 01] 
            
        state.operatingMode = Integer.parseInt(receivedData[0],16)     
        operatingModeCode   = receivedData[0]
@@ -416,7 +418,7 @@ def parse(String description) {
                         current = device.currentValue("switch")
                    currentSiren = device.currentValue("siren")
                   currentStrobe = device.currentValue("strobe")
-
+            logging("State: mode:${state.operatingMode} On/Off:${onOff} [${map.data}]", "debug")
         if (onOff == "00" || operatingModeCode =="06" ) {
   	     if (current == "on"){
            sendEvent(name: "switch", value: "off",descriptionText: "${state.uptime} V${state.version}")
@@ -449,21 +451,11 @@ def parse(String description) {
        
     // 0E power up in off 
     // 0F Power up in ON
-    // 0D power up in ON 
+    // 0D on 
+    // 0C off       
     // 06 and 07 are on off
-          
-    logging("${state.operatingMode} Hex:${operatingModeCode}", "trace")
-   
-    if (operatingModeCode == "0D" || operatingModeCode == "0F"){
-           logging("${state.operatingMode} Powered up in ON mode", "debug")
-           state.operatingMode = state.operatingMode + " Powered up in ON mode" 
-       }     
-    if (operatingModeCode == "0E"){
-        logging("${state.operatingMode} Powered up in OFF mode", "debug")
-        state.operatingMode = state.operatingMode + " Powered up in OFF mode" 
-       }
-     
-       
+    // give up on mode it doesnt follow the chart all the time      
+
       }
 	   
     }
