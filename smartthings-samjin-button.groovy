@@ -392,7 +392,7 @@ text= ""
 if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
         logging("Ignoring ${descMap.cluster} ${text}", "debug") 
 }else if (descMap.cluster == "0013") {
-        logging("Responding to Enroll Request. Likely Battery Change ${descMap.data}", "warn")
+        logging("0013 Responding to Enroll Request.", "warn")
         zigbee.enrollResponse()
         configure()
 
