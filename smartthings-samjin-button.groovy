@@ -46,7 +46,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.0"
+    TheVersion="1.0.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
