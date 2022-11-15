@@ -21,7 +21,7 @@ released after 3sec
 
 
 ===================================================================================================
-
+1.0.2    11/14/2022 Changes to cluster map detection
 1.0.0    11/14/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
@@ -46,7 +46,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.1"
+    TheVersion="1.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -371,7 +371,7 @@ def parse(String description) {
 
         if (descMap.attrId == "0002" ) {
          value = Integer.parseInt(descMap.value, 16)
-         logging("5000, 0002 value:${value}", "debug")
+         logging("0500, 0002 IAS Zone value:${value}", "debug")
             
       } else if (descMap.commandInt == "07") {
                     if (descMap.data[0] == "00") {
@@ -382,19 +382,22 @@ def parse(String description) {
                 return
                 }  
 if ( descMap.data){
-    logging("0500 Unknown command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
+    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
  return   
 }
   
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8005") {
-text= ""
-if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-        logging("Ignoring ${descMap.cluster} ${text}", "debug") 
-}else if (descMap.cluster == "0013") {
-        logging("0013 Responding to Enroll Request.", "warn")
-        zigbee.enrollResponse()
-        configure()
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
+   
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${map.cluster} ${text}", "debug") 
+
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
