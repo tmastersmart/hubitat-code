@@ -1,4 +1,4 @@
-/* Smartthings multi Sensor V3 (motion disabled)
+/* Smartthings multi Sensor V3 (custom)
 
 Multipurpose Sensor V3 / Samjin (tested)
 Multipurpose Sensor V2
@@ -22,7 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-1.3.0    11/14/2022 Updates 
+1.3.1    11/14/2022 Updates 
 1.2.0    11/12/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
@@ -47,7 +47,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.0"
+    TheVersion="1.3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -58,7 +58,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "Smartthings multi Sensor V3 (motion disabled)", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-multiswitch-v3-samjin.groovy") {
+definition (name: "Smartthings multi Sensor V3 (custom)", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/smartthings-multiswitch-v3-samjin.groovy") {
 
     capability "Health Check"
 	capability "Battery"
@@ -69,7 +69,8 @@ definition (name: "Smartthings multi Sensor V3 (motion disabled)", namespace: "t
 	capability "Refresh"
 	capability "Sensor"
 	capability "TemperatureMeasurement"
-    
+    capability "Acceleration Sensor"
+	//capability "Three Axis"    
     
 	
 command "checkPresence"
@@ -109,6 +110,7 @@ preferences {
 def installed() {
 logging("Installed ", "warn")    
 state.DataUpdate = false
+state.enroll =0    
 pollHR = 10
 pingIt = 30    
 configure()   
@@ -144,7 +146,7 @@ def uninstall() {// need to clear everything before manual driver change.
     state.remove("ping"),
     state.remove("tempAdj"),
     state.remove("sensorTemp"),  
-      
+    state.remove("enroll"),
     logging("Uninstalled - States removed you may now switch drivers", "info") , 
     ], 200)  
 }
@@ -274,9 +276,10 @@ def parse(String description) {
     logging("Parse: [${description}]", "trace")
     state.lastCheckin = now()
     checkPresence()
-   
+    if (!state.enroll){state.enroll =0}
     if (description?.startsWith('enroll request')) { 
      zigbee.enrollResponse()
+     state.enroll = state.enroll +1   
      return  
     }  
     
@@ -293,7 +296,7 @@ def parse(String description) {
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
 	
 // MAP: [raw:47640104020C0000290B09, dni:4764, endpoint:01, cluster:0402, size:0C, attrId:0000, encoding:29, command:01, value:090B, clusterInt:1026, attrInt:0]
-    if (descMap.cluster == "0001" & descMap.attrId == "0020"){
+    if (descMap.cluster == "0001" & descMap.attrId == "0020"){//0x0001 Power configuration
            powerLast = device.currentValue("battery")
            def rawValue = Integer.parseInt(descMap.value,16) 
            def batteryVoltage = rawValue / 10
@@ -329,7 +332,7 @@ def parse(String description) {
 
         }
         
-    }  else if (descMap.cluster == "0402" ) {
+    }  else if (descMap.cluster == "0402" ) {//0x0402 Temperature measurement Attributes
          if (descMap.attrInt == 0) {
         tempLast = device.currentValue("temperature")
         if(!tempAdj){tempAdj = 0}  
@@ -357,7 +360,7 @@ def parse(String description) {
         
 
         
-}else if (descMap.cluster == "0000" ) {
+}else if (descMap.cluster == "0000" ) {//0x0000 Basic Attributes  
         if (descMap.attrId== "0004" && descMap.attrInt ==4){
         logging("Manufacturer :${descMap.value}", "debug") 
         state.MFR = descMap.value 
@@ -389,10 +392,10 @@ def parse(String description) {
        
         
 
-}else if (descMap.cluster == "0500"){
+}else if (descMap.cluster == "0500"){//0x0500 IAS Zone Attributes and commands for IAS security zone devices.
 
         if (descMap.attrId == "0002" ) {
-         value = Integer.parseInt(descMap.value, 16)// non iaszone.ZoneStatus report
+         value = Integer.parseInt(descMap.value, 16)
             if(value == 32 ){
                 logging("${state.MFR} Contact event cluster:5000 value:${value} CLOSED", "debug")
                 contactClosed()
@@ -414,26 +417,26 @@ def parse(String description) {
                 return
                 }  
 if ( descMap.data){
-    logging("0500 Unknown command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
+    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
  return   
 }
-//profileId:0104, clusterId:0500, clusterInt:1280, sourceEndpoint:01, destinationEndpoint:01, options:0040,
-//messageType:00, dni:4764, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:01, direction:01, data:[03, 00, 86]]
-        
+      
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8005") {
-text= ""
-if (descMap.data){text ="clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-        logging("Ignoring ${descMap.cluster} ${text}", "debug") 
-}else if (descMap.cluster == "0013") {
-        logging("Responding to Enroll Request. Likely Battery Change ${descMap.data}", "warn")
-        zigbee.enrollResponse()
-        configure()
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
+   
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${map.cluster} ${text}", "debug") 
+
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
     }
-
 
 
 
