@@ -138,6 +138,13 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-contact.json",
   "description": "Iris v2 contact sensor with presence. Automatic bad battery detection presence, iMagic by GreatStar 1116-S & CentraLite 3320-L"
    },
+   {
+  "name":"Iris v2 Motion Detector",
+"category": "Control",
+      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-motion-sensor.json",
+  "description": "Iris v2 Motion Sensor with presence. CentraLite Model:3326-L"
+   },	  
  {
   "name":"Smartthings multi Sensor V3 (custom)",
 "category":  "Security",
