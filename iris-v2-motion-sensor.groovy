@@ -50,7 +50,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "Iris v2 Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Iris v2 Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-motion-sensor.groovy") {
 
     capability "Health Check"
 	capability "Battery"
