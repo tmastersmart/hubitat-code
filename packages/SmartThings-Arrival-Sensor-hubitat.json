@@ -10,7 +10,7 @@
   "tags":  [  "Presence & Location"   ],
   "drivers": [
     {
-    "id": "0dcca261-efd0-4389-9b05-bd11d3c108b3",
+
       "name": "SmartThings Arrival Sensor Chime V2",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings-Arrival-Sensor-hubitat.groovy",
