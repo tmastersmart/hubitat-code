@@ -97,6 +97,14 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-samjin-button.json",
    "description": "Smartthings Samjin button with improved battery reports and Presence. Auto dead bat detection. 3 Button support for easer scripts"
    }, 
+{
+	"name":"iris v1 button",  
+	"category": "Security",
+   "tags": [ "Buttons","Safety & Security","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-button.json",
+   "description": "IRIS v1 button with improved battery reports and Presence. Auto dead bat detection. 3 Button support for easer scripts. pressed,held,held longer, button 1 pressed button 2 held button 3 held longer"
+   }, 	
+	  
 	  
 	  {
 	"name":"sage doorbell echostar",  
