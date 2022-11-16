@@ -7,10 +7,9 @@
   "version": "2.4.3",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
-  "tags":   [ "Alarm Systems", "Motion Control" ],
+     "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
   "drivers": [
     {
-    "id": "ae6b018c-59d9-44e6-a9e7-2a88d28390de",
       "name": "Iris v1 Motion Detector Custom",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/Iris_v1_Motion_Sensor.groovy",
