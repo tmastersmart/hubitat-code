@@ -21,10 +21,13 @@ pushed
 Supports tamper with options to clear tamper
 or ignore tamper for broken cases.
 
+https://fccid.io/WJHB12
+WJH-B12, WJH B12, WJHB12, WJHBI2
+Centrica Connected home Limited Wireless Button B12
+AlertMe Iris Lowes
 
 
-
-v1.1.1 11/14/2022  First release Using current contact sensor code
+v1.1.2 11/14/2022  First release Using current contact sensor code
 =================================================================================================
 
 
@@ -71,7 +74,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.1.1"
+    TheVersion="1.1.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -642,9 +645,9 @@ def parse(String description) {
             state.Config = true    
 			updateDataValue("manufacturer", deviceManufacturer)
             updateDataValue("device", deviceModel)
-            updateDataValue("model", "DWS800")// DWS901 ?
+            updateDataValue("model", "BTN900")
             updateDataValue("firmware", firmwareVersion)
-            updateDataValue("fcc", "WJHWD11")
+            updateDataValue("fcc", "WJHB12")
                 }   
 		} 
 
