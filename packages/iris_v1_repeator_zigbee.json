@@ -10,7 +10,7 @@
   "tags": ["Repeaters & Extenders"],
   "drivers": [
     {
-   "id": "425e10bd-6e9a-40af-860b-255e1f1b959e",
+
       "name": "Iris v1 Repeator Zigbe",
       "namespace": "tmastersmart",
       "location": "https://github.com/tmastersmart/hubitat-code/raw/main/iris_alertme_repeator_zigbe.groovy",
