@@ -11,13 +11,12 @@
   "tags":   [    "Safety & Security"    ],
   "drivers": [
     {
-   "id": "029ca37a-f5f0-4df9-8c6a-63f0fdbb24c0",
       "name": "Iris v1 Senior Care Pendant",
       "namespace": "tmastersmart",
       "location": "https://github.com/tmastersmart/hubitat-code/raw/main/Iris_v1_Senior_Care_Pendant.groovy",
       "required": "true",
   "description": "Simulates IRIS v1 pay care level system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob",
-      "id": "e0062f62-23d5-4942-80c9-adb382fae39a"
+      "id": "6f01a0df-6a04-4404-8877-c90c5c64854d"
     }
     ]
 }
