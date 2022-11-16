@@ -71,7 +71,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.2"
+    TheVersion="1.1.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -85,7 +85,7 @@ import hubitat.helper.HexUtils
 
 metadata {
 
-	definition (name: "Iris v1 Button", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+	definition (name: "Iris v1 Button", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v1-button.grovvy") {
 
 	capability "Battery"
 	capability "Configuration"
