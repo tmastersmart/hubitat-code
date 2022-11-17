@@ -12,7 +12,12 @@ event: pushed
 3 = held longer (release after light out)
 
 event: held
+1
 2  
+
+event:doubletapped
+1
+3
 
 event: button
 released
@@ -27,6 +32,7 @@ Centrica Connected home Limited Wireless Button B12
 AlertMe Iris Lowes
 
 
+v1.2.0 11/16/2022  Added doubleTapped for hold longer, script compatability
 v1.1.2 11/14/2022  First release Using current contact sensor code
 =================================================================================================
 
@@ -74,7 +80,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.1.2"
+    TheVersion="1.2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -400,7 +406,10 @@ def processStatus(ZoneStatus status) {
     logging("ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()} ", "debug")
 }
 
-
+void doubleTap(cmd){
+ logging("doubleTapped: ${cmd}", "info")  
+ sendEvent(name: "doubleTapped", value: cmd, descriptionText: "${cmd} button doubleTapped! ${state.version}",translatable: true,isStateChange: true)
+}
 
 
 // this is for compatability
@@ -477,12 +486,14 @@ def parse(String description) {
     if (map.command == "00") {
      if(timeSinceLastCheckin >=10){// how many seconds to hold
       push(3)
-      hold(3)
+      doubleTap(1)
+      doubleTap(3)
       released(3)
       return   
      } 
       if(timeSinceLastCheckin >=6.5){// how many seconds to hold
       push(2)
+      hold(1)    
       hold(2)
       released(2)    
       return    
