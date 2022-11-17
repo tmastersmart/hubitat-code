@@ -22,6 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.3.3    11/17/2022 cluster 0013 detection
 1.3.1    11/14/2022 Updates 
 1.2.0    11/12/2022 First release
 =================================================================================================== 
@@ -47,7 +48,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.1"
+    TheVersion="1.3.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -378,7 +379,7 @@ def parse(String description) {
 
     }else if (descMap.cluster == "FC02"){// these are motion events.
 // [raw:E44601FC020810001800, dni:E446, endpoint:01, cluster:FC02, size:08, attrId:0010, encoding:18, command:0A, value:00, clusterInt:64514, attrInt:16]    
-        logging("FC02 Motion Event. command:${descMap.command} value:${descMap.value} Must repair to disable", "debug")
+        logging("FC02 Motion Event. command:${descMap.command} value:${descMap.value} ${descMap.additionalAttrs} ${descMap.attrInt}", "debug")
         if (descMap.value == "01"){
            logging("acceleration active", "info")
            sendEvent(name: "acceleration", value: "active")
@@ -397,16 +398,17 @@ def parse(String description) {
         if (descMap.attrId == "0002" ) {
          value = Integer.parseInt(descMap.value, 16)
             if(value == 32 ){
-                logging("${state.MFR} Contact event cluster:5000 value:${value} CLOSED", "debug")
+                logging("${state.MFR} Contact event cluster:500 value:${value} CLOSED", "debug")
                 contactClosed()
                 return
             }
             else if(value == 33 ){
-                logging("${state.MFR} Contact event cluster:5000 value:${value} OPEN", "debug")
+                logging("${state.MFR} Contact event cluster:500 value:${value} OPEN", "debug")
                 contactOpen()
                 return
             }
-           else {logging("ERROR: ignoring event cluster:5000 not a 1/0 Contact event. Unknown value:${value}", "debug")}
+           // 3320-L 37/36  iMagic 1/0  Samjin 32/33
+           else {logging("ERROR: ignoring event cluster:500 not a 1/0 Contact event. Unknown value:${value}", "debug")}
             
       } else if (descMap.commandInt == "07") {
                     if (descMap.data[0] == "00") {
@@ -422,17 +424,18 @@ if ( descMap.data){
 }
       
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
  else if (descMap.cluster =="8031"){text="Link Quality"}
  else if (descMap.cluster =="8032"){text="Routing Table"}
- else if (descMap.cluster =="8013"){text="Multistate event"} 
    
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
-
+   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
+        
+}else if (descMap.cluster =="0013"){logging("${descMap.cluster} Multistate event-(bat change/low bat) data:${descMap.data}", "warn") 
+        
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
@@ -469,6 +472,47 @@ def processStatus(ZoneStatus status) {
     }else {contactClosed()}
 }
 
+private List<Map> parseAxis(List<Map> attrData) {
+	def results = []
+	def x = hexToSignedInt(attrData.find { it.attrInt == 0x0012 }?.value)
+	def y = hexToSignedInt(attrData.find { it.attrInt == 0x0013 }?.value)
+	def z = hexToSignedInt(attrData.find { it.attrInt == 0x0014 }?.value)
+
+	if ([x, y ,z].any { it == null }) {
+		return []
+	}
+
+	def xyzResults = [:]
+	if (device.getDataValue("manufacturer") == "SmartThings") {
+		// This mapping matches the current behavior of the Device Handler for the Centralite sensors
+		xyzResults.x = z
+		xyzResults.y = y
+		xyzResults.z = -x
+	} else {
+		// The axises reported by the Device Handler differ from the axises reported by the sensor
+		// This may change in the future
+		xyzResults.x = z
+		xyzResults.y = x
+		xyzResults.z = y
+	}
+
+	log.debug "parseAxis -- ${xyzResults}"
+
+	if (garageSensor == "Yes")
+		results += garageEvent(xyzResults.z)
+
+	def value = "${xyzResults.x},${xyzResults.y},${xyzResults.z}"
+	results << [
+			name           : "threeAxis",
+			value          : value,
+			linkText       : getLinkText(device),
+			descriptionText: "${getLinkText(device)} was ${value}",
+			handlerName    : name,
+			isStateChange  : isStateChange(device, "threeAxis", value),
+			displayed      : false
+	]
+	results
+}
 
 
 def checkPresence() {
