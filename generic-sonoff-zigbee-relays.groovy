@@ -3,7 +3,7 @@ driver for hubitat
 
 Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
 Generic zigbee relays
-Lamp_01, SA-003-Zigbee, 01MINIZB, BASICZBR3, LXN59-1S7LX1.0
+Lamp_01,Plug_01, SA-003-Zigbee, 01MINIZB, BASICZBR3, LXN59-1S7LX1.0
 Sylvania Smart + LEDVANCE
 
 This driver was created to handel all my Sonoff MINI ZB / eWeLink /3A Smart Home /Generic relays.
@@ -21,6 +21,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.4 11/17/2022   Plug_01 fingerprint added
  1.6.3 11/15/2022   Cluster code rewrite
  1.6.1 11/12/2022   More bug fixes in presence
  1.6.0 11/10/2022   Added retry to recovery mode was creating false non present alarms
@@ -59,7 +60,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.3"
+    TheVersion="1.6.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -95,9 +96,9 @@ metadata {
         fingerprint model:"Lamp_01",       manufacturer:"SZ",              deviceJoinName:"Generic Relay",         profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
         fingerprint model:"LXN59-1S7LX1.0",manufacturer:"3A Smart Home DE",deviceJoinName:"Inline Switch",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"", application:"01"
         fingerprint model:"PLUG",          manufacturer:"LEDVANCE"        ,deviceJoinName:"Sylvania Smart +",      profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B05,FC01,FC08", outClusters:"0003,0019" 
-        
+        fingerprint model:"Plug_01",       manufacturer:"SZ",                                                      profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
 // 2 devices share the same fingerprint "SA-003-Zigbee""eWeLink" one a relay one a round outlet
-    
+//  Plug_01   
     }
 
 }
@@ -391,18 +392,20 @@ def parse(String description) {
        
  
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
  else if (descMap.cluster =="8031"){text="Link Quality"}
  else if (descMap.cluster =="8032"){text="Routing Table"}
- else if (descMap.cluster =="8013"){text="Multistate event"} 
+
    
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
    logging("Ignoring ${map.cluster} ${text}", "debug") 
 
-
+}else if (descMap.cluster =="0013"){logging("${descMap.cluster} Multistate event (Rejoining) data:${descMap.data}", "debug") 
+   
+        
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
     }
@@ -478,7 +481,8 @@ void getIcons(){
     if (state.model == "BASICZBR3"){     state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/BASICZBR3.jpg' >"}
     if (state.model == "01MINIZB"){      state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/01MINIZB.jpg' >"  }                                  
     if (state.model == "SA-003-Zigbee"){ state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/SA-003-Zigbee.jpg' >"}
-    if (state.model == "Lamp_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Lamp_01.jpg' >"}                             
+    if (state.model == "Lamp_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Lamp_01.jpg' >"} 
+    if (state.model == "Plug_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Plug_01.jpg' >"} 
     if (state.model == "LXN59-1S7LX1.0"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/LXN59-1S7LX1.0.jpg' >"}
     if (state.model == "PLUG" && state.MFR =="LEDVANCE"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sylvania-smart-plus.jpg' >"}
     
