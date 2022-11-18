@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.3 11/18/2022 extra polling times added
  v5.5.2 11/12/2022 Logging module update. Autofix installed
  v5.5.1 10/20/2022 Null on line 401. Error checking added/ Swing and DIff auto saved
  v5.5.0 10/15/2022 Null detection added in event 11
@@ -104,7 +105,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.2"
+    TheVersion="5.5.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -212,7 +213,7 @@ preferences {
     input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. ",  options: ["fast", "economy"], defaultValue: "economy",required: true 
    
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
-    input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["10","15","20","30","40","50"],defaultValue: 15,required: true)
+    input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["5","10","15","20","25","30","35","40","45","50","55",],defaultValue: 15,required: true)
 
     
     input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
@@ -410,6 +411,11 @@ def parse(String description)
 // Termostat setpoints -------------------------------------------------------
 def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointReport cmd)
 {
+    
+    if (!cmd){
+        logging("received E1 NULL", "warn")
+        return
+    }
     logging("received E1 ${cmd}", "debug")
     def cmdScale = cmd.scale == 1 ? "F" : "C"
 	def map = [:]
