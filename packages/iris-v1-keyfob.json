@@ -7,7 +7,7 @@
   "version": "1.1.1",
   "dateReleased": "2022-09-08",
   "category": "Convenience",
-  "tags":  [  "Presence & Location"   ],
+  "tags":  ["Monitoring","Presence & Location","Safety & Security","Zigbee"],
   "drivers": [
     {
 
