@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.3 11/23/2022 Maintance release
 v2.4.2 11/12/2022 Another bug fix for presence
 v2.4.0 11/11/2022 Added Retries to presence. Rewrote logging code.
                   cleaned up parsing code. New firmware detection
@@ -73,7 +74,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.2"
+    TheVersion="2.4.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -261,27 +262,27 @@ def updated() {
 
 
 
-// To be used later on a schedule. 
-def quietMode() {
-	// Turns off all reporting except for a ranging message every 2 minutes.
-    delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    ], 3000)    
-	logging ("Mode: Quiet  [FA:03.01]","info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
-}
 
-def normalMode() {
-    // This is the standard running mode.
-   delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	], 3000)
-    logging("SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
-}
+//	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
 
+
+def normalMode() { // v2.0
+        logging("Sending: [Normal Mode]  Pulses:${state.rangingPulses}", "info")                              
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+   if (state.rangingPulses >15){ 
+        logging("Not responding! adding extra kick", "warn")
+        delayBetween([ // Once is not enough
+//	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// version information request
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal    
+	    ], 6000)
+       
+   }
+}
 void EnrollRequest(){
     logging("Responding to Enroll Request. Likely Battery Change", "warn")
     delayBetween([ // Once is not enough
@@ -389,6 +390,7 @@ private motionOFF(){
 def parse(String description) {
 	logging("Parse : ${description}", "trace")
     clientVersion()
+    loggingCheck()
     state.lastCheckin = now()
     checkPresence()
     // Device contacts are zigbee cluster compatable
@@ -622,12 +624,10 @@ void getIcons(){
 
 
 
-// Logging block  v4
-
+// Logging block  v5
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
-    // Only do this when its needed
-    if (debugLogging){
+        if (debugLogging){
         logging("Debug log:off in 3000s", "warn")
         runIn(3000,debugLogOff)
     }
@@ -637,6 +637,9 @@ void loggingUpdate() {
     }
 }
 
+void loggingCheck(){ 
+// not working fix later
+}
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
