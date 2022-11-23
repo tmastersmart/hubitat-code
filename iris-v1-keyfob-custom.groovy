@@ -17,6 +17,7 @@ mode = Away
 mode = Home
 
 ---------------------------------------------
+v1.3.0 11/24/2022  Log changed to departed arrived. Ranging paused when not pressent
 v1.2.1 11/24/2022  ClearTamper removed. Bug in 0 batery when not present
 v1.1.1 11/23/2022  First release Using current contact sensor code
 =================================================================================================
@@ -63,7 +64,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -307,6 +308,12 @@ void refresh() {
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
+    // we dont want to range if its not pressent we want to recover first
+    test = device.currentValue("presence")
+    if (test == "not present" ){
+        ping()
+        return
+    }
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
@@ -344,7 +351,8 @@ def checkPresence() {
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-            logging("Creating presence event: ${value}  ","info")
+        logging("Has Arrived. event:${value}","info")
+
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         startTimer()    
         return    
@@ -356,7 +364,7 @@ def checkPresence() {
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
-         logging("Creating presence event: ${value}","warn")
+         logging("Has Departed. event:${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
 //         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
          stopTimer()   
@@ -373,24 +381,7 @@ def checkPresence() {
     }
 }
 
-
-
-
   
-    
-
-
-
-
-
-
-
-
-// process zonealarm as button
-def processStatus(ZoneStatus status) {
-    logging("ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()} ", "debug")
-}
-
 
 void sendMode(){
     
@@ -434,17 +425,12 @@ def parse(String description) {
     clientVersion()
     state.lastCheckin = now()
     checkPresence()
-    // Device contacts are zigbee cluster compatable
-	if (description.startsWith("zone status")) {
-		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
-		processStatus(zoneStatus)
-        return
-   }else if (description?.startsWith('enroll request')) {
+
+	if (description?.startsWith('enroll request')) {
         EnrollRequest()
         return
     }
  
-//  processMap clusterId:00F0 command:FB [1F, 7C, 63, 16, 00, 3C, 0C, 90, 01, CF, FF, 03, 00] 13   
 //  new processing routine    
     Map map = zigbee.parseDescriptionAsMap(description)
     if (!map){
