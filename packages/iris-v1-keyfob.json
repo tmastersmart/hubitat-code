@@ -15,7 +15,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v1-keyfob-custom.groovy",
       "required": "true",
-      "description": "BETA: Rewritten Iris v1 kefob. Supports holdable buttons , presence recovery no more false no presence toggles. and adjustable timeout. New battery support no negative voltage readings. Also supports custom mode AWAY/HOME",
+      "description": "Rewritten Iris v1 kefob. Supports holdable buttons , presence recovery no more false no presence toggles. and adjustable timeout. New battery support no negative voltage readings. Also supports custom mode AWAY/HOME",
       "id": "f6d6d0c4-b82e-4d5a-9d91-8c3f001aab34"
     }
     ]
