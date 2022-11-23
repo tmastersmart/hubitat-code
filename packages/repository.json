@@ -39,6 +39,13 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/SmartThings-Arrival-Sensor-hubitat.json",
   "description": "SmartThings arrival sensor v2 with adjustable chimes. Can play chimes of diffrent legenths."
    },
+    {
+  "name":"Iris v1 keyfob custom",
+	    "category": "Control",
+      "tags": ["Monitoring","Presence & Location","Safety & Security","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-keyfob.json",
+  "description": "Rewritten Iris v1 kefob. Supports holdable buttons , presence recovery no more false no presence toggles. and adjustable timeout. New battery support no negative voltage readings. Also supports custom mode AWAY/HOME"
+   },	  
      {
   "name":"Iris v1 Repeator Zigbe",
 	     "category": "Control",
