@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.4 11/23/2022 Bug fix in recovery error counter getting reset/Bug in heat reset was resetting cool
  v5.5.3 11/18/2022 extra polling times added
  v5.5.2 11/12/2022 Logging module update. Autofix installed
  v5.5.1 10/20/2022 Null on line 401. Error checking added/ Swing and DIff auto saved
@@ -105,7 +106,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.3"
+    TheVersion="5.5.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -448,16 +449,16 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
     if(tempCheck){ // needed in case of no last setpoints set
      if(tempCheck == tempCheck2){
       logging("E1 ${map.name} Set Points Match Last${tempCheck}=Current${tempCheck2}", "debug") //moved to debug
-      state.error = 0 
+      //state.error = 0 
       }
      if(tempCheck != tempCheck2 & autocorrect == true){
-         logging("E1 ${map.name} Last Point does not match Last${tempCheck}<>Current${tempCheck2} error:${state.error} fixOn:${autocorrectNum}", "warn")
          state.error = state.error + 1
+         logging("E1 ${map.name} Last Point does not match Last${tempCheck}<>Current${tempCheck2} error:${state.error} fixOn:${autocorrectNum}", "warn")
          if (state.error >= autocorrectNum ){
           runIn(1,FixHeat)
           runIn(5,FixCool)
           logging("Resetting cool:${state.SetCool}/Heat:${state.SetHeat}", "info")
-          //state.error = 0    
+          state.error = 0    
          }    
       }
    }// end if not null
@@ -770,7 +771,7 @@ def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
 def FixHeat(){
 //state.SetCool
  logging("Recovery HEATing Setpoint", "warn")   
- setCoolingSetpoint(state.SetHeat)
+ setHeatingSetpoint(state.SetHeat)
 }
 
 
