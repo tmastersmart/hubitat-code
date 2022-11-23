@@ -8,7 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
-v2.4.3 11/23/2022 Maintance release
+v2.4.4 11/23/2022 Maintance release
 v2.4.2 11/12/2022 Another bug fix for presence
 v2.4.0 11/11/2022 Added Retries to presence. Rewrote logging code.
                   cleaned up parsing code. New firmware detection
@@ -74,7 +74,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.3"
+    TheVersion="2.4.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
