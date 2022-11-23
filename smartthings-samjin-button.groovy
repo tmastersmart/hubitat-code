@@ -21,6 +21,8 @@ released after 3sec
 
 
 ===================================================================================================
+1.1.0    11/23/2022 Fix cluster 0013 was not being trapped.
+1.0.3    11/22/2022 bug in debug logging was throwing error
 1.0.2    11/14/2022 Changes to cluster map detection
 1.0.0    11/14/2022 First release
 =================================================================================================== 
@@ -46,7 +48,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.2"
+    TheVersion="1.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -387,7 +389,7 @@ if ( descMap.data){
 }
   
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "0013") {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
@@ -396,7 +398,7 @@ if ( descMap.data){
  else if (descMap.cluster =="8013"){text="Multistate event"} 
    
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
+   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
 
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
