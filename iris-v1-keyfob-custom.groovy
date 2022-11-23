@@ -94,7 +94,7 @@ import hubitat.helper.HexUtils
 
 metadata {
 
-	definition (name: "Iris v1 KeyFob Advanced", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+	definition (name: "Iris v1 KeyFob Advanced", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v1-keyfob-custom.groovy") {
 
 	capability "Battery"
 	capability "Configuration"
