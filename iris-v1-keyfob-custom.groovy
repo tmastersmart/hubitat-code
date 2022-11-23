@@ -1,42 +1,25 @@
 /* Iris v1 KeyFob Advanced
-
 Iris v1 Button for hubitat
-
 The iris v1 keyfob supports holdable buttons
-
-
-
 
 https://fccid.io/WJHKF11
 Centrica Connected home Limited Alertme Wireless keyfob 
-
-
-support for scripts
 ---------------------------------------------
-supports press held 
-
 event: pushed
 1 = pressed home
 2 = pressed away
-
 event: held
 3 = home
 4 = away    
 (in testing away often had false hold states due to the processor slowing down)
-
-Or you may test custom att with your scripts. Mode will change when button is pressed and stay until pressed again.
-
+Or you may test custom attributes with your scripts. Mode will change when button is pressed and stay until pressed again.
 mode = Away
 mode = Home
 
 ---------------------------------------------
-
-
-
+v1.2.1 11/24/2022  ClearTamper removed. Bug in 0 batery when not present
 v1.1.1 11/23/2022  First release Using current contact sensor code
 =================================================================================================
-
-
 
 Before going back to internal drivers you must use uninstall to stop chron
 =================================================================================================== 
@@ -80,7 +63,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -114,7 +97,7 @@ metadata {
 	command "normalMode"
     command "rangeAndRefresh"
 
-    command "ClearTamper"
+
     command "unschedule"
     command "uninstall"
 
@@ -375,7 +358,7 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
+//         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
          stopTimer()   
          return // we dont want a ping after this or it could toggle
          }
@@ -396,10 +379,6 @@ def checkPresence() {
   
     
 
-def ClearTamper (){
-        logging("Tamper : Cleared FORCED", "info")
-		sendEvent(name: "tamper", value: "clear", isStateChange: true, descriptionText: "force cleared v${state.version}")
-}
 
 
 
