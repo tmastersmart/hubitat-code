@@ -21,6 +21,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.5 11/23/2022   added untraped general cluster 8001 bug should have ben in the list
  1.6.4 11/17/2022   Plug_01 fingerprint added
  1.6.3 11/15/2022   Cluster code rewrite
  1.6.1 11/12/2022   More bug fixes in presence
@@ -60,7 +61,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.4"
+    TheVersion="1.6.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -392,7 +393,7 @@ def parse(String description) {
        
  
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" ) {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
