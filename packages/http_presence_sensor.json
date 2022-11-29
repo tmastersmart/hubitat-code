@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "404 and 401 added",
+  "releaseNotes": "Options added",
   "version": "2.4.0",
   "dateReleased": "2022-09-25",
   "category":"Security",
