@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.5 11/29/2022 ranging changes
 v2.4.4 11/23/2022 Maintance release
 v2.4.2 11/12/2022 Another bug fix for presence
 v2.4.0 11/11/2022 Added Retries to presence. Rewrote logging code.
@@ -74,7 +75,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.4"
+    TheVersion="2.4.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -233,7 +234,7 @@ def configure() {
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
 
     // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -307,6 +308,16 @@ void refresh() {
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
+    
+        // we dont want to range if its not pressent we want to recover first
+    test = device.currentValue("presence")
+    if (test == "not present" ){
+        ping()
+        return
+    }
+    
+    
+    
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
