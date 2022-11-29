@@ -31,7 +31,7 @@ WJH-B12, WJH B12, WJHB12, WJHBI2
 Centrica Connected home Limited Wireless Button B12
 AlertMe Iris Lowes
 
-
+v1.2.1 11/29/2022  Ranging adj
 v1.2.0 11/16/2022  Added doubleTapped for hold longer, script compatability
 v1.1.2 11/14/2022  First release Using current contact sensor code
 =================================================================================================
@@ -80,7 +80,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -216,7 +216,7 @@ def initialize() {
 
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
-
+state.lastPress =0
 	// Remove state variables from old versions.
     state.remove("operatingMode")
     state.remove("LQI")
@@ -264,7 +264,7 @@ def configure() {
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
 
     // Check presence every hr
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -333,6 +333,16 @@ void refresh() {
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
+    
+        // we dont want to range if its not pressent we want to recover first
+    test = device.currentValue("presence")
+    if (test == "not present" ){
+        ping()
+        return
+    }
+    
+    
+    
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
