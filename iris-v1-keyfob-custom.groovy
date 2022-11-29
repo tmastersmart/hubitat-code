@@ -17,6 +17,7 @@ mode = Away
 mode = Home
 
 ---------------------------------------------
+v1.3.1 11/29/2022  logging mods
 v1.3.0 11/24/2022  Log changed to departed arrived. Ranging paused when not pressent
 v1.2.1 11/24/2022  ClearTamper removed. Bug in 0 batery when not present
 v1.1.1 11/23/2022  First release Using current contact sensor code
@@ -64,7 +65,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.3.0"
+    TheVersion="1.3.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -616,7 +617,7 @@ def parse(String description) {
 	logging("${map.clusterId} New join has triggered a routing table reshuffle.", "info")
     } else if (map.clusterId == "0006") {MatchDescriptorRequest()
 	} else if (map.clusterId == "0013" ) {
-	logging("${map.clusterId} Re-routeing", "warn")
+	logging("${map.clusterId} Re-routeing", "info")
 
  } else {logging("New unknown Cluster Detected: ${map}", "warn")}// report to dev improved
 }
