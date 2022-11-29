@@ -29,7 +29,8 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-1.7.5    11/15/2022 Cluster mapping rewrite
+1.7.7    11/24/2022 bug fix clustor 0013
+1.7.6    11/15/2022 Cluster mapping rewrite
 1.7.3    11/12/2022 Another bug fix for presence
 1.7.2    11/11/2022 Min bat null if not configured fixed
 1.7.0    11/11/2022 Presence retry rewrote
@@ -63,7 +64,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.5"
+    TheVersion="1.7.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -371,7 +372,7 @@ if ( descMap.data){
 }
       
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "0013") {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
@@ -380,7 +381,7 @@ if ( descMap.data){
  else if (descMap.cluster =="8013"){text="Multistate event"} 
    
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
+   logging("Ignoring ${descMap.data} ${text}", "debug") 
 
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
