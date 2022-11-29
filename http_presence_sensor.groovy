@@ -126,6 +126,7 @@ def httpGetCallback(response, data) {
 	}
   
     def st = response.getStatus()
+    code="error"
     if(st == 200){code="ok"}
     if(st == 400){code="Bad Request"}
 	if(st == 401){code="Unauthorized"}
