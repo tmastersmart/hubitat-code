@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v4.2.0 11/29/2022 control loss increased ranging.
 v4.1.0 11/15/2022 Bug fix in refreash and on off control
 v4.0.2  11/12/2022 Bug fix presence
 v4.0  11/11/2022 Bug fix on presence. Improvements from other iris drivers added
@@ -73,7 +74,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.1.0"
+    TheVersion="4.2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -224,7 +225,7 @@ def configure() {
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
 
     // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -250,25 +251,25 @@ def updated() {
 
 
 
-// To be used later on a schedule. 
-def quietMode() {
-	// Turns off all reporting except for a ranging message every 2 minutes.
-    delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
-    ], 3000)    
-	logging ("Mode: Quiet  [FA:03.01]","info")
-    randomSixty = Math.abs(new Random().nextInt() % 60)
-    runIn(randomSixty,refresh) // Refresh in random time
-}
+//	// Turns off all reporting except for a ranging message every 2 minutes.
+//    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 03 01} {0xC216}"]),
 
-def normalMode() {
-    // This is the standard running mode.
-   delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	], 3000)
-    logging("SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
+def normalMode() { // v2.0
+        logging("Sending: [Normal Mode]  Pulses:${state.rangingPulses}", "info")                              
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+   if (state.rangingPulses >15){ 
+        logging("Not responding! adding extra kick", "warn")
+        delayBetween([ // Once is not enough
+//	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// version information request
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal    
+	    ], 6000)
+       
+   }
 }
 
 void EnrollRequest(){
@@ -288,7 +289,6 @@ void ping() {
 }
 
 
-
 void refresh() {
 	logging("${device} : Refreshing", "info")
     delayBetween([ 
@@ -302,7 +302,7 @@ def rangeAndRefresh() {
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
-	runIn(6, normalMode)
+	runIn(3, normalMode)
  
 }
 
@@ -389,7 +389,7 @@ def parse(String description) {
     clientVersion()
     state.lastCheckin = now()
     checkPresence()
-    
+    loggingCheck()
     if (description?.startsWith('enroll request')) {
         EnrollRequest()
         return
@@ -670,12 +670,10 @@ void getIcons(){
 
  }
 
-// Logging block  v4
-
+// Logging block  v5
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
-    // Only do this when its needed
-    if (debugLogging){
+        if (debugLogging){
         logging("Debug log:off in 3000s", "warn")
         runIn(3000,debugLogOff)
     }
@@ -683,6 +681,10 @@ void loggingUpdate() {
         logging("Trace log: off in 1800s", "warn")
         runIn(1800,traceLogOff)
     }
+}
+
+void loggingCheck(){ 
+// not working fix later
 }
 
 void traceLogOff(){
