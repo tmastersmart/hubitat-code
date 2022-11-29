@@ -22,6 +22,8 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.2.6 11/29/2022 more bat fixes
+v3.2.5 11/25/2022 bat min fix
 v3.2.2 11/12/2022 Another bug fix for presence
 v3.2.0 11/11/2022 Added retry and recovery mode.New firmware detection
 v3.1.3 11/07/2022 compacted logging code.Rewriting sections of code
@@ -102,7 +104,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.2"
+    TheVersion="3.2.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -263,10 +265,10 @@ def configure() {
 
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
-    
+    if(!state.minVoltTest){state.minVoltTest= 2.21}
 	// upgrade to new min values
-	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.25 ){ 
-		state.minVoltTest= 2.25 
+	if (state.minVoltTest < 2.16 ){
+		state.minVoltTest= 2.16 
 		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "info")
 	}
 	state.model = "-model?-"
@@ -313,6 +315,7 @@ def updated() {
     clientVersion()
 	loggingUpdate()
     refresh() 
+//    runIn(3000,loggingUpdate)
 }
 
 
@@ -323,13 +326,22 @@ def updated() {
 //	logging ("Mode: Quiet  [FA:03.01]","info")
 //}
 
-def normalMode() {
-    // This is the standard running mode.
-   delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	], 3000)
-    logging("SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
+def normalMode() { // v2.0
+        logging("Sending: [Normal Mode]  Pulses:${state.rangingPulses}", "info")                              
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+   if (state.rangingPulses >15){ 
+        logging("Not responding! adding extra kick", "warn")
+        delayBetween([ // Once is not enough
+//	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// version information request
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal    
+	    ], 6000)
+       
+   }
 }
 
 void EnrollRequest(){
@@ -357,6 +369,16 @@ void refresh() {
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
 def rangeAndRefresh() {
+    
+        // we dont want to range if its not pressent we want to recover first
+    test = device.currentValue("presence")
+    if (test == "not present" ){
+        ping()
+        return
+    }
+    
+    
+    
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
@@ -394,7 +416,8 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
+         state.minVoltTest = device.currentValue("batteryVoltage")   
          return // we dont want a ping after this or it could toggle
          }
          
@@ -459,6 +482,7 @@ def parse(String description) {
     clientVersion()
     state.lastCheckin = now()
     checkPresence()
+    loggingCheck()
     // Device contacts are zigbee cluster compatable
 	if (description.startsWith("zone status")) {
 		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
@@ -682,12 +706,10 @@ void getIcons(){
 
  }
 
-// Logging block  v4
-
+// Logging block  v5
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
-    // Only do this when its needed
-    if (debugLogging){
+        if (debugLogging){
         logging("Debug log:off in 3000s", "warn")
         runIn(3000,debugLogOff)
     }
@@ -695,6 +717,10 @@ void loggingUpdate() {
         logging("Trace log: off in 1800s", "warn")
         runIn(1800,traceLogOff)
     }
+}
+
+void loggingCheck(){ 
+// not working fix later
 }
 
 void traceLogOff(){
