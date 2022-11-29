@@ -1,7 +1,7 @@
 {
   "packageName": "Iris v1 Smart Plug custom",
   "author": "TheMaster",
-  "releaseNotes":   "Increased ranging schedule due to los of control.",
+  "releaseNotes":   "Increased ranging schedule due to los of control. Please reinit,config then save to reset all schedules.",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
