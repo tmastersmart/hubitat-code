@@ -107,7 +107,7 @@ def refresh() {
 	state.tryCount = state.tryCount + 1
     
     if (state.tryCount > 3 && device.currentValue('presence') != "not present") {
-        logging("Presence: [Not Present] [${st} ${code}] Tries:${state.tryCount} ", "warn")
+        logging("Presence: [Not Present] Tries:${state.tryCount} ", "warn")
         sendEvent(name: "presence", value: "not present", descriptionText: "[Not Present] Tries:${state.tryCount} ")
     }
     
