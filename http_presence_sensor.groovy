@@ -4,10 +4,12 @@
 
 Allows you to set chron to stop overloading servers
 
-This fixes the orginal version 
+Works with IP cameras. Wont fail when password requested
 
+Setup the way you want in in driver options.
 
 =================================================================
+  v2.4  11/29/2022 More options added added 
   v2.3  09/25/2022 404 and 401 errors added
   v2.2  09/21/2022 Better logging 
   v2.1.1 09/14/2021
@@ -15,9 +17,6 @@ This fixes the orginal version
 
 
 
-
-https://github.com/tmastersmart/hubitat-code/blob/main/http_presence_sensor.groovy
-https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/http_presence_sensor.groovy
 
 
 
@@ -55,9 +54,16 @@ metadata {
 
 preferences {
     
-    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+    input name: "infoLogging",  type: "bool", title: "Enable info logging",  description: "Recomended low level" ,defaultValue: true, required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,     defaultValue: false,required: true
+	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level",    defaultValue: false,required: true
+
+    input name: "optionA", type: "bool", title: "Report 404 as ok", description: "File Not Found is OK" , defaultValue: true, required: true
+	input name: "optionB", type: "bool", title: "Report 401 as ok", description: "Unauthorized request is OK" ,defaultValue: true, required: true
+	input name: "optionC", type: "bool", title: "Report 500 as ok", description: "Server error is OK",    defaultValue: false,required: true
+  
+    
+    
     input name: "endpointUrl" , type: "string",title: "Endpoint URL",required: true
     input name: "pollMinutes" ,	type: "number",title: "Polling Minutes",description: "Schedule to check",required: true,defaultValue: 5
 
@@ -68,31 +74,32 @@ preferences {
 
 
 def configure() {
-    logging("${device} : Configure", "info")
+    logging("Configure", "info")
     updated()
 }
     
     
 def installed () {
-	logging("${device} : Install", "info")
+	logging("Install", "info")
     updated()
 }
 
 
 def updated () {
+    loggingUpdate()
     state.tryCount = 0
     schedule("0 */${pollMinutes} * ? * *", refresh)
-    logging("${device} : Updated Schedule ${pollMinutes} mins", "info")
+    logging("Updated Schedule ${pollMinutes} mins", "info")
     runIn(2, refresh)
 }
 
 
 def refresh() {
-    logging("${device} : Checking Presence  ${state.tryCount}", "debug")
+    logging("Checking Presence  ${state.tryCount}", "debug")
 	state.tryCount = state.tryCount + 1
     
     if (state.tryCount > 3 && device.currentValue('presence') != "not present") {
-        logging("${device} : Presence: [Not Present] Tries:${state.tryCount} ", "warn")
+        logging("Presence: [Not Present] [${st} ${code}] Tries:${state.tryCount} ", "warn")
         sendEvent(name: "presence", value: "not present", descriptionText: "[Not Present] Tries:${state.tryCount} ")
     }
     
@@ -103,41 +110,53 @@ def refresh() {
 }
 
 
+
+
 def httpGetCallback(response, data) {
 	if (response == null || response.class != hubitat.scheduling.AsyncResponse) {
 		return
 	}
   
     def st = response.getStatus()
-    logging("${device} : Presence check status =${st}  Tries:${state.tryCount}", "debug")
-	if (st == 200 || st == 401 || st == 404) {
-		if(st == 200){code="ok"}
-		if(st == 401){code="Unauthorized"}
-		if(st == 404){code="File Not Found"}
-		logging("${device} : Presence:[Present] Tries:${state.tryCount} ${code}", "info")
-		state.tryCount = 0
+    if(st == 200){code="ok"}
+    if(st == 400){code="Bad Request"}
+	if(st == 401){code="Unauthorized"}
+	if(st == 404){code="File Not Found"}
+    if(st == 500){code="Server Error"}
+    if(st == 503){code="Service Unavailable"}
+    
+  
+    if(optionA || st == 404 ){state.tryCount = 0}
+    if(optionB || st == 401 ){state.tryCount = 0}
+    if(optionC || st == 500 ){state.tryCount = 0}    
+    if (st == 200) {state.tryCount = 0}
+
+    logging("Presence check [${st} ${code}] Tries:${state.tryCount}", "info") 
+ 
+			
 	if (device.currentValue('presence') != "present") {
-        logging("${device} : Presence: [Present] Tries:${state.tryCount} ", "debug")
-	sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
-            
-		}
-	
-		
-		
+     logging("Presence: [Present] Tries:${state.tryCount} ", "info")
+	 sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
 	}
 }
 
 
 
-// Logging block 
-//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+// Logging block  v4
+
 void loggingUpdate() {
-    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
-void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -147,10 +166,10 @@ void debugLogOff(){
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
 private logging(String message, String level) {
-    if (level == "infoBypass"){log.info  "$message"}
-	if (level == "error"){     log.error "$message"}
-	if (level == "warn") {     log.warn  "$message"}
-	if (level == "trace" && traceLogging) {log.trace "$message"}
-	if (level == "debug" && debugLogging) {log.debug "$message"}
-    if (level == "info"  && infoLogging)  {log.info  "$message"}
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
