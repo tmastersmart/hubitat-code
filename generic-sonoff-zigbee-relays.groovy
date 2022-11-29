@@ -21,6 +21,8 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.7 11/29/2022   bug fix mfr report
+ 1.6.6 11/24/2022   fixed log error
  1.6.5 11/23/2022   added untraped general cluster 8001 bug should have ben in the list
  1.6.4 11/17/2022   Plug_01 fingerprint added
  1.6.3 11/15/2022   Cluster code rewrite
@@ -61,7 +63,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.5"
+    TheVersion="1.6.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -379,7 +381,7 @@ def parse(String description) {
         // should be 0x0104=Home Automation 
         } 
         if (descMap.attrId== "0004" && descMap.attrInt ==4){
-        logging("Manufacturer :${mdescMap.value}", "debug") 
+        logging("Manufacturer :${descMap.value}", "debug") 
         state.MFR = descMap.value 
         updateDataValue("manufacturer", state.MFR)
         state.DataUpdate = true                     
@@ -402,7 +404,7 @@ def parse(String description) {
 
    
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
+   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
 
 }else if (descMap.cluster =="0013"){logging("${descMap.cluster} Multistate event (Rejoining) data:${descMap.data}", "debug") 
    
