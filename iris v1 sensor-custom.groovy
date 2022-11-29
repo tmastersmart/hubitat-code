@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.2.7 11/29/2022 Ranging schedule adj
 v3.2.6 11/29/2022 more bat fixes
 v3.2.5 11/25/2022 bat min fix
 v3.2.2 11/12/2022 Another bug fix for presence
@@ -104,7 +105,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.6"
+    TheVersion="3.2.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -290,7 +291,7 @@ def configure() {
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${6} * * ? *", rangeAndRefresh)	
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
 
     // Check presence every hr
 	randomSixty = Math.abs(new Random().nextInt() % 60)
