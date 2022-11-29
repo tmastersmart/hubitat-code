@@ -42,6 +42,13 @@ https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPrese
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+def clientVersion() {
+    TheVersion="2.4.0"
+ if (state.version != TheVersion){ 
+     state.version = TheVersion
+     configure() 
+ }
+}
 
 	
 metadata {
@@ -87,6 +94,7 @@ def installed () {
 
 def updated () {
     loggingUpdate()
+    clientVersion()
     state.tryCount = 0
     schedule("0 */${pollMinutes} * ? * *", refresh)
     logging("Updated Schedule ${pollMinutes} mins", "info")
