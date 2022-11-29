@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "Cluster mapping rewrites",
-  "version": "1.7.5",
+  "version": "1.7.7",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
