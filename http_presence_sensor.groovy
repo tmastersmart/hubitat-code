@@ -139,14 +139,13 @@ def httpGetCallback(response, data) {
     if(optionB || st == 401 ){state.tryCount = 0}
     if(optionC || st == 500 ){state.tryCount = 0}    
     if (st == 200) {state.tryCount = 0}
-
-    logging("Presence check [${st} ${code}] Tries:${state.tryCount}", "info") 
- 
-			
-	if (device.currentValue('presence') != "present") {
+logging("Presence check [${st} ${code}] Tries:${state.tryCount}", "info") 
+    if(state.tryCount == 0){
+    if (device.currentValue('presence') != "present") {
      logging("Presence: [Present] Tries:${state.tryCount} ", "info")
 	 sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
 	}
+    }
 }
 
 
