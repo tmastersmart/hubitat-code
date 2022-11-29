@@ -21,6 +21,7 @@ released after 3sec
 
 
 ===================================================================================================
+1.1.1    11/29/2022 min voltage raised
 1.1.0    11/23/2022 Fix cluster 0013 was not being trapped.
 1.0.3    11/22/2022 bug in debug logging was throwing error
 1.0.2    11/14/2022 Changes to cluster map detection
@@ -48,7 +49,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.1.0"
+    TheVersion="1.1.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -217,8 +218,8 @@ def configure() {
 
 
 // Set up the min volts auto adj. 
-	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
-		state.minVoltTest= 2.45 
+	 if (state.minVoltTest < 2.4 | state.minVoltTest > 2.6 ){ 
+		state.minVoltTest= 2.6 
 		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
 	 }
     if(state.tempOffset){
@@ -293,8 +294,8 @@ def parse(String description) {
            logging("value:${rawValue}  ${descMap.attrInt}  ${batteryVoltage}v", "trace")  
              
            
-        if(!state.minVoltTest){state.minVoltTest = 2.25}
-        if(state.minVoltTest >=2.3){state.minVoltTest = 2.25}
+        if(!state.minVoltTest){state.minVoltTest = 2.6}
+        if(state.minVoltTest >=2.7){state.minVoltTest = 2.6}
           if (batteryVoltage < state.minVoltTest){
              state.minVoltTest = batteryVoltage
              logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
@@ -495,7 +496,8 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
+         state.minVoltTest = device.currentValue("batteryVoltage")
          return // we dont want a ping after this or it could toggle
          }
          
