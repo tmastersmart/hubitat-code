@@ -26,9 +26,7 @@ Designed to detect false alarms and give proper bat suppot and drop out detectio
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
- *
- *  using zwave commands from this driver. Code rewritten......
- *  https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/zwave-siren.src/zwave-siren.groovy
+
  */
 metadata {
 	definition(name: "Iris Utilitech Siren", namespace: "tmastersmart", author: "tmaster",importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_utilitech_siren_zwave.groovy") {
