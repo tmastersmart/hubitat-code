@@ -31,7 +31,7 @@ Designed to detect false alarms and give proper bat suppot and drop out detectio
  *  https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/zwave-siren.src/zwave-siren.groovy
  */
 metadata {
-	definition(name: "Iris Utilitech Siren", namespace: "tmastersmart", author: "tmaster",importUrl: "") {
+	definition(name: "Iris Utilitech Siren", namespace: "tmastersmart", author: "tmaster",importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_utilitech_siren_zwave.groovy") {
 		capability "Actuator"
 		capability "Alarm"
 		capability "Sensor"
