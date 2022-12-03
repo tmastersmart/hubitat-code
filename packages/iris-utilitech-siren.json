@@ -17,7 +17,7 @@
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_utilitech_siren_zwave.groovy",
       "required": "true",
   "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works.",
-      "id": "c77ab1a9-607e-472e-8b1a-649db8da73e2"
+      "id": "60c64f52-f0c4-46d2-af0b-0ae4f54296d2"
     }
     ]
 }
