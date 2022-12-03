@@ -1,22 +1,22 @@
 {
-  "packageName": "iris v1 button",
+  "packageName": "Iris Utilitech Siren driver",
   "author": "TheMaster",
-  "releaseNotes": "Ranging adjustments",
+  "releaseNotes": "",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "documentationLink": "",
   "communityLink": "",
-  "version": "1.2.1",
-  "dateReleased": "2022-14-11",
+  "version": "1.0.5",
+  "dateReleased": "2022-3-12",
 	"category": "Security",
-      "tags": ["Buttons","Safety & Security","Zigbee"],  
+      "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"],  
   "drivers": [
     {
-      "name":"iris v1 button",
+      "name":"Iris Utilitech Siren driver",
       "namespace": "tmastersmart",
-      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v1-button.grovvy",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_utilitech_siren_zwave.groovy",
       "required": "true",
-  "description": "Improved battery reports and Presence. Auto dead bat detection. Pressed,held,doubletap, 3 Button support for easer scripts. pressed,held,held longer, button 1 pressed button 2 held button 3 held longer Double tap= heald longer",
+  "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works.",
       "id": "c77ab1a9-607e-472e-8b1a-649db8da73e2"
     }
     ]
