@@ -73,7 +73,14 @@
       "tags": ["Monitoring","Safety & Security","Water","ZWave"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
   "description": "Improved Everspring/Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs"
-   },  
+   },
+   {
+  "name":"Iris Utilitech Siren driver",
+	"category": "Security",
+      "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"], 
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-utilitech-siren.json",
+  "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works."
+   },	  
    {
   "name":"LeakSmart Water Valve",
 	   "category": "Control",
