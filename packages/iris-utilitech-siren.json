@@ -1,0 +1,23 @@
+{
+  "packageName": "iris v1 button",
+  "author": "TheMaster",
+  "releaseNotes": "Ranging adjustments",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.2.1",
+  "dateReleased": "2022-14-11",
+	"category": "Security",
+      "tags": ["Buttons","Safety & Security","Zigbee"],  
+  "drivers": [
+    {
+      "name":"iris v1 button",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v1-button.grovvy",
+      "required": "true",
+  "description": "Improved battery reports and Presence. Auto dead bat detection. Pressed,held,doubletap, 3 Button support for easer scripts. pressed,held,held longer, button 1 pressed button 2 held button 3 held longer Double tap= heald longer",
+      "id": "c77ab1a9-607e-472e-8b1a-649db8da73e2"
+    }
+    ]
+}
