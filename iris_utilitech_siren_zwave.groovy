@@ -8,7 +8,7 @@ setting but im unable to test that.
 
 Presence is used to detect dead batteries. 
 
-New timeout timmer.
+New timeout timmer that works. 
 
 State verification and repair. No more ignoring the OFF commands
 
@@ -30,7 +30,7 @@ I beleive the cause is that normal devices creating a new ID on each pair. Whate
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
 
-
+ v1.0.6    12/04/2022 Bug fixes
  v1.0.5    12/03/2022 First working release
  v1.0.1    12/01/2022  beta
  v1.0.0    10/01/2022  created 
@@ -84,7 +84,7 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-    input name: "timeout" ,type: "enum", title: "Timeout",description: "Auto send off command and reset after x seconds 0=disabled 300=5min 1800=30min",options: ["0","300","600","1200","1500","1800"], defaultValue: 1800 ,required: true 
+    input name: "timeout" ,type: "enum", title: "Timeout Timer",description: "Driver sends off command after x seconds 0=disabled 300=5min 1800=30min",options: ["0","300","600","1200","1500","1800"], defaultValue: 1800 ,required: true 
 
     input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
     input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 8 ,required: true 
@@ -92,7 +92,7 @@ preferences {
 
 }
 def clientVersion() {
-    TheVersion="1.0.5"
+    TheVersion="1.0.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -115,7 +115,8 @@ def uninstall() {
     state.remove("tries")
     state.remove("lastPoll")
     state.remove("Alarm")        
-
+    state.remove("fingerprint")
+    state.remove("lastCheckin")
       
       }
 
@@ -153,10 +154,7 @@ def configure() {
     state.Alarm = false
     if(!state.FalseAlarm){state.FalseAlarm = 0}
     
-    state.remove("configured")
-    state.remove("LastCheckin")
-    state.remove("initializeAttempts")
-    state.remove("lastAlarmType")
+
     removeDataValue("manufacturerName")
     getIcons()
     
@@ -191,14 +189,19 @@ runIn(20,refresh)
 
 // Resend the proper state to get back in sync
 def sync (){
-    state.FalseAlarm = state.FalseAlarm +1 // Keeping track of how many we get
+    state.FalseAlarm = state.FalseAlarm +1 
+    if(state.FalseAlarm > 12){
+    logging("Loss of control. Resync falure. Errors:${state.FalseAlarm}", "warn") 
+    return // prevent a non stop loop  
+    }
+    
     logging("Resyncing State. Errors:${state.FalseAlarm}", "warn") 
     if (state.Alarm== true){ on()}
     else {off()}
 }
 
 def on() {
-    logging("Sending On", "info")
+    logging("Sending On", "warn")
     state.Alarm = true
 
     runIn(20,ping) 
@@ -339,16 +342,10 @@ def parse(String description) {
     checkPresence()
 
     hubitat.zwave.Command map = zwave.parse(description, getCommandClassVersions())
-    if (map == null) {return null}
-    def result = [map]
-    if (!result) {return null}
-
-    logging("${device} : Parse ${result}", "debug")
-    if (map) { 
-        zwaveEvent(map)
-        return
-    }
-
+    if (map) {
+     logging("Parse ${map}", "trace")
+     zwaveEvent(map)
+    }else{logging("Parse failed", "warn")}
 }
 
 /**
@@ -422,7 +419,11 @@ void readSwitch (cmd){
         // Error recovery     
         if (value == "on"  && state.Alarm == false){sync()}  
         if (value == "off" && state.Alarm == true ){sync()} 
-        if (value == "off" && state.Alarm == false){unschedule(off)}// stop the auto off timmer
+        if (value == "off" && state.Alarm == false){// stop the auto off timmer
+            unschedule(off)
+            state.FalseAlarm = 0
+        }
+        if (value == "on" && state.Alarm == true){state.FalseAlarm = 0}
     }
 
 
