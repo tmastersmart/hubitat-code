@@ -74,7 +74,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
+	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy") {
 
         capability "Health Check"
 		capability "Actuator"
