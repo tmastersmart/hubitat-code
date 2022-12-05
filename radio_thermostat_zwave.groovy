@@ -36,6 +36,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.5 12/05/2022 ManufacturerSpecificReport parsing added
  v5.5.4 11/23/2022 Bug fix in recovery error counter getting reset/Bug in heat reset was resetting cool
  v5.5.3 11/18/2022 extra polling times added
  v5.5.2 11/12/2022 Logging module update. Autofix installed
@@ -106,7 +107,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.4"
+    TheVersion="5.5.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -700,20 +701,20 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
    
 }
 
-//No such property: manufacturerId for class: hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointSupportedReport on line 717 (method parse)
-def zwaveEvent(hubitat.zwave.Command cmd ){
-  logging("Received E11 (${cmd})", "debug")
-  if(cmd == null |cmd.manufacturerId == null ) {
-      logging("Received E11 NULL", "warn")
-      return
-  }  
- 
+/**
+ *  zwaveEvent( COMMAND_CLASS_MANUFACTURER_SPECIFIC V2 (0x72) : MANUFACTURER_SPECIFIC_REPORT (0x05) )
+ *
+ *  Manufacturer-Specific Reports are used to advertise manufacturer-specific information, such as product number
+ *  and serial number.
+ **/
+def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecificReport cmd) {
+  logging("${cmd} ", "debug")
+    
 	def map = [:]
-    map.name = "ManufacturerSpecificReport"
     map.mfr   = hubitat.helper.HexUtils.integerToHexString(cmd.manufacturerId, 2)
     map.model = hubitat.helper.HexUtils.integerToHexString(cmd.productId, 2)
     map.type  = hubitat.helper.HexUtils.integerToHexString(cmd.productTypeId, 2)
-    logging("E11 fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
+    logging("fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
    
 //   state.remove("fingerprint")
    state.model ="unknown"
@@ -741,7 +742,7 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
      
       
     
-    logging("E11 fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
+    logging("fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
     if (!getDataValue("manufacturer")) {updateDataValue("manufacturer", map.mfr)}
     if (!getDataValue("brand")){        updateDataValue("brand", "Radio Thermostat")}
     
@@ -755,6 +756,14 @@ def zwaveEvent(hubitat.zwave.Command cmd ){
     if (!getDataValue("deviceType")){   updateDataValue("deviceType", map.type)}
         
     
+}
+
+
+
+
+def zwaveEvent(hubitat.zwave.Command cmd ){
+  logging("Received E11 (${cmd})", "debug")
+   
 }
 
 
