@@ -30,6 +30,7 @@ I beleive the cause is that normal devices creating a new ID on each pair. Whate
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
 
+ v1.0.7    12/05/2022 State Verify added
  v1.0.6    12/04/2022 Bug fixes
  v1.0.5    12/03/2022 First working release
  v1.0.1    12/01/2022  beta
@@ -92,7 +93,7 @@ preferences {
 
 }
 def clientVersion() {
-    TheVersion="1.0.6"
+    TheVersion="1.0.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
