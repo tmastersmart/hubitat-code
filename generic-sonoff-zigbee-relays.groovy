@@ -25,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.9 12/05/2022   AutoSync option added
  1.6.8 12/04/2022   State Verify added.
  1.6.7 11/29/2022   bug fix mfr report
  1.6.6 11/24/2022   fixed log error
@@ -68,7 +69,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.8"
+    TheVersion="1.6.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -122,10 +123,12 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-	input name: "disableLogsOff",type: "bool", title: "Disable Auto Logs off", description: "For debugging doesnt auto disable", defaultValue: false
 
-    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "For problem devices that dont wake up or dont reply to commands.", defaultValue: false
+    input name: "autoSync",     type: "bool", title: "AutoSync to hub state", description: "Disables local button on relays, Recovery from powerfalure, Keeps relay in sync with digital state. ChildGuard outlets.", defaultValue: false,required: true
+    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "For problem devices that dont wake up or dont reply to commands.", defaultValue: false,required: true
     input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. 0=disable Press config after saving",options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
+
+	input name: "disableLogsOff",type: "bool", title: "Disable Auto Logs off", description: "For debugging doesnt auto disable", defaultValue: false,required: true
    
 }
 
@@ -239,6 +242,7 @@ def ping() {
 
 // Resend the proper state to get back in sync
 def sync (){
+    if(autoSync == false){return}
     state.error = state.error +1 
     if(state.error > 12){
     logging("Loss of control. Resync falure. Errors:${state.error}", "warn") 
@@ -428,8 +432,10 @@ def onEvents(){
     if (state.Alarm == "alarm"){ sendEvent(name: "alarm", value: "on",isStateChange: true)}
     if (state.Alarm == "siren" || state.Alarm == "both"){ sendEvent(name: "siren", value: "on",isStateChange: true)}
     if (state.Alarm == "strobe"|| state.Alarm == "both" ){sendEvent(name: "strobe", value: "on",isStateChange: true)}
-    if(state.switch == false){sync()}
-   
+    
+    if (autoSync== true){ 
+     if (state.switch == false){sync()}
+    }
 }
 def offEvents(){
     alarmTest = device.currentValue("alarm")   
@@ -441,7 +447,9 @@ def offEvents(){
     Test = device.currentValue("switch")
     if (Test != "off"){ sendEvent(name: "switch", value: "off",isStateChange: true)}
     logging("is OFF our state was:${Test}", "info")
-    if(state.switch == true){sync()}
+    if (autoSync== true){ 
+     if (state.switch == true){sync()} 
+    }
 }
     
 
