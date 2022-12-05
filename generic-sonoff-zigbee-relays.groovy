@@ -1,5 +1,6 @@
 /** Zigbee Sonoff - generic Relays/Outlets
 driver for hubitat
+With state verify.
 
 Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
 Generic zigbee relays
@@ -13,6 +14,9 @@ It also works with Sylvania Smart + LEDVANCE outlets as likely many more generic
 
 Suports alarm,strobe,siren,refreash and presence.
 
+Verifies state after sending and corrects if needed. No more having to resend commands.
+Or hub getting out of sync with device.
+
 If it works with your relay and outlet and its not listed Send me your fingerprints so they can be added.
 To create a fingerprint switch driver to DEVICE and press get info....The fingerprint will be in the log
 
@@ -21,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.6.8 12/04/2022   State Verify added.
  1.6.7 11/29/2022   bug fix mfr report
  1.6.6 11/24/2022   fixed log error
  1.6.5 11/23/2022   added untraped general cluster 8001 bug should have ben in the list
@@ -63,7 +68,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.7"
+    TheVersion="1.6.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -74,7 +79,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy") {
+	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
 
         capability "Health Check"
 		capability "Actuator"
@@ -92,6 +97,7 @@ metadata {
 
 		attribute "strobe", "string"
 		attribute "siren", "string"
+
 
         fingerprint model:"BASICZBR3",     manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay BASICBR3", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
 	    fingerprint model:"01MINIZB",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay MINI",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
@@ -118,7 +124,7 @@ preferences {
 
 	input name: "disableLogsOff",type: "bool", title: "Disable Auto Logs off", description: "For debugging doesnt auto disable", defaultValue: false
 
-    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "If Refresh does not wake up your device use this", defaultValue: false
+    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "For problem devices that dont wake up or dont reply to commands.", defaultValue: false
     input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. 0=disable Press config after saving",options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
    
 }
@@ -221,63 +227,63 @@ delayBetween([
     sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
     sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
    ], 1000)    
-
-    
-    if(resendState){
-      Test = device.currentValue("switch")  
-      if (Test =="on"){runIn(4,on)}
-      else {runIn(4,off)} 
-    }
+  
+    if(resendState){sync()}
 }
 
 def ping() {
     logging("Ping ", "info")
-        delayBetween([
-    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch      
-   ], 900) 
-    
-    if(resendState){
-      Test = device.currentValue("switch")  
-      if (Test =="on"){runIn(4,on)}
-      else {runIn(4,off)} 
-    }
-    
+    if(resendState){sync()}
+    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))// switch
 }
 
-
+// Resend the proper state to get back in sync
+def sync (){
+    state.error = state.error +1 
+    if(state.error > 12){
+    logging("Loss of control. Resync falure. Errors:${state.error}", "warn") 
+    return // prevent a non stop loop  
+    }
+    
+    logging("Resyncing State. Errors:${state.error}", "warn") 
+    if (state.switch== true){ runIn(4,on)}
+    else {runIn(4,off)}
+}
 
 
 def alarm(cmd){
     logging("Alarm ON", "info")
-    sendEvent(name: "alarm", value: "on",isStateChange: true)
+    state.Alarm = "alarm"
   on()
 }
                    
 def siren(cmd){
     logging("siren ON", "info")
-    sendEvent(name: "siren", value: "on",isStateChange: true)
+    state.Alarm = "siren"
   on()
 }
 def strobe(cmd){
     logging("strobe ON", "info")
-    sendEvent(name: "strobe", value: "on",isStateChange: true)
+    state.Alarm = "strobe"
   on()
 }
 def both(cmd){
     logging("both ON", "info")
-    sendEvent(name: "siren", value: "on",isStateChange: true)
-    sendEvent(name: "strobe", value: "on",isStateChange: true)
+    state.Alarm = "both"
   on()
 }
 
 def off() {
+    state.switch = false
+    state.Alarm = "off"
+    runIn(20,ping)
     logging("Sending OFF", "info")
 	zigbee.command(0x006, 0x00)
 }
 
 def on() {
+    state.switch = true
+    runIn(20,ping)
     logging("Sending ON", "info")
 	zigbee.command(0x006, 0x01)
 }
@@ -416,11 +422,14 @@ def parse(String description) {
 // prevent dupe events
 def onEvents(){
     Test = device.currentValue("switch")
-    if (Test != "on"){
-        logging("is ON our state was:${Test}", "info")
-        sendEvent(name: "switch", value: "on",isStateChange: true)
-    }
-    else {logging("is ON our state was:${Test}", "debug")}
+    logging("is ON our state was:${Test}", "info")
+    if (Test != "on"){sendEvent(name: "switch", value: "on",isStateChange: true)}
+    
+    if (state.Alarm == "alarm"){ sendEvent(name: "alarm", value: "on",isStateChange: true)}
+    if (state.Alarm == "siren" || state.Alarm == "both"){ sendEvent(name: "siren", value: "on",isStateChange: true)}
+    if (state.Alarm == "strobe"|| state.Alarm == "both" ){sendEvent(name: "strobe", value: "on",isStateChange: true)}
+    if(state.switch == false){sync()}
+   
 }
 def offEvents(){
     alarmTest = device.currentValue("alarm")   
@@ -429,13 +438,10 @@ def offEvents(){
     if (alarmTest != "off"){sendEvent(name: "siren",  value: "off",isStateChange: true)} 
     alarmTest = device.currentValue("strobe") 
     if (alarmTest != "off"){sendEvent(name: "strobe", value: "off",isStateChange: true)}
-
     Test = device.currentValue("switch")
-    if (Test != "off"){
-        logging("is OFF our state was:${Test}", "info")
-        sendEvent(name: "switch", value: "off",isStateChange: true)
-    }
-    else {logging("is OFF our state was:${Test}", "debug")}
+    if (Test != "off"){ sendEvent(name: "switch", value: "off",isStateChange: true)}
+    logging("is OFF our state was:${Test}", "info")
+    if(state.switch == true){sync()}
 }
     
 
