@@ -1,4 +1,4 @@
-   /* Iris v1 contact sensor-custom
+      /* Iris v1 contact sensor-custom
 
 iris v1 contact sensor for hubitat
 
@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.2.8 12/05/2022 was not ref after ranging
 v3.2.7 11/29/2022 Ranging schedule adj
 v3.2.6 11/29/2022 more bat fixes
 v3.2.5 11/25/2022 bat min fix
@@ -105,7 +106,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.7"
+    TheVersion="3.2.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -384,7 +385,7 @@ def rangeAndRefresh() {
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
- 
+    runIn(10,refresh)
 }
 
 
