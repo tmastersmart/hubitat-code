@@ -13,7 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
-v4.2.1 12/05/2022 Was not Refreshing after ranging
+v4.2.2 12/05/2022 Was not Refreshing after ranging
 v4.2.0 11/29/2022 control loss increased ranging.
 v4.1.0 11/15/2022 Bug fix in refreash and on off control
 v4.0.2  11/12/2022 Bug fix presence
@@ -75,7 +75,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.2.1"
+    TheVersion="4.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
