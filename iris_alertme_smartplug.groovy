@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ================
+v4.2.1 12/05/2022 Was not Refreshing after ranging
 v4.2.0 11/29/2022 control loss increased ranging.
 v4.1.0 11/15/2022 Bug fix in refreash and on off control
 v4.0.2  11/12/2022 Bug fix presence
@@ -74,7 +75,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.2.0"
+    TheVersion="4.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -302,8 +303,8 @@ def rangeAndRefresh() {
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
-	runIn(3, normalMode)
- 
+	runIn(3,normalMode)
+    runIn(10,refresh)
 }
 
 
@@ -327,11 +328,13 @@ def both(cmd){
 }
 
 def off() {
+    state.switch = false
 	state.alarmcmd = 0
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 00 01} {0xC216}"])
 }
 
 def on() {
+    state.switch = true
     state.alarmcmd = 0
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 01 01} {0xC216}"])
 }
