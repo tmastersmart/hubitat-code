@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.6 12/05/2022 Rangand Ref bug fixed
 v2.4.5 11/29/2022 ranging changes
 v2.4.4 11/23/2022 Maintance release
 v2.4.2 11/12/2022 Another bug fix for presence
@@ -75,7 +76,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.5"
+    TheVersion="2.4.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -322,7 +323,7 @@ def rangeAndRefresh() {
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
- 
+    runIn(10,refresh) 
 }
 
 
