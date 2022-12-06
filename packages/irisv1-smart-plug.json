@@ -1,11 +1,11 @@
 {
   "packageName": "Iris v1 Smart Plug custom",
   "author": "TheMaster",
-  "releaseNotes":   "Increased ranging schedule due to los of control. Please reinit,config then save to reset all schedules.",
+  "releaseNotes":   "was not refreashing after ranging. Bug fix",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/iris-alertme-smart-plug-driver-for-hubitat/",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "4.2.0",
+  "version": "4.2.1",
   "dateReleased": "2022-09-03",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"], 
