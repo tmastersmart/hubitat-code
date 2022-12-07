@@ -276,14 +276,25 @@ def updated() {
 //	logging ("Mode: Quiet  [FA:03.01]","info")
 //}
 
-def normalMode() {
-    // This is the standard running mode.
-   delayBetween([ // Once is not enough
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
-	], 3000)
-    logging("SendMode: [Normal]  Pulses:${state.rangingPulses}", "info")
+def normalMode() { // v2.0
+        logging("Sending: [Normal Mode]  Pulses:${state.rangingPulses}", "info")                              
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"])// normal
+   if (state.rangingPulses >7){ 
+        logging("Not responding! adding extra kick", "warn")
+        delayBetween([ // Once is not enough
+//	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// version information request
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+        sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal
+	    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 00 01} {0xC216}"]),// normal    
+	    ], 6000)
+       
+   }
 }
+
+
 
 void EnrollRequest(){
     logging("Responding to Enroll Request. Likely Battery Change", "warn")
