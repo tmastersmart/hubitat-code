@@ -319,8 +319,8 @@ def rangeAndRefresh() {
     logging("StartMode : [Ranging]", "info")
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
-	runIn(6, normalMode)
-    runIn(10,refresh)
+	runIn(7, normalMode)
+    runIn(20,refresh)
 }
 
 private startTimer() {
