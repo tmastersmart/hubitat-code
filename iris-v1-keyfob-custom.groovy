@@ -17,6 +17,7 @@ mode = Away
 mode = Home
 
 ---------------------------------------------
+v1.3.2 12/06/2022  Refresh added after ranging
 v1.3.1 11/29/2022  logging mods
 v1.3.0 11/24/2022  Log changed to departed arrived. Ranging paused when not pressent
 v1.2.1 11/24/2022  ClearTamper removed. Bug in 0 batery when not present
@@ -65,7 +66,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="1.3.1"
+    TheVersion="1.3.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -319,7 +320,7 @@ def rangeAndRefresh() {
     sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F0 {11 00 FA 01 01} {0xC216}"]) // ranging
 	state.rangingPulses = 0
 	runIn(6, normalMode)
- 
+    runIn(10,refresh)
 }
 
 private startTimer() {
@@ -337,8 +338,7 @@ private stopTimer() {// Check presence every hr
 }
 
 def checkPresence() {
-    // presence routine. v5.1 11-12-22
-    // simulated 0% battery detection
+    // presence routine. v5.3 12-6-22
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     if(!minTime){ minTime = 10}
@@ -361,7 +361,7 @@ def checkPresence() {
     }
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
-      if (state.tries >=5){
+      if (state.tries >=7){
         test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
@@ -375,8 +375,8 @@ def checkPresence() {
      } 
        
      runIn(2,ping)
-     if (state.tries <4){
-         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+     if (state.tries <6){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ReTries ${state.tries} ","warn") 
          runIn(50,checkPresence)
      }
     }
