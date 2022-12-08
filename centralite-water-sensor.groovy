@@ -4,10 +4,10 @@ Iris CentraLite water sensor for hubitat
 CentraLite/Iris/Smartthings water sensors for Hubitat
 3315 3315-S 3315-SEU 3315-L 3315-G
 
+Supports TAMPER PRESENCE and auto bad battery detection.
 
 
-To Reset device:
-Remove battery. hold down reset reinsert battery. LED will flash blue
+
 
 If any problems remove device from Hubitat then Reset device. 
 
