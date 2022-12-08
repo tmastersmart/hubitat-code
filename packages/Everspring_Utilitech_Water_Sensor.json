@@ -8,7 +8,7 @@
   "version": "2.8.2",
   "dateReleased": "2022-09-03",
   "category":"Security",
-  "tags":   [ "Safety & Security,valve" ],
+  "tags":   [ "Monitoring","Safety & Security","Water","Zwave" ],
   "drivers": [
     {
       "name":"Utilitech Water Sensor",
