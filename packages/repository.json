@@ -79,7 +79,7 @@
 	   "category": "Control",
       "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/centralite-water-sensor.json",
-  "description": "Improved Iris CentraLite Samjin Smartthings water Sensorr with Presence,Tamper for Centralite and better drop out detection,battery support"
+  "description": "Improved Iris CentraLite Samjin Smartthings water Sensor with Presence,Tamper for Centralite and better drop out detection,battery support"
    },	  
 	  
    {
