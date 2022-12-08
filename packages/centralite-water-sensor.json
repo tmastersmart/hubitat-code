@@ -1,5 +1,5 @@
 {
-  "packageName": "Centralite Water Sensor",
+  "packageName": "Iris CentraLite Samjin Smartthings water Sensor",
     "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
@@ -11,11 +11,11 @@
   "tags":   [ "Monitoring","Safety & Security","Water","Zigbee" ],
   "drivers": [
     {
-      "name":"Centralite Water Sensor",
+      "name":"Iris CentraLite Samjin Smartthings water Sensor",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy",
       "required": "true",
-      "description": "Improved Iris/Centralite Water Sensor with Presence,Tamper and better drop out detection,battery support",
+      "description": "Improved Iris CentraLite Samjin Smartthings water Sensor with Presence and Tamper for Centralite, better drop out detection,battery support",
       "id": "806cd828-b3af-4949-8167-e875012f7b6d"
     }
     ]
