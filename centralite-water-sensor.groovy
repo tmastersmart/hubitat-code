@@ -1,11 +1,13 @@
-/* CentraLite water sensor
+/* Iris CentraLite Samjin Smartthings water Sensor for Hubitat
 Iris CentraLite water sensor for hubitat
 
 CentraLite/Iris/Smartthings water sensors for Hubitat
 3315 3315-S 3315-SEU 3315-L 3315-G
-
 Supports TAMPER PRESENCE and auto bad battery detection.
 
+
+SmartThings Water Sensor /Samjin/Smartthings
+No tamper support on these devices
 
 
 
@@ -52,7 +54,7 @@ def clientVersion() {
 metadata {
     
 
-definition (name: "Iris CentraLite water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy") {
+definition (name: "CentraLite Samjin Smartthings water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy") {
 
     capability "Health Check"
 	capability "Battery"
@@ -476,7 +478,12 @@ void sendZigbeeCommands(List<String> cmds) {
 
 void getIcons(){
  if(state.MFR =="CentraLite"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3315.jpg' >"}
-  state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+ if(state.MFR =="Samjin"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/samjin-water.jpg' >"}
+ if(state.MFR =="SmartThings"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/smartthings-water.jpg' >"}
+
+  
+    
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
 
 
