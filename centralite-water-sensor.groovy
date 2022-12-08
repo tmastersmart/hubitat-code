@@ -52,7 +52,7 @@ def clientVersion() {
 metadata {
     
 
-definition (name: "Iris CentraLite water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Iris CentraLite water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy") {
 
     capability "Health Check"
 	capability "Battery"
