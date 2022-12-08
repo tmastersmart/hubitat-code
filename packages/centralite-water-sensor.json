@@ -8,7 +8,7 @@
   "version": "1.0.0",
   "dateReleased": "2022-12-07",
   "category":"Security",
-  "tags":   [ "Safety & Security,valve" ],
+  "tags":   [ "Monitoring","Safety & Security","Water","Zigbee" ],
   "drivers": [
     {
       "name":"Centralite Water Sensor",
