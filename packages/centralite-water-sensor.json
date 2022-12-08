@@ -1,0 +1,22 @@
+{
+  "packageName": "Centralite Water Sensor",
+    "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "",
+  "documentationLink": "",
+  "version": "1.0.0",
+  "dateReleased": "2022-12-07",
+  "category":"Security",
+  "tags":   [ "Safety & Security,valve" ],
+  "drivers": [
+    {
+      "name":"Centralite Water Sensor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy",
+      "required": "true",
+      "description": "Improved Iris/Centralite Water Sensor with Presence,Tamper and better drop out detection,battery support",
+      "id": "806cd828-b3af-4949-8167-e875012f7b6d"
+    }
+    ]
+}
