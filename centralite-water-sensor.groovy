@@ -1,15 +1,20 @@
 /* Iris CentraLite Samjin Smartthings water Sensor for Hubitat
 Iris CentraLite water sensor for hubitat
 
+------------------------------------------------------
 CentraLite/Iris/Smartthings water sensors for Hubitat
 3315 3315-S 3315-SEU 3315-L 3315-G
 Supports TAMPER PRESENCE and auto bad battery detection.
 
+Factory Reset hold down button while inserting bat
 
-SmartThings Water Sensor /Samjin/Smartthings
+---------------------------------------------
+SmartThings Water Sensor Samjin Smartthings
 No tamper support on these devices
-
-
+Samjin = SAM JIN CO LTD 
+model IM6001-WLP01
+fccid 2AF4S-IM6001-WLP01
+---------------------------------------------
 
 If any problems remove device from Hubitat then Reset device. 
 
@@ -18,6 +23,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 ===================================================================================================
 
+1.1.1    12/09/2022 Improvements and SmartThings changes
 1.0.0    12/07/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
@@ -42,7 +48,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.0"
+    TheVersion="1.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -156,19 +162,13 @@ def refresh() {
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
     sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0020)),// battery
     sendZigbeeCommands(zigbee.readAttribute(0x0402, 0x0000)),// temp
-    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002)),// contact
     sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0003)),// contact     
    ], 900)  
     
 }
 def ping() {
     logging("Ping ", "info")
-        delayBetween([
-    sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0020)),// battery
-    sendZigbeeCommands(zigbee.readAttribute(0x0402, 0x0000)),// temp
-    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002)),// contact 
-   ], 900) 
-
+    sendZigbeeCommands(zigbee.readAttribute(0x0500, 0x0002))// contact 
 }
 
 
@@ -255,11 +255,29 @@ def parse(String description) {
 
      // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
-	
+    
+    if (descMap.cluster == "0000" ) {
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        logging("Manufacturer :${descMap.value}", "debug") 
+        state.MFR = descMap.value 
+        updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true 
+        return    
+        } 
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        logging("Model :${descMap.value}", "debug")
+        state.model = descMap.value    
+        updateDataValue("model", state.model)
+        state.DataUpdate = true    
+        return    
+        } 
+    }
+    
+	def evt = zigbee.getEvent(description)
+    if (evt){logging("Event: ${evt}", "debug")} // testing 
 
     if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-           def evt = zigbee.getEvent(description)
-           if (evt){logging("Event: ${evt}", "debug")} // testing     
+    
         
            powerLast = device.currentValue("battery")
            def rawValue = Integer.parseInt(descMap.value,16) 
@@ -287,10 +305,7 @@ def parse(String description) {
         }
         
     }  else if (descMap.cluster == "0402" ) {
-         def evt = zigbee.getEvent(description)
-         if (evt){logging("Event: ${evt}", "debug")} // testing     
-        
-        
+
          if (descMap.attrInt == 0) {
         tempLast = device.currentValue("temperature")
         if(!tempAdj){tempAdj = 0}  
@@ -318,50 +333,37 @@ def parse(String description) {
         
 
         
-}else if (descMap.cluster == "0000" ) {
-        if (descMap.attrId== "0004" && descMap.attrInt ==4){
-        logging("Manufacturer :${descMap.value}", "debug") 
-        state.MFR = descMap.value 
-        updateDataValue("manufacturer", state.MFR)
-        state.DataUpdate = true 
-        return    
-        } 
-        if (descMap.attrId== "0005" && descMap.attrInt ==5){
-        logging("Model :${descMap.value}", "debug")
-        state.model = descMap.value    
-        updateDataValue("model", state.model)
-        state.DataUpdate = true    
-        return    
-        } 
-
    
         
 
 }else if (descMap.cluster == "0500"){
-           def evt = zigbee.getEvent(description)
-           if (evt){logging("Event: ${evt}", "debug")} // testing  
+
         
         if (descMap.attrId == "0002" ) {
-        logging("0500 non iaszone.ZoneStatus report value:${descMap.value} data:${descMap.data}", "debug")    
+        logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${descMap.value} ", "debug")    
         value = Integer.parseInt(descMap.value, 16)
-            
-        if (state.MFR =="CentraLite"){ // non iaszone.ZoneStatus report (mfr dependent codes) 
+
+        if (state.MFR =="CentraLite"){ 
          if(value == 33 ){
-             logging("state:Wet tamper:false", "info")
              clearTamper()
+             waterON()
          }else if(value == 37) {
-             logging("state:Wet tamper:true",  "info")
              tamper()
+             waterON()
          }else if(value == 36) {
-             logging("state:Dry tamper:true",  "info")
              tamper()
+             waterOFF()
          }else if(value == 32) {
-             logging("state:Dry tamper:false", "info")
              clearTamper()
-         }else {logging("0500 Unknown value:${value}", "debug")
-         }
-       }     
-        
+             waterOFF()
+             }
+            
+       }else if (state.MFR == "Samjin"){// has no tamper
+                if(value == 32 ){waterOFF()}
+           else if(value == 33 ){waterON()} 
+        }
+            else {logging("0500 ${state.MFR} Unknown value:${value}", "debug")} // values for other brands unknown Likely same as Samjin
+            
         }else if (descMap.commandInt == "07") {
           if (descMap.data[0] == "00") {
                         logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
@@ -371,12 +373,12 @@ def parse(String description) {
                 return
                 }   
 if ( descMap.data){
-    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
+    logging("0500  command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
  return   
 }
       
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0013" || descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
@@ -403,13 +405,25 @@ def processStatus(ZoneStatus status) {
         
 
 private waterON(){
-		logging("Water : WET", "warn")
-		sendEvent(name: "water", value: "wet", isStateChange: true)
+        LastWater = device.currentValue("water")
+        
+        if(LastWater != "wet"){
+            logging("Water : WET Was:${LastWater}", "warn")
+            sendEvent(name: "water", value: "wet", isStateChange: true)
+            runIn(10,ping)// force pull status
+        }
+    else {logging("Water : WET Already Received", "warn")}
 }
 
 private waterOFF(){
-		logging("Water : Dry", "info")
-        sendEvent(name: "water", value: "dry", isStateChange: true)
+       LastWater = device.currentValue("water")
+		
+        if(LastWater != "dry"){
+            logging("Water : Dry Was:${LastWater}", "info")
+            sendEvent(name: "water", value: "dry", isStateChange: true)
+            runIn(10,ping)
+        }
+       else {logging("Water : Dry Already Received", "info")}
 }
 
 def tamper(){
@@ -418,13 +432,15 @@ def tamper(){
 	sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper detected v${state.version}")
     state.tamper= true
     }
+    else {logging("Tamper : clear Already Received", "info")}
 }    
 def clearTamper(){  
     if (state.tamper != false){
 	logging("Tamper : Cleared", "info")
 	sendEvent(name: "tamper", value: "clear",    isStateChange: true, descriptionText: "tamper clear v${state.version}")
     state.tamper = false    
-     }    
+     } 
+    else {logging("Tamper : Detected Already Received", "info")}
     }        
         
 
