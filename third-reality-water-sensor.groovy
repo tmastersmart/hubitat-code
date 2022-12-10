@@ -46,7 +46,7 @@ def clientVersion() {
 metadata {
     
 
-definition (name: "Third Reality water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "Third Reality water Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-water-sensor.groovy") {
 
     capability "Health Check"
 	capability "Battery"
