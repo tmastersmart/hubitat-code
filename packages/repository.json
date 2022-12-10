@@ -81,12 +81,18 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/centralite-water-sensor.json",
   "description": "Improved Iris CentraLite Samjin Smartthings water Sensor with Presence,Tamper for Centralite and better drop out detection,battery support"
    },	  
-	  
+  {
+  "name":"Third Reality Water Sensor",
+	   "category": "Control",
+      "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/centralite-water-sensor.json",
+  "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
+   },		  
    {
   "name":"Iris Utilitech Siren driver",
 	"category": "Security",
       "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"], 
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-utilitech-siren.json",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
   "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works."
    },	  
    {
