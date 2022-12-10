@@ -85,7 +85,7 @@
   "name":"Third Reality Water Sensor",
 	   "category": "Control",
       "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
-  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/centralite-water-sensor.json",
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
   "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
    },		  
    {
@@ -195,28 +195,28 @@
  {
   "name":"Zooz Zen21 Central Scene Switch",
 	 "category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen21.json",
   "description": "Zooz Zen21 Central Scene Switch"
  },
 {
   "name":"Zooz Zen22 Central Scene Dimmer",
 	"category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen22.json",
   "description": "Zooz Zen22 Central Scene Dimmer"
  },
 {
   "name":"Zooz Zen23 Central Scene Switch",
 	"category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen23.json",
   "description": "Zooz Zen23 Central Scene Switch"
  },	  
 {
   "name":"Zooz Zen24 Central Scene Dimmer",
 	"category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen24.json",
   "description": "Zooz Zen24 Central Scene Dimmer"
  },  
@@ -230,14 +230,14 @@
 	{
   "name":"Zooz Zen27 Central Scene Dimmer",
 		"category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen27.json",
   "description": "Zooz Zen27 Central Scene Dimmer"
  },  
 	{
   "name":"Zooz Zen31 LED Controller",
 		"category": "Control",
-   "tags":["Zwave","Buttons","Lights & Switches"],	    
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen31.json",
   "description": "Zooz Zen31 LED Controller"
  }  
