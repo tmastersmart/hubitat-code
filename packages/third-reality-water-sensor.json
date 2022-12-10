@@ -1,0 +1,22 @@
+{
+  "packageName": "Third Reality Water Sensor",
+    "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "",
+  "documentationLink": "",
+  "version": "1.0.0",
+  "dateReleased": "2022-12-07",
+  "category":"Security",
+  "tags":   [ "Monitoring","Safety & Security","Water","Zigbee" ],
+  "drivers": [
+    {
+      "name":"Third Reality Water Sensor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/centralite-water-sensor.groovy",
+      "required": "true",
+      "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support",
+      "id": "ece13d00-a15c-4dc7-92c8-ffb262b8ca61"
+    }
+    ]
+}
