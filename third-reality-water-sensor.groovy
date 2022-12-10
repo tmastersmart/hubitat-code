@@ -10,7 +10,7 @@ Manufacturer:Third Reality, Inc
 ===================================================================================================
 
 
-1.0.0    12/07/2022 First release
+1.0.0    12/10/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -155,7 +155,7 @@ def configure() {
 
 // Set up the min volts auto adj. 
 	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
-		state.minVoltTest= 2.45 
+		state.minVoltTest= 2.2 
 		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
 	 }
 
@@ -353,22 +353,8 @@ private waterOFF(){
        else {logging("Water : Dry Already Received", "info")}
 }
 
-def tamper(){
-    if (state.tamper != true){
-    logging("Tamper : Detected", "warn")
-	sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper detected v${state.version}")
-    state.tamper= true
-    }
-    else {logging("Tamper : clear Already Received", "info")}
-}    
-def clearTamper(){  
-    if (state.tamper != false){
-	logging("Tamper : Cleared", "info")
-	sendEvent(name: "tamper", value: "clear",    isStateChange: true, descriptionText: "tamper clear v${state.version}")
-    state.tamper = false    
-     } 
-    else {logging("Tamper : Detected Already Received", "info")}
-    }        
+  
+       
         
 
 def checkPresence() {
