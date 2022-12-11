@@ -22,6 +22,8 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.2.9 12/10/2022 Auto min adj started throwing errors. Rewritten
+                  firmware verson to hard to read fixed
 v3.2.8 12/05/2022 was not ref after ranging
 v3.2.7 11/29/2022 Ranging schedule adj
 v3.2.6 11/29/2022 more bat fixes
@@ -106,7 +108,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.8"
+    TheVersion="3.2.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -227,6 +229,7 @@ removeDataValue("operation"),
 removeDataValue("presence"),
 removeDataValue("tamper")  ,  
 removeDataValue("temperature"),
+removeDataValue("minVoltTest"),      
  logging("Uninstalled - States removed you may now switch drivers", "info") , 
     ], 200)  
       
@@ -264,27 +267,11 @@ def initialize() {
 
 
 def configure() {
-
+   logging("configure", "info")
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
-    if(!state.minVoltTest){state.minVoltTest= 2.21}
-	// upgrade to new min values
-	if (state.minVoltTest < 2.16 ){
-		state.minVoltTest= 2.16 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "info")
-	}
-	state.model = "-model?-"
-	// Remove state variables from old versions.
-    state.remove("operatingMode")
-    state.remove("LQI")
-    state.remove("batteryOkay")
-    state.remove("batteryState") 
-    state.remove("Config")
-    state.remove("presenceUpdated")
-    state.remove("hwVer")
-    state.remove("reportToDev")    
+    state.Config = false // force update
 
-    
     getIcons()
 	unschedule()
 
@@ -308,7 +295,7 @@ def configure() {
 // Run a ranging report and then switch to normal operating mode.
 // Randomise so we dont get several running at the same time
     runIn(randomSixty,rangeAndRefresh)
-    logging("configure", "info")
+   
 }
 
 
@@ -510,8 +497,12 @@ def parse(String description) {
     logging("Map clusterId:${map.clusterId} command:${map.command} map:${receivedData}", "debug")// all iris valid data
 
 	if (map.clusterId == "00F0") {
-     if (map.command == "FB") {
-		// Device status cluster.
+      if (map.command == "FB") {
+	   // Device status cluster.
+       // if 0 bat/if 1 temp/ if 3 lqi
+       // bat = 5 and 6 reversed 
+       // temp =7 and 8 reversed
+       // LQI = 10 (lqi * 100.0) / 255.0 
 		def temperatureValue  = "NA"
         def batteryVoltageHex = "NA"
         BigDecimal batteryVoltage = 0
@@ -521,15 +512,22 @@ def parse(String description) {
      // some sensors report bat and temp at diffrent times some both at once?
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-    	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP) // changed to x.xx from x.xxx
-        if (batteryVoltage < state.minVoltTest){
-            if (state.minVoltTest > 2.17){ 
-                state.minVoltTest = batteryVoltage
-                logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-            }                             
-        } 
+    	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
+        // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
+        // what is the lowest voltage this device can work on.
+       if(state.minVoltTest){state.remove("minVoltTest")}   
+       if(!state.minVolt){
+       state.minVolt= 2.21
+       logging("Min voltage set to ${state.minVolt}v Let bat run down to 0 for auto adj to work.", "info")
+       }  
+       if (batteryVoltageRaw < state.minVolt){
+          if (state.minVolt > 2.17){ 
+                state.minVolt = batteryVoltageRaw
+                logging("Min Voltage Lowered to ${state.minVolt}v", "info")  
+           }                             
+       } 
 		BigDecimal batteryPercentage = 0
-        BigDecimal batteryVoltageScaleMin = state.minVoltTest 
+        BigDecimal batteryVoltageScaleMin = state.minVolt 
 		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
@@ -539,12 +537,14 @@ def parse(String description) {
         if (powerLast != batteryPercentage){
            sendEvent(name: "battery", value:batteryPercentage, unit: "%")
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
-           logging("Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
+          logging("Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
 
-          if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
+          if (batteryVoltageRaw < state.minVolt){state.minVolt = batteryVoltageRaw}  // Record the min volts seen working      
          } // end dupe events detection
-          
-        }// end battery report        
+
+        }// end battery report  
+         
+         
      if (temperatureValue != "0000") {
         // We get false temp readings of 0000 so ignore for now.
         // When getting a false reading bat is not FFFF 
@@ -639,7 +639,7 @@ def parse(String description) {
 //            appVer = new Double(appVerDec) /10
 //            hwVer = new Double(receivedData[17]) + (new Double(receivedData[16]) / 10)
             String deviceFirmwareDate = versionInfoBlocks[versionInfoBlockCount - 1]
-            firmwareVersion = "appV.appRel.hwV-" +appVer + "." + appRel + "." + hwVer+"-date-" + deviceFirmwareDate
+            firmwareVersion = appVer + "." + appRel + "." + hwVer+" " + deviceFirmwareDate//appV.appRel.hwV
             logging("Ident Block: ${versionInfoDump} ${firmwareVersion}", "trace")
     
     state.firmware =  appVer + "." + appRel + "." + hwVer 
