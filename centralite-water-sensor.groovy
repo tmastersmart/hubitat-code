@@ -22,7 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-
+1.2.0    12/10/2022 Tamper not showing up as usable fixed.
 1.1.1    12/09/2022 Improvements and SmartThings changes
 1.0.0    12/07/2022 First release
 =================================================================================================== 
@@ -48,7 +48,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.1.0"
+    TheVersion="1.2.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -65,7 +65,7 @@ definition (name: "CentraLite Samjin Smartthings water Sensor", namespace: "tmas
     capability "Health Check"
 	capability "Battery"
 	capability "Configuration"
-
+	capability "TamperAlert"
 	capability "Initialize"
 	capability "PresenceSensor"
 	capability "Refresh"
