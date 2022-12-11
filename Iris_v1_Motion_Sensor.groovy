@@ -8,6 +8,8 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.7 12/10/2022 Auto min adj started throwing errors. Rewritten
+                  firmware verson to hard to read fixed
 v2.4.6 12/05/2022 Rangand Ref bug fixed
 v2.4.5 11/29/2022 ranging changes
 v2.4.4 11/23/2022 Maintance release
@@ -76,7 +78,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.6"
+    TheVersion="2.4.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -218,13 +220,8 @@ def configure() {
 	// Set preferences and ongoing scheduled tasks.
 	// Runs after installed() when a device is paired or rejoined, or can be triggered manually.
 	// Remove state variables from old versions.
-	
-	// upgrade to new min values
-	if (state.minVoltTest < 2.1 | state.minVoltTest > 2.25 ){ 
-		state.minVoltTest= 2.25 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "info")
-	}
-	
+	state.Config = false // force update
+
     state.remove("operatingMode")
     state.remove("LQI")
     state.remove("batteryOkay")
@@ -445,17 +442,22 @@ def parse(String description) {
      // some sensors report bat and temp at diffrent times some both at once?
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-    	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
+    	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
         // what is the lowest voltage this device can work on. 
-        if (batteryVoltage < state.minVoltTest){
-            if (state.minVoltTest > 2.17){ 
-                state.minVoltTest = batteryVoltage
-                logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-            }                             
-        } 
+       if(state.minVoltTest){state.remove("minVoltTest")}   
+       if(!state.minVolt){
+       state.minVolt= 2.21
+       logging("Min voltage set to ${state.minVolt}v Let bat run down to 0 for auto adj to work.", "info")
+       }  
+       if (batteryVoltageRaw < state.minVolt){
+          if (state.minVolt > 2.17){ 
+                state.minVolt = batteryVoltageRaw
+                logging("Min Voltage Lowered to ${state.minVolt}v", "info")  
+           }                             
+       } 
 		BigDecimal batteryPercentage = 0
-        BigDecimal batteryVoltageScaleMin = state.minVoltTest 
+        BigDecimal batteryVoltageScaleMin = state.minVolt 
 		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
@@ -467,7 +469,7 @@ def parse(String description) {
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
           logging("Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
 
-          if ( batteryVoltage < state.minVoltTest){state.minVoltTest = batteryVoltage}  // Record the min volts seen working      
+          if (batteryVoltageRaw < state.minVolt){state.minVolt = batteryVoltageRaw}  // Record the min volts seen working      
          } // end dupe events detection
 
         }// end battery report    
@@ -564,7 +566,7 @@ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
             
 
             String deviceFirmwareDate = versionInfoBlocks[versionInfoBlockCount - 1]
-            firmwareVersion = "appV.appRel.hwV-" +appVer + "." + appRel + "." + hwVer+"-date-" + deviceFirmwareDate
+            firmwareVersion = appVer + "." + appRel + "." + hwVer+" " + deviceFirmwareDate//appV.appRel.hwV
             logging("Ident Block: ${versionInfoDump} ${firmwareVersion}", "trace")
     
     state.firmware =  appVer + "." + appRel + "." + hwVer 
