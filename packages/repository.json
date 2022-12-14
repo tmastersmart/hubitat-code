@@ -87,7 +87,14 @@
       "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
   "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
-   },		  
+   },
+   {
+  "name":"Third Reality Motion Sensor",
+"category": "Control",
+      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-motion-sensor.json",
+  "description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
+   },	  
    {
   "name":"Iris Utilitech Siren driver",
 	"category": "Security",
