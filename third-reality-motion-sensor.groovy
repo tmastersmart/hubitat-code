@@ -382,8 +382,8 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
-  state.icon =""  
-// state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3RMS16BZ.jpg' >"
+   
+ state.icon ="https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3RMS16BZ.jpg' >"
  state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
 
