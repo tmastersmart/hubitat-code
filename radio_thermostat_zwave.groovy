@@ -1224,6 +1224,12 @@ def setRecovery(cmd){
 
 void getIcons(){
     state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/radio-thermostat.jpg'>"
+
+    if(state.model =="CT32" || state.model =="CT30" || state.model =="CT30e rev.01"){state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/ct30.jpg'>"}
+    if(state.model =="CT50"){state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/ct50.jpg'>"  }                      
+    if(state.model =="CT100"){state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/ct100.jpg'>"}
+    if(state.model =="CT101" || state.model =="CT101 iris"){state.icon ="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/ct101.jpg'>"}
+                             
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  
  }
