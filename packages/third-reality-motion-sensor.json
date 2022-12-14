@@ -1,5 +1,5 @@
 {
-  "packageName": "Third Reality motion Sensor",
+  "packageName": "Third Reality Motion Sensor",
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
@@ -10,11 +10,11 @@
      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
   "drivers": [
     {
-      "name": "Third Reality motion Sensor",
+      "name": "Third Reality Motion Sensor",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-motion-sensor.groovy",
       "required": "true",
-      "description": "Motion Sensor with presence. ",
+      "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support",
       "id": "7c109326-ba26-41aa-81a6-1a8db36aaca0"
     }
     ]
