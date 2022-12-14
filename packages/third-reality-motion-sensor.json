@@ -1,0 +1,21 @@
+{
+  "packageName": "Third Reality motion Sensor",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "bug fixes",
+  "version": "1.2.0",
+  "dateReleased": "2022-22-09",
+  "category":"Doors & Windows",
+     "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "drivers": [
+    {
+      "name": "Third Reality motion Sensor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-motion-sensor.groovy",
+      "required": "true",
+      "description": "Motion Sensor with presence. ",
+      "id": "7c109326-ba26-41aa-81a6-1a8db36aaca0"
+    }
+    ]
+}
