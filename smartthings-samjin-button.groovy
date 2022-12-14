@@ -21,6 +21,7 @@ released after 3sec
 
 
 ===================================================================================================
+1.1.2    12/13/2022 MinVolt state was getting corrupt code rewrite. 
 1.1.1    11/29/2022 min voltage raised
 1.1.0    11/23/2022 Fix cluster 0013 was not being trapped.
 1.0.3    11/22/2022 bug in debug logging was throwing error
@@ -49,7 +50,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.1.1"
+    TheVersion="1.1.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -115,6 +116,8 @@ state.lastCheckin = now()
 def initialize(){
     pollHR = 10
     pingIt = 30
+    state.minVoltTest = 2.1
+    state.remove("minV") 
     installed()
 }
 
@@ -185,14 +188,9 @@ def configure() {
     sendEvent(name: "supportedButtonValues", value: ["pushed","held","double","released"], displayed: true)
     sendEvent(name: "numberOfButtons", value: 3, displayed: true)
 //  sendEvent(name: "button", value: "pushed", data: [buttonNumber: 1], displayed: false)    
-    
-
 //  sendEvent(name: "DeviceWatch-Enroll", displayed: false, value: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, scheme: "TRACKED", checkInterval: 2 * 60 * 60 + 1 * 60, lowBatteryThresholds: [15, 7, 3], offlinePingable: "1"].encodeAsJSON())
-
-
-  sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
- 
-  state.MFR = device.getDataValue("manufacturer")  
+ sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
+ state.MFR = device.getDataValue("manufacturer")  
     
     if (state.MFR == "Samjin"){ 
   delayBetween([
@@ -200,9 +198,8 @@ def configure() {
     sendZigbeeCommands(zigbee.batteryConfig()),
     sendZigbeeCommands(zigbee.configureReporting(0x0500, 0x0021, DataType.BITMAP16, 30, 3600, null)), // min30sec max3600sec =1hr
     sendZigbeeCommands(zigbee.temperatureConfig(30, 1800)),
-    sendZigbeeCommands(zigbee.enrollResponse())  
-
-   ], 900)       
+//    sendZigbeeCommands(zigbee.enrollResponse())  
+   ], 2000)       
     }
     
    else { // standard
@@ -212,16 +209,11 @@ def configure() {
     sendZigbeeCommands(zigbee.configureReporting(0x0500, 0x0002, DataType.BITMAP16, 30, 3600, null)), // min30sec max3600sec =1hr
     sendZigbeeCommands(zigbee.temperatureConfig(30, 1800)),
     sendZigbeeCommands(zigbee.enrollResponse())  
-
-   ], 900)       
+   ], 200)       
     }
 
 
-// Set up the min volts auto adj. 
-	 if (state.minVoltTest < 2.4 | state.minVoltTest > 2.6 ){ 
-		state.minVoltTest= 2.6 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
-	 }
+
     if(state.tempOffset){
         logging("Old Driver had a TempOffset of:${state.tempOffset} please manualy reselect", "warn")
         state.remove("tempOffset")
@@ -285,43 +277,67 @@ def parse(String description) {
 
      // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
+    
+    
+    
+
+
+   if (descMap.cluster == "0000" ) {
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        logging("Manufacturer :${descMap.value}", "info") 
+        state.MFR = descMap.value 
+        updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true 
+        return    
+        } 
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        logging("Model :${descMap.value}", "info")
+        state.model = descMap.value    
+        updateDataValue("model", state.model)
+        state.DataUpdate = true    
+        return    
+        }  
+    
+   }   
+       def evt = zigbee.getEvent(description)
+    if (evt){logging("Event: ${evt}", "debug")} // testing 
 	
 // MAP: [raw:47640104020C0000290B09, dni:4764, endpoint:01, cluster:0402, size:0C, attrId:0000, encoding:29, command:01, value:090B, clusterInt:1026, attrInt:0]
     if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-           powerLast = device.currentValue("battery")
-           def rawValue = Integer.parseInt(descMap.value,16) 
-           def batteryVoltage = rawValue / 10
-           logging("value:${rawValue}  ${descMap.attrInt}  ${batteryVoltage}v", "trace")  
-             
-           
-        if(!state.minVoltTest){state.minVoltTest = 2.6}
-        if(state.minVoltTest >=2.7){state.minVoltTest = 2.6}
-          if (batteryVoltage < state.minVoltTest){
-             state.minVoltTest = batteryVoltage
-             logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-          } 
-        def maxVolts = 3
-          if (state.MFR == "SmartThings") {
-			minVolts = 15
+         def  powerLast = device.currentValue("battery")
+         def  batVolts  = device.currentValue("batteryVoltage")
+        
+         def  minVolts  = 2.1 
+         def  maxVolts  = 3
+         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+        
+         def rawValue = Integer.parseInt(descMap.value,16)
+         if (rawValue == 0 || rawValue == 255) {return} 
+         def batteryVoltage = rawValue / 10
+        
+        
+        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
+        
+       
+       
+       if (state.MFR == "SmartThings") {
+			minVolts = 15 // this is defaut from st driver untested
 			maxVolts = 28
           }
 
-        
-        
-           if (!(rawValue == 0 || rawValue == 255)) {
-           logging("${batteryVoltage} -${state.minVoltTest} / ${maxVolts} - ${state.minVoltTest}", "trace")//2.7 -2.45 / null - 2.45     
-           def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
+           logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
+           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
                logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
             if (powerLast != batteryPercentage){
             logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
-            sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
-            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+            sendEvent(name: "battery", value: batteryPercentage, unit: "%",isStateChange: true)      
+            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V",isStateChange: true)
             }
 
-        }
+        
         
     }  else if (descMap.cluster == "0402" ) {
          if (descMap.attrInt == 0) {
@@ -351,21 +367,7 @@ def parse(String description) {
         
 
         
-}else if (descMap.cluster == "0000" ) {
-        if (descMap.attrId== "0004" && descMap.attrInt ==4){
-        logging("Manufacturer :${descMap.value}", "info") 
-        state.MFR = descMap.value 
-        updateDataValue("manufacturer", state.MFR)
-        state.DataUpdate = true 
-        return    
-        } 
-        if (descMap.attrId== "0005" && descMap.attrInt ==5){
-        logging("Model :${descMap.value}", "info")
-        state.model = descMap.value    
-        updateDataValue("model", state.model)
-        state.DataUpdate = true    
-        return    
-        } 
+
 
   
         
