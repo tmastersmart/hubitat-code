@@ -13,6 +13,8 @@ ______          _ _         _____ _                                   _        _
 | |\ \ (_| | (_| | | (_) |   | | | | | |  __/ |  | | | | | | (_) \__ \ || (_| | |_ 
 \_| \_\__,_|\__,_|_|\___/    \_/ |_| |_|\___|_|  |_| |_| |_|\___/|___/\__\__,_|\__|
                                                                                   
+No battery is needed on these thrmostats if using C Wire. The driver will restore settings on reboot.
+Unneeded batteries were costing me money so you can now just stop using them.
 
 Polling chron ends the need to use rouines to refreash the thermostat as some models just dont report
 temp and setpoints to the hub unless polled.
@@ -36,6 +38,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.5.6 12/14/2022 Ignore bat option for mains only. No bat is actualy needed
  v5.5.5 12/05/2022 ManufacturerSpecificReport parsing added
  v5.5.4 11/23/2022 Bug fix in recovery error counter getting reset/Bug in heat reset was resetting cool
  v5.5.3 11/18/2022 extra polling times added
@@ -107,7 +110,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.5.5"
+    TheVersion="5.5.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -213,11 +216,11 @@ preferences {
 
     
     input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. ",  options: ["fast", "economy"], defaultValue: "economy",required: true 
-   
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
     input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["5","10","15","20","25","30","35","40","45","50","55",],defaultValue: 15,required: true)
 
-    
+
+    input name: "ignorebat", type: "bool", title: "Ignore Bat reports", description: "If no batteries inserted. Batteries are not needed if main powered.", defaultValue: false,required: true
     input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
     input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 5,required: true)
 
@@ -1065,6 +1068,13 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
         sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         return
     }
+
+    if(ignorebat==true){
+        logging("E15 Ignoring battery ${cmd.batteryLevel}% Set to 100%", "debug")
+        sendEvent(name: "battery", value: cmd.batteryLevel ,unit: "%", descriptionText: "${cmd.batteryLevel}% ${state.version}", isStateChange:true)
+        return
+     }
+      
                 
     logging("E15 battery ${cmd.batteryLevel}% ", "info")
     sendEvent(name: "battery", value: cmd.batteryLevel ,unit: "%", descriptionText: "${cmd.batteryLevel}% ${state.version}", isStateChange:true)
