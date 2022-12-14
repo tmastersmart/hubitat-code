@@ -8,7 +8,7 @@
   "version": "1.2.0",
   "dateReleased": "2022-12-07",
   "category":"Security",
-  "tags":   [ "Monitoring","Safety & Security","Water","Zigbee" ],
+  "tags":   [ "Monitoring","Alarm Systems", "Presence & Location","Safety & Security","Water","Zigbee" ],
   "drivers": [
     {
       "name":"Third Reality Water Sensor",
