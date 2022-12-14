@@ -220,10 +220,10 @@ preferences {
     input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["5","10","15","20","25","30","35","40","45","50","55",],defaultValue: 15,required: true)
 
 
-    input name: "ignorebat", type: "bool", title: "Ignore Bat reports", description: "If no batteries inserted. Batteries are not needed if main powered.", defaultValue: false,required: true
     input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
     input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 5,required: true)
 
+    input name: "ignorebat", type: "bool", title: "Ignore Bat reports", description: "If no batteries inserted. Batteries are not needed if main powered.", defaultValue: false,required: true
 
 }
 
@@ -1071,7 +1071,7 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
 
     if(ignorebat==true){
         logging("E15 Ignoring battery ${cmd.batteryLevel}% Set to 100%", "debug")
-        sendEvent(name: "battery", value: cmd.batteryLevel ,unit: "%", descriptionText: "${cmd.batteryLevel}% ${state.version}", isStateChange:true)
+        sendEvent(name: "battery", value: 100 ,unit: "%", descriptionText: "${cmd.batteryLevel}% ${state.version}", isStateChange:true)
         return
      }
       
