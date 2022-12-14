@@ -1,4 +1,4 @@
-/* Third Reality motion Sensor for Hubitat
+/* Third Reality Motion Sensor for Hubitat
 
 
 manufacturer: Third Reality, Inc
@@ -44,7 +44,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "Third Reality motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-motion-sensor.groovy") {
+definition (name: "Third Reality Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-motion-sensor.groovy") {
     capability "Health Check"
 	capability "Battery"
 	capability "Configuration"
