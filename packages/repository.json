@@ -84,7 +84,7 @@
   {
   "name":"Third Reality Water Sensor",
 	   "category": "Control",
-      "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
+      "tags": [ "Monitoring","Alarm Systems", "Presence & Location","Safety & Security","Water","Zigbee" ],
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
   "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
    },
