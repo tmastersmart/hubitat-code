@@ -29,6 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.7.8    12/14/2022 New bat min code
 1.7.7    11/24/2022 bug fix clustor 0013
 1.7.6    11/15/2022 Cluster mapping rewrite
 1.7.3    11/12/2022 Another bug fix for presence
@@ -64,7 +65,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.7"
+    TheVersion="1.7.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -130,6 +131,7 @@ updated()
 def initialize(){
     pollHR = 10
     pingIt = 30
+    state.minVoltTest = 2.2
     installed()
 }
 
@@ -193,12 +195,6 @@ def ping() {
 
 def configure() {
     logging("Config", "info")
-
-// Set up the min volts auto adj. 
-	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
-		state.minVoltTest= 2.45 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
-	 }
 
     
   getIcons() 
@@ -267,21 +263,43 @@ def parse(String description) {
      // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
 	
-
-    if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-           powerLast = device.currentValue("battery")
-           def rawValue = Integer.parseInt(descMap.value,16) 
-           def batteryVoltage = rawValue / 10
-        if(!state.minVoltTest){state.minVoltTest = 2.45}
-          if (batteryVoltage < state.minVoltTest){
-             state.minVoltTest = batteryVoltage
-             logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-          } 
+ if (descMap.cluster == "0000" ) {
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        logging("Manufacturer :${descMap.value}", "debug") 
+        state.MFR = descMap.value 
+        updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true 
+        return    
+        } 
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        logging("Model :${descMap.value}", "debug")
+        state.model = descMap.value    
+        updateDataValue("model", state.model)
+        state.DataUpdate = true    
+        return    
+        } 
+ }   
+ 	def evt = zigbee.getEvent(description)
+    if (evt){logging("Event: ${evt}", "debug")} // testing    
+    
+  if (descMap.cluster == "0001" & descMap.attrId == "0020"){
+       def  powerLast = device.currentValue("battery")
+         def  batVolts  = device.currentValue("batteryVoltage")
         
-           if (!(rawValue == 0 || rawValue == 255)) {
-           def maxVolts = 2.9 // fixes false reading 
-          //     logging("${batteryVoltage} -${state.minVoltTest} / ${maxVolts} - ${state.minVoltTest}", "trace")     
-           def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
+         def  minVolts  = 2.2 
+         def  maxVolts  = 3
+         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+        
+         def rawValue = Integer.parseInt(descMap.value,16)
+         if (rawValue == 0 || rawValue == 255) {return} 
+         def batteryVoltage = rawValue / 10
+        
+        
+        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
+
+        logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
+           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
+        
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
@@ -292,7 +310,7 @@ def parse(String description) {
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
 
-        }
+        
         
     }  else if (descMap.cluster == "0402" ) {
          if (descMap.attrInt == 0) {
@@ -322,21 +340,7 @@ def parse(String description) {
         
 
         
-}else if (descMap.cluster == "0000" ) {
-        if (descMap.attrId== "0004" && descMap.attrInt ==4){
-        logging("Manufacturer :${descMap.value}", "debug") 
-        state.MFR = descMap.value 
-        updateDataValue("manufacturer", state.MFR)
-        state.DataUpdate = true 
-        return    
-        } 
-        if (descMap.attrId== "0005" && descMap.attrInt ==5){
-        logging("Model :${descMap.value}", "debug")
-        state.model = descMap.value    
-        updateDataValue("model", state.model)
-        state.DataUpdate = true    
-        return    
-        } 
+
 
         
         
@@ -451,7 +455,8 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
+         state.minVoltTest = device.currentValue("batteryVoltage")      
          return // we dont want a ping after this or it could toggle
          }
          
