@@ -1,5 +1,6 @@
 /* Iris CentraLite Samjin Smartthings water Sensor for Hubitat
 Iris CentraLite water sensor for hubitat
+CentraLite water Sensor driver for Hubitat
 
 ------------------------------------------------------
 CentraLite/Iris/Smartthings water sensors for Hubitat
