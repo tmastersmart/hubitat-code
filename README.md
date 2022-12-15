@@ -37,3 +37,27 @@ lock button monitor (watches for external keypad lock and presses a button)
 
 Sonoff MINI driver 
 Sonoff MINI ZB / eWeLink /3A Smart Home /Generic
+
+Iris water sensor driver for hubitat
+CentraLite water Sensor driver for Hubitat
+
+Third Reality water sensor driver for hubitat
+Third Reality motion Sensor driver for Hubitat
+
+Third Reality driver for hubitat
+
+Iris v2 contact sensor driver for hubitat
+Iris v2 motion sensor driver for hubitat
+
+iMagic by GreatStar  model: 1116-S driver for hubitat
+iMagic contact sensor driver for hubitat
+GreatStar contact sensor driver for hubitat
+1116-S contact sensor driver for hubitat
+CentraLite Model:3320-L driver for hubitat
+CentraLite contact sensor driver for hubitat
+3320-L contact sensor driver for hubitat
+3322-L contact sensor driver for hubitat
+3320-G contact sensor driver for hubitat
+
+
+
