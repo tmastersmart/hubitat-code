@@ -22,6 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.2.1    12/14/2022 New low bat code.
 1.2.0    12/10/2022 Tamper not showing up as usable fixed.
 1.1.1    12/09/2022 Improvements and SmartThings changes
 1.0.0    12/07/2022 First release
@@ -48,7 +49,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -117,6 +118,7 @@ updated()
 def initialize(){
     pollHR = 10
     pingIt = 30
+    state.minVoltTest = 2.2
     installed()
 }
 
@@ -175,11 +177,6 @@ def ping() {
 def configure() {
     logging("Config", "info")
 
-// Set up the min volts auto adj. 
-	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
-		state.minVoltTest= 2.45 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
-	 }
 
     
   getIcons() 
@@ -255,6 +252,7 @@ def parse(String description) {
 
      // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
+ 
     
     if (descMap.cluster == "0000" ) {
         if (descMap.attrId== "0004" && descMap.attrInt ==4){
@@ -277,21 +275,23 @@ def parse(String description) {
     if (evt){logging("Event: ${evt}", "debug")} // testing 
 
     if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-    
+       def  powerLast = device.currentValue("battery")
+         def  batVolts  = device.currentValue("batteryVoltage")
         
-           powerLast = device.currentValue("battery")
-           def rawValue = Integer.parseInt(descMap.value,16) 
-           def batteryVoltage = rawValue / 10
-        if(!state.minVoltTest){state.minVoltTest = 2.45}
-          if (batteryVoltage < state.minVoltTest){
-             state.minVoltTest = batteryVoltage
-             logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-          } 
+         def  minVolts  = 2.2 
+         def  maxVolts  = 3
+         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
         
-           if (!(rawValue == 0 || rawValue == 255)) {
-           def maxVolts = 3 
-          //     logging("${batteryVoltage} -${state.minVoltTest} / ${maxVolts} - ${state.minVoltTest}", "trace")     
-           def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
+         def rawValue = Integer.parseInt(descMap.value,16)
+         if (rawValue == 0 || rawValue == 255) {return} 
+         def batteryVoltage = rawValue / 10
+        
+        
+        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
+
+        logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
+        
+           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
@@ -302,7 +302,7 @@ def parse(String description) {
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
 
-        }
+       
         
     }  else if (descMap.cluster == "0402" ) {
 
@@ -472,7 +472,8 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
+         state.minVoltTest = device.currentValue("batteryVoltage")       
          return // we dont want a ping after this or it could toggle
          }
          
