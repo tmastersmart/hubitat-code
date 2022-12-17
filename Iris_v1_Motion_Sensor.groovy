@@ -8,6 +8,7 @@ Low bat value is now set by each device automaticaly. The way IRIS did it
 
 
 ======================================================
+v2.4.8 12/17/2022 was not detecting known firmware
 v2.4.7 12/10/2022 Auto min adj started throwing errors. Rewritten
                   firmware verson to hard to read fixed
 v2.4.6 12/05/2022 Rangand Ref bug fixed
@@ -78,7 +79,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.4.7"
+    TheVersion="2.4.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -555,7 +556,8 @@ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
 			int versionInfoBlockCount = versionInfoBlocks.size()
 			String versionInfoDump = versionInfoBlocks[0..versionInfoBlockCount - 1].toString()
 
-            // taken from iris source code
+// firmware detection
+// taken from iris source code
             mfgIdhex = receivedData[11] + receivedData[10]  
             def mfgIddec = Integer.parseInt(mfgIdhex,16)
             dvcType = receivedData[13] + receivedData[12]
@@ -566,36 +568,34 @@ else if (map.clusterId == "00F6") {// Join Cluster 0xF6
             
 
             String deviceFirmwareDate = versionInfoBlocks[versionInfoBlockCount - 1]
-            firmwareVersion = appVer + "." + appRel + "." + hwVer+" " + deviceFirmwareDate//appV.appRel.hwV
-            logging("Ident Block: ${versionInfoDump} ${firmwareVersion}", "trace")
-    
-    state.firmware =  appVer + "." + appRel + "." + hwVer 
-			String deviceManufacturer = "IRIS"
-			String deviceModel = ""
-
-           reportFirm = "unknown"
-          if(deviceFirmware == "2012-02-03" ){reportFirm = "v1 Ok"}
-          if(deviceFirmware == "2012-09-20" ){reportFirm = "v2 Ok"}  
-         if(reportFirm == "unknown"){state.reportToDev="Unknown firmware [${firmwareVersion}] ${deviceFirmwareDate}" }
+            state.firmware = appVer + "." + appRel + "." + hwVer+" " + deviceFirmwareDate//appV.appRel.hwV
+            logging("Ident Firmware: ${state.firmware}", "debug")
+            reportFirm = "unknown"
+          if(deviceFirmwareDate == "2012-02-03" ){reportFirm = "v1 Ok"}
+          if(deviceFirmwareDate == "2012-09-20" ){reportFirm = "v2 Ok"}  
+         if(reportFirm == "unknown"){state.reportToDev="Unknown firmware ${state.firmware}" }
           else{state.remove("reportToDev")}
-			// Sometimes the model name contains spaces.
-	if (versionInfoBlockCount == 2) {
-	deviceModel = versionInfoBlocks[0]
-	} else {
-	deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()
-	}
-   state.model = deviceModel
-    // Moved to debug because of to many events
-            logging("Ident:${deviceModel} Firm:[${firmwareVersion}] ${reportFirm} Driver v${state.version}", "debug")
-            if(!state.Config){
-            state.Config = true    
-			updateDataValue("manufacturer", deviceManufacturer)
-            updateDataValue("device", deviceModel)
-            updateDataValue("model", "MT800")    
-            updateDataValue("firmware", firmwareVersion)
-            updateDataValue("fcc", "WJHWD11")
-                }   
-		} 
+            
+		
+            
+// Model detection
+    String deviceModel = ""
+	if (versionInfoBlockCount == 2) {deviceModel = versionInfoBlocks[0]}
+    else {deviceModel = versionInfoBlocks[0..versionInfoBlockCount - 2].join(' ').toString()} //adds ' device' 
+    state.model = deviceModel
+    deviceModel = versionInfoBlocks[0] // model without the ' device'
+    logging("Ident Model:${state.model} Raw:${deviceModel} (passive infrared sensor)", "debug")        
+            
+// save if we havent
+    if(!state.Config){
+    state.Config = true    
+    updateDataValue("manufacturer", "IRIS")
+    updateDataValue("device", state.model)
+    updateDataValue("model", "MT800")    
+    updateDataValue("firmware", state.firmware)
+    updateDataValue("fcc", "WJHWD11")
+    }   
+} // end ident block
     
   
         
