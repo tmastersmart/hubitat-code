@@ -22,6 +22,9 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.3.6    12/17/2022 Hex conversion bug fixed
+1.3.5    12/15/2022 Min bat code rewrite. threeAxis support added
+1.3.4    11/22/2022 Min voltage will adjust upward if bat dead before min setting
 1.3.3    11/17/2022 cluster 0013 detection
 1.3.1    11/14/2022 Updates 
 1.2.0    11/12/2022 First release
@@ -48,7 +51,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.3"
+    TheVersion="1.3.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -121,6 +124,7 @@ updated()
 def initialize(){
     pollHR = 10
     pingIt = 30
+    state.minVoltTest = 2.1
     installed()
 }
 
@@ -230,11 +234,6 @@ def configure() {
     }
 
 
-// Set up the min volts auto adj. 
-	 if (state.minVoltTest < 2.1 | state.minVoltTest > 2.45 ){ 
-		state.minVoltTest= 2.45 
-		logging("Min voltage set to ${state.minVoltTest}v Let bat run down to 0 for auto adj to work.", "warn")
-	 }
 
     
   getIcons() 
@@ -295,32 +294,56 @@ def parse(String description) {
 
      // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
+    
+     if (descMap.cluster == "0000" ) {//0x0000 Basic Attributes  
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        logging("Manufacturer :${descMap.value}", "debug") 
+        state.MFR = descMap.value 
+        updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true 
+        return    
+        } 
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        logging("Model :${descMap.value}", "debug")
+        state.model = descMap.value    
+        updateDataValue("model", state.model)
+        state.DataUpdate = true    
+        return    
+        } 
+
+    }
+    
+    
+    
+    
+       def evt = zigbee.getEvent(description)
+    if (evt){logging("Event: ${evt}", "debug")} // testing 
 	
 // MAP: [raw:47640104020C0000290B09, dni:4764, endpoint:01, cluster:0402, size:0C, attrId:0000, encoding:29, command:01, value:090B, clusterInt:1026, attrInt:0]
-    if (descMap.cluster == "0001" & descMap.attrId == "0020"){//0x0001 Power configuration
-           powerLast = device.currentValue("battery")
-           def rawValue = Integer.parseInt(descMap.value,16) 
-           def batteryVoltage = rawValue / 10
-           logging("value:${rawValue}  ${descMap.attrInt}  ${batteryVoltage}v", "trace")  
-             
-           
-        if(!state.minVoltTest){state.minVoltTest = 2.25}
-        if(state.minVoltTest >=2.3){state.minVoltTest = 2.25}
-          if (batteryVoltage < state.minVoltTest){
-             state.minVoltTest = batteryVoltage
-             logging("Min Voltage Lowered to ${state.minVoltTest}v", "info")  
-          } 
-        def maxVolts = 3
-          if (state.MFR == "SmartThings") {
-			minVolts = 15
+    if (descMap.cluster == "0001" & descMap.attrId == "0020"){
+         def  powerLast = device.currentValue("battery")
+         def  batVolts  = device.currentValue("batteryVoltage")
+        
+         def  minVolts  = 2.1 
+         def  maxVolts  = 3
+         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+        
+         def rawValue = Integer.parseInt(descMap.value,16)
+         if (rawValue == 0 || rawValue == 255) {return} 
+         def batteryVoltage = rawValue / 10
+        
+        
+        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
+        
+       
+       
+       if (state.MFR == "SmartThings") {
+			minVolts = 15 // this is defaut from st driver untested
 			maxVolts = 28
           }
 
-        
-        
-           if (!(rawValue == 0 || rawValue == 255)) {
-           logging("${batteryVoltage} -${state.minVoltTest} / ${maxVolts} - ${state.minVoltTest}", "trace")//2.7 -2.45 / null - 2.45     
-           def pct = (batteryVoltage - state.minVoltTest) / (maxVolts - state.minVoltTest)
+           logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
+           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
@@ -331,7 +354,7 @@ def parse(String description) {
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
 
-        }
+       
         
     }  else if (descMap.cluster == "0402" ) {//0x0402 Temperature measurement Attributes
          if (descMap.attrInt == 0) {
@@ -361,33 +384,26 @@ def parse(String description) {
         
 
         
-}else if (descMap.cluster == "0000" ) {//0x0000 Basic Attributes  
-        if (descMap.attrId== "0004" && descMap.attrInt ==4){
-        logging("Manufacturer :${descMap.value}", "debug") 
-        state.MFR = descMap.value 
-        updateDataValue("manufacturer", state.MFR)
-        state.DataUpdate = true 
-        return    
-        } 
-        if (descMap.attrId== "0005" && descMap.attrInt ==5){
-        logging("Model :${descMap.value}", "debug")
-        state.model = descMap.value    
-        updateDataValue("model", state.model)
-        state.DataUpdate = true    
-        return    
-        } 
+
 
     }else if (descMap.cluster == "FC02"){// these are motion events.
 // [raw:E44601FC020810001800, dni:E446, endpoint:01, cluster:FC02, size:08, attrId:0010, encoding:18, command:0A, value:00, clusterInt:64514, attrInt:16]    
         logging("FC02 Motion Event. command:${descMap.command} value:${descMap.value} ${descMap.additionalAttrs} ${descMap.attrInt}", "debug")
         if (descMap.value == "01"){
            logging("acceleration active", "info")
-           sendEvent(name: "acceleration", value: "active")
+           sendEvent(name: "acceleration", value: "active")     
         }
         if (descMap.value == "00"){
            logging("acceleration inactive", "info")
            sendEvent(name: "acceleration", value: "inactive" )
         }
+
+        if (descMap.attrInt == 0x0010){ parseAxis(descMap.additionalAttrs)}    
+        if (descMap.attrInt == 0x0012){
+        def addAttrs = descMap.additionalAttrs ?: []
+		addAttrs << ["attrInt": descMap.attrInt, "value": descMap.value]
+		parseAxis(addAttrs)
+        }    
             
     return
        
@@ -477,8 +493,9 @@ private List<Map> parseAxis(List<Map> attrData) {
 	def x = hexToSignedInt(attrData.find { it.attrInt == 0x0012 }?.value)
 	def y = hexToSignedInt(attrData.find { it.attrInt == 0x0013 }?.value)
 	def z = hexToSignedInt(attrData.find { it.attrInt == 0x0014 }?.value)
-
+    
 	if ([x, y ,z].any { it == null }) {
+        logging("no axis data","trace")
 		return []
 	}
 
@@ -495,23 +512,14 @@ private List<Map> parseAxis(List<Map> attrData) {
 		xyzResults.y = x
 		xyzResults.z = y
 	}
+    logging("parseAxis -- ${xyzResults}","trace")
 
-	log.debug "parseAxis -- ${xyzResults}"
-
-	if (garageSensor == "Yes")
-		results += garageEvent(xyzResults.z)
+//	if (garageSensor == "Yes")
+//		results += garageEvent(xyzResults.z)
 
 	def value = "${xyzResults.x},${xyzResults.y},${xyzResults.z}"
-	results << [
-			name           : "threeAxis",
-			value          : value,
-			linkText       : getLinkText(device),
-			descriptionText: "${getLinkText(device)} was ${value}",
-			handlerName    : name,
-			isStateChange  : isStateChange(device, "threeAxis", value),
-			displayed      : false
-	]
-	results
+    logging("threeAxis: ${value}","debug")
+    sendEvent(name: "threeAxis", value: value, descriptionText: "xyz  was ${value}")
 }
 
 
@@ -543,7 +551,11 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
+         batteryVoltage = device.currentValue("batteryVoltage")   
+         state.minVoltTest = batteryVoltage
+         logging("Min Voltage reset to ${state.minVoltTest}v", "info")
+         state.minVoltTest = device.currentValue("batteryVoltage")   
          return // we dont want a ping after this or it could toggle
          }
          
@@ -557,7 +569,14 @@ def checkPresence() {
     }
 }
 
-
+private hexToSignedInt(hexVal) {
+    logging("Hex to signed Int ${hexVal}","trace")
+    if (!hexVal) {return null}
+    def unsignedVal = convertHexToInt(hexVal)
+//	def unsignedVal = hexToInt(hexVal)
+	unsignedVal > 32767 ? unsignedVal - 65536 : unsignedVal
+    logging("Hex ${hexVal} to signed Int ${unsignedVal}","debug")
+}
 void sendZigbeeCommands(List<String> cmds) {
     logging("sending:${cmds}", "trace")
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
