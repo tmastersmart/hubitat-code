@@ -19,7 +19,8 @@ Help is needed do you know the command to stop the above?
 
 
 ================================================================================
-v2.8.3  11/15/2022 Cluster maps
+v2.8.4  12/20/2022 bug fix in ident cluster
+v2.8.3  11/22/2022 bug fix cluster 0013
 v2.8.2  11/12/2022 Another bug fix for presence
 v2.8.0  11/11/2022 Presence Upgraded with retries
 v2.7.1  11/05/2022 added schedule options
@@ -58,7 +59,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.3"
+    TheVersion="2.8.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -155,7 +156,7 @@ def configure() {
     if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("Configure", "info")
-    
+    sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
     
    delayBetween([
             sendZigbeeCommands(["zcl global write 0x500 0x10 0xf0 {${zigbeeEui}}"]),
@@ -196,6 +197,7 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
@@ -261,8 +263,15 @@ def parse(String description) {
 // device does not support battery cluster   
     
 }else if (descMap.cluster == "0000"){
-    if (map.attrId== "0001" ){
-    logging("Application ID :${map.value}", "debug")
+      
+   // model Identifier Was pinging us with this.  
+   if (descMap.clusterId == "0006" ){
+    logging("Cluster 0000 id:0006 ${descMap}", "warn")
+    zigbee.enrollResponse()
+   }  
+      
+    if (descMap.attrId== "0001" ){
+    logging("Application ID :${descMap.value}", "debug")
     // should be 0x0104=Home Automation   
     }   
     if( descMap.attrId == "0004") {
@@ -279,26 +288,31 @@ def parse(String description) {
     updateDataValue("model", "SWITCH")
     updateDataValue("fcc", "DKN-301LM")
     }
-   // model Identifier Was pinging us with this.  
-   if (descMap.clusterId == "0006" ){
-    logging("Cluster 0000 id:0006 ${descMap}", "warn")
-    zigbee.enrollResponse()
-   }      
+
+    
       
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8031" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
-   text= ""
+}else if (descMap.cluster == "8032" ||descMap.cluster == "8031" || descMap.cluster == "8021" ||descMap.cluster == "0500" || descMap.cluster == "0000" ||descMap.cluster == "0001" ||descMap.cluster == "0013" || descMap.cluster == "0402" || descMap.cluster == "8038" || descMap.cluster == "8005") {
+      
+ text= "unknown"
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
  else if (descMap.cluster =="8031"){text="Link Quality"}
  else if (descMap.cluster =="8032"){text="Routing Table"}
- else if (descMap.cluster =="8013"){text="Multistate event"} 
-   
-   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
-     
+      
+      if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
+       
+}else if (descMap.cluster == "0013") {
+        logging("cluster:${descMap.cluster} 0013 Responding to Enroll Request. Likely Battery Change", "info")
+        zigbee.enrollResponse()
+
+}else if (descMap.cluster == "0006") {
+        logging("cluster:${descMap.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
+        zigbee.enrollResponse()
+        
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
-}  
+}    
 
 
 
