@@ -22,6 +22,7 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
+v2.8.4  12/21/2022  Bat fix 
 v2.8.3  11/15/2022  Cluster map detection
 v2.8.2  11/12/2022  nother bug fix for presence
 v2.8.0  11/11/2022  Presence updated with retries
@@ -71,7 +72,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.3"
+    TheVersion="2.8.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() // Forces config on updates
@@ -164,7 +165,8 @@ def configure() {
 
     buttons = device.currentValue("numberOfButtons")
     if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
-
+    sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
+    
     if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("Configure", "info")
@@ -211,6 +213,7 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
