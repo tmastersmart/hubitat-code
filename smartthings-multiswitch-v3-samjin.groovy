@@ -22,6 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.3.7    12/20/2022 Debugging work
 1.3.6    12/17/2022 Hex conversion bug fixed
 1.3.5    12/15/2022 Min bat code rewrite. threeAxis support added
 1.3.4    11/22/2022 Min voltage will adjust upward if bat dead before min setting
@@ -51,7 +52,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.6"
+    TheVersion="1.3.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -74,7 +75,7 @@ definition (name: "Smartthings multi Sensor V3 (custom)", namespace: "tmastersma
 	capability "Sensor"
 	capability "TemperatureMeasurement"
     capability "Acceleration Sensor"
-	//capability "Three Axis"    
+	capability "Three Axis"    
     
 	
 command "checkPresence"
@@ -82,6 +83,7 @@ command "uninstall"
  
 // unable to test anything but Samjin    
 attribute "batteryVoltage", "string"
+attribute "threeAxis", "string"
     
     	fingerprint model:"3320",   manufacturer:"CentraLite", inClusters:"0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters:"0019",     deviceJoinName: "Multipurpose Sensor"
 		fingerprint model:"3321",   manufacturer:"CentraLite", inClusters:"0000,0001,0003,0402,0500,0020,0B05,FC02", outClusters:"0019",     deviceJoinName: "Multipurpose Sensor"
@@ -450,7 +452,8 @@ if ( descMap.data){
    if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
    logging("Ignoring ${descMap.cluster} ${text}", "debug") 
         
-}else if (descMap.cluster =="0013"){logging("${descMap.cluster} Multistate event-(bat change/low bat) data:${descMap.data}", "warn") 
+}else if (descMap.cluster =="0013"){
+  logging("${descMap.cluster} Unknown multistate event - data:${descMap.data}", "debug") // Low Bat? unknown
         
 
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
@@ -493,12 +496,9 @@ private List<Map> parseAxis(List<Map> attrData) {
 	def x = hexToSignedInt(attrData.find { it.attrInt == 0x0012 }?.value)
 	def y = hexToSignedInt(attrData.find { it.attrInt == 0x0013 }?.value)
 	def z = hexToSignedInt(attrData.find { it.attrInt == 0x0014 }?.value)
+	if ([x, y ,z].any { it == null }) {	return []}
     
-	if ([x, y ,z].any { it == null }) {
-        logging("no axis data","trace")
-		return []
-	}
-
+    logging("parseAxis -- ${attrData} x${x} y${y} z${z}","trace")
 	def xyzResults = [:]
 	if (device.getDataValue("manufacturer") == "SmartThings") {
 		// This mapping matches the current behavior of the Device Handler for the Centralite sensors
@@ -512,14 +512,15 @@ private List<Map> parseAxis(List<Map> attrData) {
 		xyzResults.y = x
 		xyzResults.z = y
 	}
-    logging("parseAxis -- ${xyzResults}","trace")
+
 
 //	if (garageSensor == "Yes")
 //		results += garageEvent(xyzResults.z)
 
 	def value = "${xyzResults.x},${xyzResults.y},${xyzResults.z}"
-    logging("threeAxis: ${value}","debug")
-    sendEvent(name: "threeAxis", value: value, descriptionText: "xyz  was ${value}")
+    logging("xyz ${value} Sensor:xyz${x}-${y}-${z}","debug")
+    logging("threeAxis position received ","info")
+    sendEvent(name: "threeAxis", value: value, descriptionText: "xyz ${value} Sensor:xyz${x}-${y}-${z}")
 }
 
 
@@ -570,12 +571,13 @@ def checkPresence() {
 }
 
 private hexToSignedInt(hexVal) {
-    logging("Hex to signed Int ${hexVal}","trace")
     if (!hexVal) {return null}
-    def unsignedVal = convertHexToInt(hexVal)
+    def unsignedVal = HexUtils.hexStringToInt(hexVal)
+//  def unsignedVal = convertHexToInt(hexVal)
 //	def unsignedVal = hexToInt(hexVal)
 	unsignedVal > 32767 ? unsignedVal - 65536 : unsignedVal
-    logging("Hex ${hexVal} to signed Int ${unsignedVal}","debug")
+    logging("Hex ${hexVal} to signed Int ${unsignedVal}","trace")
+    return unsignedVal
 }
 void sendZigbeeCommands(List<String> cmds) {
     logging("sending:${cmds}", "trace")
