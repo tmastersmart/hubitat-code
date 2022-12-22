@@ -9,17 +9,12 @@ Works with IP cameras. Wont fail when password requested
 Setup the way you want in in driver options.
 
 =================================================================
+  v2.4.1 12/21/2022 better logging
   v2.4  11/29/2022 More options added added 
   v2.3  09/25/2022 404 and 401 errors added
   v2.2  09/21/2022 Better logging 
   v2.1.1 09/14/2021
   v2.0 09/12/2021
-
-
-
-
-
-
 
 
 
@@ -43,7 +38,7 @@ https://github.com/joelwetzel/Hubitat-HTTP-Presence-Sensor/blob/master/httpPrese
  *
  */
 def clientVersion() {
-    TheVersion="2.4.0"
+    TheVersion="2.4.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -65,9 +60,10 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,     defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level",    defaultValue: false,required: true
 
-    input name: "optionA", type: "bool", title: "Report 404 as ok", description: "File Not Found is OK" , defaultValue: true, required: true
+    input name: "optionA", type: "bool", title: "Report 404 as ok", description: "File Not Found is OK" ,      defaultValue: true, required: true
 	input name: "optionB", type: "bool", title: "Report 401 as ok", description: "Unauthorized request is OK" ,defaultValue: true, required: true
-	input name: "optionC", type: "bool", title: "Report 500 as ok", description: "Server error is OK",    defaultValue: false,required: true
+	input name: "optionC", type: "bool", title: "Report 500 as ok", description: "Internal Server error is OK",defaultValue: false,required: true
+	input name: "optionD", type: "bool", title: "Report 403 as ok", description: "Forbidden is OK",            defaultValue: false,required: true
   
     
     
@@ -121,31 +117,36 @@ def refresh() {
 
 
 def httpGetCallback(response, data) {
-	if (response == null || response.class != hubitat.scheduling.AsyncResponse) {
-		return
-	}
+	if (response == null || response.class != hubitat.scheduling.AsyncResponse) {return}
   
     def st = response.getStatus()
-    code="error"
+    code="Unprocessed error"
     if(st == 200){code="ok"}
     if(st == 400){code="Bad Request"}
 	if(st == 401){code="Unauthorized"}
+    if(st == 403){code="Forbidden"}
 	if(st == 404){code="File Not Found"}
-    if(st == 500){code="Server Error"}
+    if(st == 408){code="Request Timeout"}
+    if(st == 418){code="I'm a teapot"}
+    if(st == 429){code="Too Many Requests"}
+    if(st == 500){code="Internal Server Error"}
+    if(st == 502){code="Bad Gateway"}
     if(st == 503){code="Service Unavailable"}
+    if(st == 504){code="Gateway Timeout"}
     
-  
-    if(optionA || st == 404 ){state.tryCount = 0}
-    if(optionB || st == 401 ){state.tryCount = 0}
-    if(optionC || st == 500 ){state.tryCount = 0}    
+    if(optionA && st == 404 ){state.tryCount = 0}
+    if(optionB && st == 401 ){state.tryCount = 0}
+    if(optionC && st == 500 ){state.tryCount = 0}
+    if(optionD && st == 403 ){state.tryCount = 0}
     if (st == 200) {state.tryCount = 0}
-logging("Presence check [${st} ${code}] Tries:${state.tryCount}", "info") 
-    if(state.tryCount == 0){
-    if (device.currentValue('presence') != "present") {
-     logging("Presence: [Present] Tries:${state.tryCount} ", "info")
-	 sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
-	}
-    }
+    
+    logging("Presence check [${st} ${code}] Tries:${state.tryCount}", "info") 
+     if(state.tryCount == 0){
+      if (device.currentValue('presence') != "present") {
+      logging("Presence: [Present] Tries:${state.tryCount} ", "info")
+	  sendEvent(name: "presence", value: "present", descriptionText: "[Present] ${st} ${code} Tries:${state.tryCount} ")
+	  }
+     }
 }
 
 
