@@ -9,7 +9,7 @@ Works with IP cameras. Wont fail when password requested
 Setup the way you want in in driver options.
 
 =================================================================
-  v2.4.1 12/21/2022 better logging
+  v2.4.1 12/21/2022 better logging. Bug fix in options
   v2.4  11/29/2022 More options added added 
   v2.3  09/25/2022 404 and 401 errors added
   v2.2  09/21/2022 Better logging 
