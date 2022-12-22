@@ -179,7 +179,7 @@ def ping() {
 def configure() {
     logging("Config", "info")
 
-
+  state.tamper= true
   clearTamper()// sets a default tamper clear
   getIcons() 
   sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
