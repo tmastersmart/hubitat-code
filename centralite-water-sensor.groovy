@@ -23,6 +23,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.2.2    12/21/2022 Tamper code rewrite
 1.2.1    12/14/2022 New low bat code.
 1.2.0    12/10/2022 Tamper not showing up as usable fixed.
 1.1.1    12/09/2022 Improvements and SmartThings changes
@@ -50,7 +51,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -179,7 +180,7 @@ def configure() {
     logging("Config", "info")
 
 
-    
+  clearTamper()// sets a default tamper clear
   getIcons() 
   sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 1 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
  
@@ -340,32 +341,27 @@ def parse(String description) {
 }else if (descMap.cluster == "0500"){
 
         
-        if (descMap.attrId == "0002" ) {
-        logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${descMap.value} ", "debug")    
-        value = Integer.parseInt(descMap.value, 16)
-
-        if (state.MFR =="CentraLite"){ 
-         if(value == 33 ){
-             clearTamper()
-             waterON()
-         }else if(value == 37) {
-             tamper()
-             waterON()
-         }else if(value == 36) {
-             tamper()
-             waterOFF()
-         }else if(value == 32) {
+    if (descMap.attrId == "0002" ) {
+    logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${descMap.value} ", "debug")    
+    value = Integer.parseInt(descMap.value, 16)
+            
+        if(value == 32) {
              clearTamper()
              waterOFF()
-             }
+        }else if(value == 33 ){
+             clearTamper()
+             waterON()
+        }else if(value == 37) {// tamper is only on the iris/centralite
+             tamper()
+             waterON()
+        }else if(value == 36) {// tamper is only on the iris/centralite
+             tamper()
+             waterOFF()
+        }else {
+            logging("0500 ${state.MFR} Unknown value:${value}", "debug")
+        } 
             
-       }else if (state.MFR == "Samjin"){// has no tamper
-                if(value == 32 ){waterOFF()}
-           else if(value == 33 ){waterON()} 
-        }
-            else {logging("0500 ${state.MFR} Unknown value:${value}", "debug")} // values for other brands unknown Likely same as Samjin
-            
-        }else if (descMap.commandInt == "07") {
+    }else if (descMap.commandInt == "07") {
           if (descMap.data[0] == "00") {
                         logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
                         
@@ -433,7 +429,7 @@ def tamper(){
 	sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper detected v${state.version}")
     state.tamper= true
     }
-    else {logging("Tamper : clear Already Received", "info")}
+    else {logging("Tamper : clear Already Received", "debug")}
 }    
 def clearTamper(){  
     if (state.tamper != false){
@@ -441,7 +437,7 @@ def clearTamper(){
 	sendEvent(name: "tamper", value: "clear",    isStateChange: true, descriptionText: "tamper clear v${state.version}")
     state.tamper = false    
      } 
-    else {logging("Tamper : Detected Already Received", "info")}
+    else {logging("Tamper : Detected Already Received", "debug")}
     }        
         
 
