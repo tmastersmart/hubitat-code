@@ -38,7 +38,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
- v5.6.3 12/26/2022 Bug fix supportedFanModes
+ v5.6.4 12/26/2022 Bug fix supportedFanModes. Thermostat modes fix
  v5.6.0 12/26/2022 Upgrade thermostat modes with double quotes to comply with new firmware 2.3.4.123 change
  v5.5.6 12/14/2022 Ignore bat option for mains only. No bat is actualy needed
  v5.5.5 12/05/2022 ManufacturerSpecificReport parsing added
@@ -112,7 +112,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.6.3"
+    TheVersion="5.6.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -612,22 +612,22 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedReport cmd) {
 	def supportedModes = ""
     logging("received E7 ${cmd}", "debug")
-	if(cmd.off) { supportedModes += '"off",' }
-	if(cmd.heat) { supportedModes += '"heat",' }
-	if(cmd.auxiliaryemergencyHeat) { supportedModes += '"emergency heat",' }
-    if(cmd.cool) { supportedModes += '"cool",' }
-    if(cmd.auto) { supportedModes += '"auto"' }
+	if(cmd.off) { supportedModes += '"off"' }
+	if(cmd.heat) { supportedModes += ',"heat"' }
+	if(cmd.auxiliaryemergencyHeat) { supportedModes += ',"emergency heat"' }
+    if(cmd.cool) { supportedModes += ',"cool"' }
+    if(cmd.auto) { supportedModes += ',"auto"' }
     
  	if(onlyMode == "coolonly"){
        supportedModes = "" 
-    if(cmd.off) { supportedModes += '"off",' }
-    if(cmd.cool) { supportedModes += '"cool"' }
+    if(cmd.off) { supportedModes += '"off"' }
+    if(cmd.cool) { supportedModes += ',"cool"' }
     }
  	if(onlyMode == "heatonly"){
        supportedModes = "" 
-    if(cmd.off) { supportedModes += '"off",' }
-	if(cmd.heat) { supportedModes += '"heat",' }
-	if(cmd.auxiliaryemergencyHeat) { supportedModes += '"emergency heat"' }
+    if(cmd.off) { supportedModes += '"off"' }
+	if(cmd.heat) { supportedModes += ',"heat"' }
+	if(cmd.auxiliaryemergencyHeat) { supportedModes += ',"emergency heat"' }
     }        
         
 
