@@ -38,7 +38,7 @@ If your version has a version # that doesnt match the fingerprints bellow please
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
- v5.6.1 12/26/2022 Bug fix supportedFanModes
+ v5.6.2 12/26/2022 Bug fix supportedFanModes
  v5.6.0 12/26/2022 Upgrade thermostat modes with double quotes to comply with new firmware 2.3.4.123 change
  v5.5.6 12/14/2022 Ignore bat option for mains only. No bat is actualy needed
  v5.5.5 12/05/2022 ManufacturerSpecificReport parsing added
@@ -112,7 +112,7 @@ https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/c
 */
 
 def clientVersion() {
-    TheVersion="5.6.1"
+    TheVersion="5.6.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -640,15 +640,16 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedRe
 }
 // E8
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
-	def supportedFanModes = ""
+	def supportedFanModes = '"off",'
     logging("received E8 ${cmd}", "debug")
 	if(cmd.auto) { supportedFanModes += '"fanAuto",' }
-	if(cmd.low) { supportedFanModes += '"fanOn",' }
-	if(cmd.circulation) { supportedFanModes += '"fanCirculate",' } // not used
+	if(cmd.low) { supportedFanModes += '"fanOn"' }
+	if(cmd.circulation) { supportedFanModes += ',"fanCirculate",' } // not used
 //  if(cmd.humidityCirculation)supportedFanModes += "fanHumCirculate, " } // not used
 //	if(cmd.high) { supportedFanModes += "fanHigh," } // not used
     logging("E8 supportedFanModes[${supportedFanModes}]", "info2")
     sendEvent(name: "supportedFanModes", value: "[${supportedFanModes}]",descriptionText: "${supportedFanModes} ${state.version}", isStateChange:true)
+    sendEvent(name: "supportedThermostatFanModes", value: "[${supportedFanModes}]",descriptionText: "${supportedFanModes} ${state.version}", isStateChange:true)
 
     
 }
