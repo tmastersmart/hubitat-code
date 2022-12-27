@@ -6,7 +6,7 @@
   "releaseNotes": "Upgrade thermostat modes with double quotes to comply with new firmware change. ",
   "documentationLink": "http://www.winnfreenet.com/wp/2022/08/radio-thermostat-zwave-hubitat-driver-ct101-ct30/",
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
-  "version": "5.6.1",
+  "version": "5.6.2",
   "dateReleased": "2022-22-09",
 	    "category": "Control",
       "tags": [
