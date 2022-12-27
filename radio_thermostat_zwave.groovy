@@ -279,6 +279,7 @@ removeDataValue("thermostatSetpoint")
 removeDataValue("SetCool")
 removeDataValue("coolingSetpoint")    
 removeDataValue("SetHeat")   
+removeDataValue("supportedFanModes")    
 
 // Clear crap from other drivers 
 updateDataValue("hardwareVersion", "")    
