@@ -12,7 +12,7 @@
     {
       "name":"eWeLight RGBW Bulbs",
       "namespace": "tmastersmart",
-      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight%20RGBW%20Bulbs.groovy",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight-RGBW-Bulbs.groovy",
       "required": "true",
                 "description": "Works with eWeLight,Seedan and other RGBW bulbs identifying as ZB-CL01. May work with others provides presence and checkin monitoring",
  
