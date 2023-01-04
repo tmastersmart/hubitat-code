@@ -1,0 +1,22 @@
+{
+  "packageName": "eWeLight RGBW Bulbs",
+  "author": "TheMaster",
+  "releaseNotes":   "",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "version": "1.0.1",
+  "dateReleased": "2023-1-3",
+  "category":"Control",
+  "tags":["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],
+  "drivers": [
+    {
+      "name":"eWeLight RGBW Bulbs",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight%20RGBW%20Bulbs.groovy",
+      "required": "true",
+                "description": "Works with eWeLight,Seedan and other RGBW bulbs identifying as ZB-CL01. May work with others provides presence and checkin monitoring",
+ 
+      "id": "7aecd14c-1fb8-44a5-9fad-66283be2692c"
+    }
+    ]
+}
