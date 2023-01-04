@@ -195,7 +195,14 @@
   "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-multiswitch-v3.json",
   "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence"
    },  
-	  
+ {
+  "name":"eWeLight RGBW Bulbs",
+"category":"Control",
+"tags": ["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/eWeLight-RGBW-Bulbs.json",
+  "description": "Works with eWeLight,Seedan and other RGBW bulbs identifying as ZB-CL01. May work with others provides presence and checkin monitoring"
+   },  
+		  
 	  
 	  
 
