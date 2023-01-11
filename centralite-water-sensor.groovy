@@ -23,6 +23,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.2.3    01/11/2023 Tamper Code Rewrite. Samjin spoorts for false tamper in log. Bug in logs fixed
 1.2.2    12/21/2022 Tamper code rewrite
 1.2.1    12/14/2022 New low bat code.
 1.2.0    12/10/2022 Tamper not showing up as usable fixed.
@@ -51,7 +52,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.2"
+    TheVersion="1.2.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -340,21 +341,21 @@ def parse(String description) {
 
 }else if (descMap.cluster == "0500"){
 
-        
+   
     if (descMap.attrId == "0002" ) {
-    logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${descMap.value} ", "debug")    
     value = Integer.parseInt(descMap.value, 16)
-            
+        logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${value} #${descMap.value} ", "debug")    
+        // tamper is only used on the iris/centralite
         if(value == 32) {
              clearTamper()
              waterOFF()
         }else if(value == 33 ){
              clearTamper()
              waterON()
-        }else if(value == 37) {// tamper is only on the iris/centralite
+        }else if(value == 37) {
              tamper()
              waterON()
-        }else if(value == 36) {// tamper is only on the iris/centralite
+        }else if(value == 36) {
              tamper()
              waterOFF()
         }else {
@@ -425,19 +426,28 @@ private waterOFF(){
 
 def tamper(){
     if (state.tamper != true){
-    logging("Tamper : Detected", "warn")
+    logging("Tamper :Detected", "warn")
 	sendEvent(name: "tamper", value: "detected", isStateChange: true, descriptionText: "tamper detected v${state.version}")
     state.tamper= true
+    return    
     }
-    else {logging("Tamper : clear Already Received", "debug")}
+    
+    logging("Tamper :Detected Already Received", "debug")
 }    
-def clearTamper(){  
+def clearTamper(){ 
+    if (state.MFR == "Samjin"){
+       state.tamper = false // we dont want to create any logs or events no tamper
+       return
+    }     
+    
     if (state.tamper != false){
-	logging("Tamper : Cleared", "info")
+	logging("Tamper :Clear", "info")
 	sendEvent(name: "tamper", value: "clear",    isStateChange: true, descriptionText: "tamper clear v${state.version}")
-    state.tamper = false    
+    state.tamper = false
+    return    
      } 
-    else {logging("Tamper : Detected Already Received", "debug")}
+    logging("Tamper :Clear Already Received", "debug")
+    
     }        
         
 
