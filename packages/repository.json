@@ -161,7 +161,7 @@
     {
 "name":"HTTP Presence Sensor with schedule",
 "category": "Control",
-"tags":  ["Tools & Utilities","LAN","Misc. Devices","Monitoring","Presence & Location"  ],    
+"tags":  ["Tools & Utilities","LAN","Misc. Devices","Monitoring","Presence & Location"],    
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
 "description": "Improved HTTP Presence sensor with  adjustable chron schedule. detects 404 file not found and 401 password, for IP cameras asking for a password"
  },
