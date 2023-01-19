@@ -1,0 +1,261 @@
+{
+  "author": "TheMaster",
+  "minimumHEVersion": "2.2.1",
+  "gitHubUri": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat?locale.x=en_US",
+  "packages":[
+  {
+  "name":"Iris v1 Keypad",
+	"category": "Security",
+      "tags": [ "Buttons","Alarm Systems","Lights & Switches","Presence & Location","Safety & Security","Locks","Misc. Devices", "Zigbee" ],  
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1keypad.json",
+  "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. "
+   },
+   {
+  "name":"Iris v1 Contact Sensor-custom",
+"category":  "Doors & Windows",
+      "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
+  "description": "Iris v1 Contact Sensor custom. With presence and proper battery support. No more negative battery readings. Includes option to use as a mains detection swith with a relay.Note relay must have time delay so it renergised after hub has powered up. "
+   },
+   {
+  "name":"Iris v1 Motion Detector Custom",
+"category": "Control",
+      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_motion_sensor.json",
+  "description": "Iris v1 Motion Sensor. With presence and proper battery support. No more negative battery readings"
+   },
+   {
+  "name":"Iris v1 Senior Care Pendant",
+	"category": "Security",
+      "tags": ["Buttons","Alarm Systems","Monitoring","Presence & Location","Safety & Security","Zigbee"],   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
+  "description": "Simulates IRIS v1 pay care level system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob"
+   },
+    {
+  "name":"SmartThings Arrival Sensor Chime V2",
+	    "category": "Control",
+      "tags": ["Monitoring","Presence & Location","Safety & Security","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/SmartThings-Arrival-Sensor-hubitat.json",
+  "description": "SmartThings arrival sensor v2 with adjustable chimes. Can play chimes of diffrent legenths."
+   },
+    {
+  "name":"Iris v1 keyfob custom",
+	    "category": "Control",
+      "tags": ["Monitoring","Presence & Location","Safety & Security","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-keyfob.json",
+  "description": "Rewritten Iris v1 kefob. Supports holdable buttons , presence recovery no more false no presence toggles. and adjustable timeout. New battery support no negative voltage readings. Also supports custom mode AWAY/HOME"
+   },	  
+     {
+  "name":"Iris v1 Repeator Zigbe",
+	     "category": "Control",
+      "tags": ["Repeaters & Extenders","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v1_repeator_zigbee.json",
+  "description": "Iris v1 extender driver. Supports battery and presence. Zigbee side"
+   },  
+     {
+  "name":"Iris v1 Smart Plug custom",
+	     "category": "Control",
+	"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
+  "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
+   },   
+    {
+  "name":"Radio Thermostat Zwave",
+	    "category": "Control",
+      "tags": ["Temperature & Humidity","Climate Control","ZWave"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
+  "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Polling schedule and many extra options, Improved logging to detect errors info,debug,trace. Many manual options to set up device other drivers dont have. Option to use only heat or cool. Prevents dashboard getting out of sync with thermostat. If you have a RT you know all the problems other drivers have. This driver will fix your problems. Writen for my thermostats because the other drivers just did not work for me."
+   },   
+   {
+  "name":"Utilitech Water Sensor",
+	   "category": "Control",
+      "tags": ["Monitoring","Safety & Security","Water","ZWave"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Everspring_Utilitech_Water_Sensor.json",
+  "description": "Improved Everspring/Utilitech Water Sensor with presence and better drop out detection,battery support,and settings, Support to stop the device from drooping off with dead batteries by providing presence and dead bat detection.with info debug and trace logs"
+   },
+   {
+  "name":"Iris CentraLite Samjin Smartthings water Sensor",
+	   "category": "Control",
+      "tags": ["Monitoring","Safety & Security","Water","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/centralite-water-sensor.json",
+  "description": "Improved Iris CentraLite Samjin Smartthings water Sensor with Presence,Tamper for Centralite and better drop out detection,battery support"
+   },	  
+  {
+  "name":"Third Reality Water Sensor",
+	   "category": "Control",
+      "tags": [ "Monitoring","Alarm Systems", "Presence & Location","Safety & Security","Water","Zigbee" ],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
+  "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
+   },
+   {
+  "name":"Third Reality Motion Sensor",
+"category": "Control",
+      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-motion-sensor.json",
+  "description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
+   },	  
+   {
+  "name":"Iris Utilitech Siren driver",
+	"category": "Security",
+      "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"], 
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
+  "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works."
+   },	  
+   {
+  "name":"LeakSmart Water Valve",
+	   "category": "Control",
+      "tags": ["Energy Monitoring","Monitoring","Water","Valves","Misc. Devices","Safety & Security","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/LeakSmart_Water_Valve.json",
+  "description": "Improved LeakSmart driver (Zigbee) better battery support, mains detection ,better logging ,Stuck valve detection, fix for valves with broken mains detection firmware, Works with IRIS version also,Supports contact,switch & wet dry with info debug and trace logs"
+   }, 
+	  {
+  "name":"Lock Button Monitor",
+	   "category": "Control",
+      "tags": ["Monitoring","Misc. Devices","Locks","Buttons", "Safety & Security"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/lock_button_monitor.json",
+   "description": "Lock button monitor. works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. "
+   }, 	
+	  {
+  "name":"Lock Button Monitor2",
+	   "category": "Control",
+      "tags": ["Monitoring","Misc. Devices","Locks","Buttons","Safety & Security"
+        
+      ],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/lock_button_monitor2.json",
+   "description": "Lock button monitor2. for second lock, works with most Schlage and Vale locks. Create a virtual button and then set this app to that button and your lock. The buttons will be assigned the outside lock button inside knob and unlock codes. This is a beta version it only supports one lock. "
+   }, 
+ {
+	"name":"Smartthings Samjin button",  
+	"category": "Security",
+   "tags": [ "Buttons","Safety & Security","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-samjin-button.json",
+   "description": "Smartthings Samjin button with improved battery reports and Presence. Auto dead bat detection. 3 Button support for easer scripts"
+   }, 
+{
+	"name":"iris v1 button",  
+	"category": "Security",
+   "tags": [ "Buttons","Safety & Security","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-button.json",
+   "description": "IRIS v1 button with improved battery reports and Presence. Auto dead bat detection. 3 Button support for easer scripts. pressed,held,held longer, button 1 pressed button 2 held button 3 held longer"
+   }, 	
+	  
+	  
+	  {
+	"name":"sage doorbell echostar",  
+	"category": "Security",
+   "tags": [ "Buttons","Alarm Systems","Safety & Security","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage_doorbell_echostar.json",
+   "description": "Doorbell driver. Detect dead bat with presence detection,  And support debug,trace logs."
+   },
+	  {
+	"name":"Sage light switch echostar",  
+  "category":"Control",
+  "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/sage-light-switch.json",
+   "description": "Sage Light Switch driver. With presence and virtual switch,Button support and simulated battery value"
+   },	  
+
+{
+"name":"Zigbee Sonoff - generic relays",  
+"category": "Control",
+"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/zigbee-sonoff-relays-new.json",
+"description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. And generic outlets. Presence,Lamp_01,SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE"
+ },	  
+	  
+	
+    {
+  "name":"HTTP Presence Sensor with schedule",
+	    "category": "Control",
+ "tags":  ["Tools & Utilities","LAN","Misc. Devices","Monitoring","Presence & Location"  ],    
+ "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/http_presence_sensor.json",
+  "description": "Improved HTTP Presence sensor with  adjustable chron schedule. detects 404 file not found and 401 password, for IP cameras asking for a password"
+
+ },
+	  
+   {
+  "name":"Iris v2 Contact Sensor",
+"category":  "Security",
+"tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-contact.json",
+  "description": "Iris v2 contact sensor with presence. Automatic bad battery detection presence, iMagic by GreatStar 1116-S & CentraLite 3320-L"
+   },
+   {
+  "name":"Iris v2 Motion Detector",
+"category": "Control",
+      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-motion-sensor.json",
+  "description": "Iris v2 Motion Sensor with presence. CentraLite Model:3326-L"
+   },	  
+ {
+  "name":"Smartthings multi Sensor V3 (custom)",
+"category":  "Security",
+"tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-multiswitch-v3.json",
+  "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence"
+   },  
+ {
+  "name":"eWeLight RGBW Bulbs",
+"category":"Control",
+"tags": ["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],	   
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/eWeLight-RGBW-Bulbs.json",
+  "description": "Works with eWeLight,Seedan and other RGBW bulbs identifying as ZB-CL01. May work with others provides presence and checkin monitoring"
+   },  
+		  
+	  
+	  
+
+ {
+  "name":"Zooz Zen21 Central Scene Switch",
+	 "category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen21.json",
+  "description": "Zooz Zen21 Central Scene Switch"
+ },
+{
+  "name":"Zooz Zen22 Central Scene Dimmer",
+	"category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen22.json",
+  "description": "Zooz Zen22 Central Scene Dimmer"
+ },
+{
+  "name":"Zooz Zen23 Central Scene Switch",
+	"category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen23.json",
+  "description": "Zooz Zen23 Central Scene Switch"
+ },	  
+{
+  "name":"Zooz Zen24 Central Scene Dimmer",
+	"category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen24.json",
+  "description": "Zooz Zen24 Central Scene Dimmer"
+ },  
+	{
+  "name":"Zooz Zen26 Central Scene Switch",
+		"category": "Control",
+   "tags":["Zwave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen26.json",
+  "description": "Zooz Zen26 Central Scene Switch"
+ },  
+	{
+  "name":"Zooz Zen27 Central Scene Dimmer",
+		"category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen27.json",
+  "description": "Zooz Zen27 Central Scene Dimmer"
+ },  
+	{
+  "name":"Zooz Zen31 LED Controller",
+		"category": "Control",
+   "tags":["ZWave","Buttons","Lights & Switches"],	    
+  "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/zooz/packages/zen31.json",
+  "description": "Zooz Zen31 LED Controller"
+ }  
+  
+  ]
+
+}
