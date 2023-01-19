@@ -31,7 +31,7 @@
 "tags": ["Buttons","Alarm Systems","Monitoring","Presence & Location","Safety & Security","Zigbee"],   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/Iris_v1_Senior_Care_Pendant.json",
 "description": "Simulates IRIS v1 pay care level system. Pressing button triggers alarm on dashboard and beeps red until dashboard alarm is turned off this notifies pendant holder by beeping green. Requires yuo add it to dashboard as a switch and as presence. Option to use as a straight Keyfob"
-   }
+   },
     {
 "name":"SmartThings Arrival Sensor Chime V2",
 "category": "Control",
