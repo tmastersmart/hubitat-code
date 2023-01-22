@@ -543,4 +543,4 @@ private logging(String message, String level) {
 	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
     if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
-
+ 
