@@ -30,6 +30,7 @@ I beleive the cause is that normal devices creating a new ID on each pair. Whate
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
 
+ v1.0.8    01/23/2023 Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten
  v1.0.7    12/05/2022 State Verify added
  v1.0.6    12/04/2022 Bug fixes
  v1.0.5    12/03/2022 First working release
@@ -85,7 +86,7 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-    input name: "timeout" ,type: "enum", title: "Timeout Timer",description: "Driver sends off command after x seconds 0=disabled 300=5min 1800=30min",options: ["0","300","600","1200","1500","1800"], defaultValue: 1800 ,required: true 
+    input name: "timeout" ,type: "enum", title: "Timeout Timer",description: "Driver sends off after x seconds 300=5min, 900=10min, 1200=20min, 1800=30min",options: ["300","900","1200","1800"], defaultValue: 1200 ,required: true 
 
     input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
     input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 8 ,required: true 
@@ -93,7 +94,7 @@ preferences {
 
 }
 def clientVersion() {
-    TheVersion="1.0.7"
+    TheVersion="1.0.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -202,24 +203,24 @@ def sync (){
 }
 
 def on() {
-    logging("Sending On", "warn")
+    logging("Sending On  Timeout:${timeout}", "warn")
     state.Alarm = true
-
-    runIn(20,ping) 
-    if (timeout == 300){ runIn(300,off)}
-    if (timeout == 600){ runIn(600,off)}
-    if (timeout == 800){ runIn(800,off)}
-    if (timeout == 1500){ runIn(1500,off)}
-    if (timeout == 1800){ runIn(1800,off)}
-    if (timeout == 2200){ runIn(2200,off)}
+    // "300","900","1200","1800"
+    if (timeout == 300){ runIn(300,offTimeout)}
+    else if (timeout == 900){ runIn(900,offTimeout)}
+    else if (timeout == 1200){ runIn(1200,offTimeout)}
+    else if (timeout == 1800){ runIn(1800,offTimeout)}
+    else {runIn(1800,offTimeout)}
 
     delayBetween([
-        zwave.basicV1.basicSet(value: 0xFF).format(),
-        zwave.switchBinaryV1.switchBinaryGet().format(),
- 
+//        zwave.basicV1.basicSet(value: 0xFF).format(),
+//        zwave.switchBinaryV1.switchBinaryGet().format(),
+//      zwave.basicV1.basicGet().format(),// this just dupes switchbinary   
+        
        secure(zwave.basicV1.basicSet(value: 0xFF)),
        secure(zwave.switchBinaryV1.switchBinaryGet()),
-       secure(zwave.basicV1.basicGet())
+//     secure(zwave.basicV1.basicGet())
+     
     ], 3000) 
     
 
@@ -229,19 +230,24 @@ def offOFF(){
 off()
 }
 
-
+def offTimeout(){
+    ping
+    logging("Timeout reached State:${state.Alarm}", "info")
+    if (state.Alarm == true){off}
+    return
+}
 def off() {
     logging("Sending Off", "info")
     state.Alarm = false
-    runIn(20,poll)
+    runIn(20,batPoll)
     
    delayBetween([
-        zwave.basicV1.basicSet(value: 0x00).format(),
-        zwave.switchBinaryV1.switchBinaryGet().format(),
+//      zwave.basicV1.basicSet(value: 0x00).format(),
+//      zwave.switchBinaryV1.switchBinaryGet().format(),
+//      zwave.basicV1.basicGet().format(),// this just dupes switchbinary
        
         secure(zwave.basicV1.basicSet(value: 0x00)),
-        secure(zwave.switchBinaryV1.switchBinaryGet()),
-        secure(zwave.basicV1.basicGet())
+        secure(zwave.switchBinaryV1.switchBinaryGet())
     ], 3000)
 }
 
@@ -261,13 +267,21 @@ def both() {
 	on()
 }
 
+def batPoll(){
+    logging("Poll-Bat", "info") 
+    zwave.batteryV1.batteryGet().format()
+} 
+
 
 // -------------------------------------------------
 def poll() {
     logging("Poll", "info") 
 //    zwave.basicV1.basicGet().format()
     zwave.switchBinaryV1.switchBinaryGet().format()
-}
+} 
+    
+
+
 
 def ping() {
     logging("Ping", "info") 
@@ -329,6 +343,7 @@ def checkPresence() {
      } 
        
      runIn(2,ping)
+     runIn(20,batPoll)   
      if (state.tries <4){
          logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
          runIn(50,checkPresence)
@@ -462,8 +477,9 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
      } 
     
     state.LastBat = device.currentValue("battery")
+    logging("battery: ${cmd.batteryLevel} ", "info")
+
     if (state.LastBat != cmd.batteryLevel ){ 
-     logging("battery: ${cmd.batteryLevel} ", "info")
      sendEvent(name: "battery", value: cmd.batteryLevel,unit: "%", descriptionText: "${cmd.batteryLevel} ${state.LastCheckin} v${state.version}", isStateChange:true)
     }
 }
@@ -508,19 +524,22 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
 def zwaveEvent(hubitat.zwave.commands.alarmv1.AlarmReport cmd) {
 	logging("${cmd} ", "debug")
     
-    if (cmd.alarmLevel == 0 && cmd.alarmType==0){return}// why send us 0 0 AllClear?
-
+    logging("Alarm Level:${cmd.alarmLevel} Type:${cmd.alarmType}", "info")
+    if (cmd.alarmLevel == 0 && cmd.alarmType==0){ 
+        logging("Clear", "info")
+        return
+    }
     if (cmd.alarmLevel == 1 && cmd.alarmType==2){
-        logging("Alarm Type 2 - Powering Up OK", "info")
+        logging("Powering Up OK", "warn")
         return
     }
     // Way to many false alarms here (unusable) Just log for now
     if (cmd.alarmLevel == 1 && cmd.alarmType==1){
-        logging("Alarm Type 1 - Battery Low", "debug")
+        logging("Battery Low", "warn")
         return
     }
        
-    logging("Unknown Alarm Level:${cmd.alarmLevel} Type:${cmd.alarmType}", "warn")
+    logging("Unknown Alarm", "warn")
 }
 
 
