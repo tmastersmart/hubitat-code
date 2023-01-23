@@ -13,8 +13,6 @@ New timeout timmer that works.
 State verification and repair. No more ignoring the OFF commands
 
 
-
-https://www.lowes.com/pdf/UT_IndoorSiren_IM%208-2%20ENG-101512.pdf
 ------------------------------------------------------------------------------------------------------
 Its sometimes hard to get it to pair or repair after removing or resetting.
 Remove batteries let it set and try again later.
@@ -555,7 +553,7 @@ def zwaveEvent(hubitat.zwave.Command cmd) {
 
 
 void getIcons(){
-    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/utilitech-siren.jpg' >"    
+    state.icon ="<a href='https://github.com/tmastersmart/hubitat-code/blob/main/docs/UT_IndoorSiren_IM%208-2%20ENG-101512.pdf'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/utilitech-siren.jpg'>Manual</a>"    
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
 
 
