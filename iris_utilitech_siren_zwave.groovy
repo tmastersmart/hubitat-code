@@ -28,6 +28,7 @@ I beleive the cause is that normal devices creating a new ID on each pair. Whate
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
 
+ v1.0.9    01/23/2023 Adjustments to timeout
  v1.0.8    01/23/2023 Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten
  v1.0.7    12/05/2022 State Verify added
  v1.0.6    12/04/2022 Bug fixes
@@ -92,7 +93,7 @@ preferences {
 
 }
 def clientVersion() {
-    TheVersion="1.0.8"
+    TheVersion="1.0.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -190,7 +191,7 @@ runIn(20,refresh)
 // Resend the proper state to get back in sync
 def sync (){
     state.FalseAlarm = state.FalseAlarm +1 
-    if(state.FalseAlarm > 12){
+    if(state.FalseAlarm > 25){
     logging("Loss of control. Resync falure. Errors:${state.FalseAlarm}", "warn") 
     return // prevent a non stop loop  
     }
@@ -229,16 +230,15 @@ off()
 }
 
 def offTimeout(){
-    ping
-    logging("Timeout reached State:${state.Alarm}", "info")
-    if (state.Alarm == true){off}
-    return
+    logging("Timeout reached State:${state.Alarm} Verifying OFF", "info")
+    off()
 }
 def off() {
     logging("Sending Off", "info")
     state.Alarm = false
+    runIn(10,poll)
     runIn(20,batPoll)
-    
+    runIn(30,poll)
    delayBetween([
 //      zwave.basicV1.basicSet(value: 0x00).format(),
 //      zwave.switchBinaryV1.switchBinaryGet().format(),
@@ -434,7 +434,7 @@ void readSwitch (cmd){
         if (value == "on"  && state.Alarm == false){sync()}  
         if (value == "off" && state.Alarm == true ){sync()} 
         if (value == "off" && state.Alarm == false){// stop the auto off timmer
-            unschedule(off)
+            unschedule(offTimeout)
             state.FalseAlarm = 0
         }
         if (value == "on" && state.Alarm == true){state.FalseAlarm = 0}
