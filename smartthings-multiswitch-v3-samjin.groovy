@@ -22,6 +22,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.3.8    01/23/2023 Bat code event rewrite
 1.3.7    12/20/2022 Debugging work
 1.3.6    12/17/2022 Hex conversion bug fixed
 1.3.5    12/15/2022 Min bat code rewrite. threeAxis support added
@@ -52,7 +53,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.3.7"
+    TheVersion="1.3.8"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -320,34 +321,28 @@ def parse(String description) {
     
        def evt = zigbee.getEvent(description)
     if (evt){logging("Event: ${evt}", "debug")} // testing 
-	
-// MAP: [raw:47640104020C0000290B09, dni:4764, endpoint:01, cluster:0402, size:0C, attrId:0000, encoding:29, command:01, value:090B, clusterInt:1026, attrInt:0]
-    if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-         def  powerLast = device.currentValue("battery")
-         def  batVolts  = device.currentValue("batteryVoltage")
-        
-         def  minVolts  = 2.1 
-         def  maxVolts  = 3
-         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
-        
-         def rawValue = Integer.parseInt(descMap.value,16)
-         if (rawValue == 0 || rawValue == 255) {return} 
-         def batteryVoltage = rawValue / 10
-        
-        
-        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
-        
-       
-       
+    
+  // New event detction without using clusters 
+if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
+        batteryVoltage = evt.value
+        def  powerLast = device.currentValue("battery")
+        def  batVolts  = device.currentValue("batteryVoltage")
+        def  minVolts  = 2.2 
+        def  maxVolts  = 3
+    
        if (state.MFR == "SmartThings") {
 			minVolts = 15 // this is defaut from st driver untested
 			maxVolts = 28
-          }
-
-           logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
-           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
-           def roundedPct = Math.round(pct * 100)
-         if (roundedPct <= 0) roundedPct = 1
+          }    
+    
+    
+        if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    
+        logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
+        
+        def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
+        def roundedPct = Math.round(pct * 100)
+        if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
                logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
             if (powerLast != batteryPercentage){
@@ -355,8 +350,9 @@ def parse(String description) {
             sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
-
-       
+        logging("Battery Voltage:${batteryVoltage} ${batteryPercentage}%", "info") 
+        return   
+    
         
     }  else if (descMap.cluster == "0402" ) {//0x0402 Temperature measurement Attributes
          if (descMap.attrInt == 0) {
