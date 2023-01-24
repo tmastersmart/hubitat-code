@@ -23,6 +23,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.2.5    01/23/2023 Rewrite bat and temp events
 1.2.4    01/22/2023 Presence timmer setting increased
 1.2.3    01/11/2023 Tamper Code Rewrite. Samjin spoorts for false tamper in log. Bug in logs fixed
 1.2.2    12/21/2022 Tamper code rewrite
@@ -53,7 +54,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.4"
+    TheVersion="1.2.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -277,27 +278,21 @@ def parse(String description) {
     
 	def evt = zigbee.getEvent(description)
     if (evt){logging("Event: ${evt}", "debug")} // testing 
-
-    if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-       def  powerLast = device.currentValue("battery")
-         def  batVolts  = device.currentValue("batteryVoltage")
+ 
+ // New event detction without using clusters 
+if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
+        batteryVoltage = evt.value
+        def  powerLast = device.currentValue("battery")
+        def  batVolts  = device.currentValue("batteryVoltage")
+        def  minVolts  = 2.2 
+        def  maxVolts  = 3
+        if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    
+        logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
         
-         def  minVolts  = 2.2 
-         def  maxVolts  = 3
-         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
-        
-         def rawValue = Integer.parseInt(descMap.value,16)
-         if (rawValue == 0 || rawValue == 255) {return} 
-         def batteryVoltage = rawValue / 10
-        
-        
-        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
-
-        logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
-        
-           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
-           def roundedPct = Math.round(pct * 100)
-         if (roundedPct <= 0) roundedPct = 1
+        def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
+        def roundedPct = Math.round(pct * 100)
+        if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
                logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
             if (powerLast != batteryPercentage){
@@ -305,44 +300,36 @@ def parse(String description) {
             sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
-
-       
+        logging("Battery Voltage:${batteryVoltage} ${batteryPercentage}%", "info") 
+        return   
         
-    }  else if (descMap.cluster == "0402" ) {
-
-         if (descMap.attrInt == 0) {
+}else if (evt.name == "temperature"){//Event: [name:temperature, value:61, unit:F, descriptionText:xxx was 61F]
+        def temp = evt.value
         tempLast = device.currentValue("temperature")
-        if(!tempAdj){tempAdj = 0}  
-        def rawValue = Integer.parseInt(descMap.value,16)
-        float temp = Integer.parseInt(descMap.value,16)/100   
-        temp = (temp > 100) ? (temp - 655.35) : temp    
-        temperatureC = temp.round(2)    
-        temp = (location.temperatureScale == "F") ? ((temp * 1.8) + 32) : temp    
+        if(!tempAdj){tempAdj = 0}
+        temp = (temp > 100) ? (temp - 655.35) : temp 
         temp = tempOffset ? (temp + tempOffset) : temp
-	    temp = temp.round(2)     
         temperatureF = temp     
         Double correctNum = Double.valueOf(tempAdj) 
         if (correctNum > 0 || correctNum < 0){ 
             temperatureF = (temp + correctNum)
             temperatureF = temperatureF.round(2) 
-        }
- //          logging("${descMap}", "warn")  
-           logging("Temp:${temperatureF}F Last:${tempLast}°${location.temperatureScale} adjust:${correctNum} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C] raw:${rawValue}", "debug")
+        }        
+
+        logging("Temp:${temperatureF}°${evt.unit} Last:${tempLast}°${evt.unit} adjust:${correctNum} [Sensor:${temp}°${evt.unit} ] raw:${evt.value}", "debug")
+        logging("Temp:${temperatureF}°${evt.unit}", "info")
         if (tempLast != temperatureF){     
-           logging("Temp:${temperatureF}F adjust:${correctNum}°${location.temperatureScale} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C]", "info")
-           sendEvent(name: "temperature", value: temperatureF, unit: location.temperatureScale)
+           logging("Temp:${temperatureF}F adjust:${correctNum}°${evt.unit} [Sensor:${temp}°${evt.unit} ]", "info")
+           sendEvent(name: "temperature", value: temperatureF, unit: evt.unit)
          }  
        return     
-		}
-        
+		
+}else if (evt.name){ // trap ukn events
+      logging("Unknown Event: ${evt}", "warn")           
+      return
 
-        
-   
-        
 
 }else if (descMap.cluster == "0500"){
-
-   
     if (descMap.attrId == "0002" ) {
     value = Integer.parseInt(descMap.value, 16)
         logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${value} #${descMap.value} ", "debug")    
