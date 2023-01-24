@@ -1,7 +1,7 @@
 {
   "packageName": "Iris Utilitech Siren driver",
   "author": "TheMaster",
-  "releaseNotes": "Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten",
+  "releaseNotes": "Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten/adjustments to timout",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "documentationLink": "",
