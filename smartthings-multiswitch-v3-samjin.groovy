@@ -174,7 +174,7 @@ def updated(){
 
 
 def refresh() {
-    if(state.DataUpdate){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    if(state.MFR){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
 
     delayBetween([
