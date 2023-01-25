@@ -133,9 +133,10 @@ updated()
 }
 // Runs on reboot
 def initialize(){
+    logging("initialize ", "debug")
     clientVersion()    
-  	randomSixty = Math.abs(new Random().nextInt() % 180)
-	runIn(randomSixty,refresh)
+    randomSixty = Math.abs(new Random().nextInt() % 180)
+    runIn(randomSixty,refresh)
 }
 
 
