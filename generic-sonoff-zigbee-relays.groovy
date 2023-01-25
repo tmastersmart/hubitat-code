@@ -25,6 +25,8 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.1 01/23/2023   Power Up routine rewrite
+ 1.7.0 01/05/2023   icon changes
  1.6.9 12/05/2022   AutoSync option added
  1.6.8 12/04/2022   State Verify added.
  1.6.7 11/29/2022   bug fix mfr report
@@ -69,7 +71,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.6.9"
+    TheVersion="1.7.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -133,12 +135,27 @@ preferences {
 }
 
 
+
+// Runs after first pairing.
 def installed() {
-	// Runs after first pairing. this may never run internal drivers overide pairing.
-	logging("${device} : Paired!", "info")
-    state.DataUpdate = false 
-    initialize()
+logging("Installed ", "warn")    
+state.DataUpdate = false
+pollHR = 10
+configure()   
+updated()
 }
+
+// Runs on reboot
+def initialize(){
+    logging("initialize ", "debug")
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
+    state.presenceUpdated = 0
+}
+
+
+
 
 def uninstall() {
 	unschedule()
@@ -159,11 +176,12 @@ def uninstall() {
     logging("Uninstalled", "info")  
 }
 
-def initialize() {
-   logging("initialize", "info") 
-    // This runs on reboot 
-	state.presenceUpdated = 0
 
+
+def configure() {
+    logging("Config", "info") 
+	// Runs on reboot paired or rejoined
+	unschedule()
 	// Remove disused state variables from earlier versions.
 state.remove("status")
 state.remove("comment")    
@@ -172,25 +190,9 @@ state.remove("logo")
 state.remove("flashing")    
 state.remove("timeOut")
 state.remove("bin")
-state.remove("checkPhase")    
+state.remove("checkPhase")        
 	// Remove unnecessary device details.
-    device.deleteCurrentState("alarm")
-    configure()
-    clientVersion()
-    
-	// multi devices will run this on reboot make sure they all use a diffrent time
-  	randomSixty = Math.abs(new Random().nextInt() % 180)
-	runIn(randomSixty,refresh)
-
-}
-
-
-def configure() {
-    logging("Config", "info") 
-	// Runs on reboot paired or rejoined
-	unschedule()
-    
-    
+    device.deleteCurrentState("alarm")    
  
 
     if (!pollHR){ pollHR= 8}
@@ -371,6 +373,11 @@ def parse(String description) {
 
     // fix parse Geting 2 formats so merge them
     if (descMap.clusterId) {descMap.cluster = descMap.clusterId} 
+    
+    
+    
+    
+    
    
     if (descMap.cluster == "0006" || descMap.clusterId == "0006" ) {
       if (descMap.value){status = descMap.value}
@@ -400,7 +407,9 @@ def parse(String description) {
         logging("Model :${descMap.value}", "debug")
         state.model = descMap.value    
         updateDataValue("model", state.model)
-        state.DataUpdate = true    
+        state.DataUpdate = true 
+        getIcons()
+        return    
         }
        
  
