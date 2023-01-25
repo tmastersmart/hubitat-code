@@ -12,7 +12,7 @@ May work with generics
 Seedan Zigbee Smart Light Bulbs, Color Changing Light Bulb, 9W 806LM, Smart Bulb Compatible with Amazon
 Alexa and Samsung SmartThings Hub, Hub Required, E26 Dimmable LED Bulb, 2 Pack
 
-
+ 1.0.2  1/25/2023   Power up routine rewrite
  1.0.1  1/03/2023   Release
  1.0.0 12/30/2022   Creation
 ======================================================================================================
@@ -37,7 +37,7 @@ colorMode RGB / CT
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.1"
+    TheVersion="1.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -48,7 +48,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight-RGBW-Bulbs.groovy") {
+	definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
 
         capability "Health Check"
 		capability "Actuator"
@@ -95,13 +95,29 @@ preferences {
    
 }
 
-
+// Runs after first pairing.
 def installed() {
-	// Runs after first pairing. this may never run internal drivers overide pairing.
-	logging("${device} : Paired!", "info")
-    state.DataUpdate = false 
-    initialize()
+logging("Installed ", "warn")    
+state.DataUpdate = false
+pollHR = 10
+pingIt = 30 
+state.minVoltTest = 2.2   
+configure()   
+updated()
+    
 }
+// Runs on reboot
+def initialize(){
+    logging("initialize ", "debug")
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
+}
+
+
+
+
+
 
 def uninstall() {
 	unschedule()
@@ -122,24 +138,7 @@ def uninstall() {
     logging("Uninstalled", "info")  
 }
 
-def initialize() {
-   logging("initialize", "info") 
-    // This runs on reboot 
-	state.presenceUpdated = 0
 
-	// Remove disused state variables from earlier versions.
-state.remove("icon")
-state.remove("logo")
-  
-
-    configure()
-    clientVersion()
-    
-	// multi devices will run this on reboot make sure they all use a diffrent time
-  	randomSixty = Math.abs(new Random().nextInt() % 180)
-	runIn(randomSixty,refresh)
-
-}
 
 
 def configure() {
@@ -155,7 +154,9 @@ def configure() {
    state.remove("lastAddress")
    state.remove("checkPhase")
     
-   // Remove old unused states from beta 
+   // Remove old unused states from beta
+   state.remove("icon")
+   state.remove("logo") 
    state.remove("lastCT")
    state.remove("ct") 
    state.remove("hueH") 
