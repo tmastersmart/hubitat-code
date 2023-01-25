@@ -27,7 +27,7 @@ get a option to REMOVE, Remove it then the hub will now see it as a new device.
 I beleive the cause is that normal devices creating a new ID on each pair. Whatever the case the hub does
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
-
+ v1.1.0    01/25/2023 Power Up init rewriten
  v1.0.9    01/23/2023 Adjustments to timeout
  v1.0.8    01/23/2023 Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten
  v1.0.7    12/05/2022 State Verify added
@@ -93,12 +93,33 @@ preferences {
 
 }
 def clientVersion() {
-    TheVersion="1.0.9"
+    TheVersion="1.1.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
  }
 }
+
+
+// Runs after first pairing.
+def installed() {
+logging("Installed ", "warn")    
+state.DataUpdate = false
+pollHR = 10
+configure()   
+updated()
+    
+}
+// Runs on reboot
+def initialize(){
+    logging("initialize ", "debug")
+    state.FalseAlarm = 0
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
+}
+
+
 
 def uninstall() {
  
@@ -121,11 +142,7 @@ def uninstall() {
       
       }
 
-def installed() {
-	logging("${device} : Paired!", "info")
-    initialize()
 
-}
 
 
 
@@ -138,14 +155,7 @@ def updated() {
 
 
 
-def initialize() {
-    logging("Initialize","info")
-    state.FalseAlarm = 0
-    
-    
-configure()
 
-}
 
 
 
