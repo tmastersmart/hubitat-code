@@ -1,5 +1,7 @@
 /* Third Reality Motion Sensor for Hubitat
 
+A Third Reality Motion Sensor Driver For Hubitat
+
 
 manufacturer: Third Reality, Inc
 model: 3RMS16BZ
@@ -10,6 +12,7 @@ This device gives full bat voltage as 3.5v which .5v to high.
 
 
 ===================================================================================================
+1.2.1    01/23/2023 Power up init rewriten
 1.2.0    12/14/2022 Bat code rewrite
 1.1.0    12/11/2022 working
 1.0.0    12/10/2022 First release
@@ -35,7 +38,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.0"
+    TheVersion="1.2.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -75,15 +78,18 @@ def installed() {
 logging("Installed ", "warn")    
 state.DataUpdate = false
 pollHR = 10
-pingIt = 30    
+pingIt = 30 
+state.minVoltTest = 2.1   
 configure()   
 updated()
 }
+
+// Runs on reboot
 def initialize(){
-    pollHR = 10
-    pingIt = 30
-    state.minVoltTest = 2.1
-    installed()
+    logging("initialize ", "debug")
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
 }
 
 
