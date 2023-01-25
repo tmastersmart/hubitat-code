@@ -23,6 +23,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.2.6    01/25/2023 Fix Init routines
 1.2.5    01/23/2023 Rewrite bat and temp events
 1.2.4    01/22/2023 Presence timmer setting increased
 1.2.3    01/11/2023 Tamper Code Rewrite. Samjin spoorts for false tamper in log. Bug in logs fixed
@@ -54,7 +55,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.5"
+    TheVersion="1.2.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -111,21 +112,25 @@ preferences {
 
     }
 }
+// Runs after first pairing.
 def installed() {
 logging("Installed ", "warn")    
 state.DataUpdate = false
 pollHR = 10
-pingIt = 30    
+pingIt = 30 
+state.minVoltTest = 2.2   
 configure()   
 updated()
     
 }
+// Runs on reboot
 def initialize(){
-    pollHR = 10
-    pingIt = 30
-    state.minVoltTest = 2.2
-    installed()
+    logging("initialize ", "debug")
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
 }
+
 
 
 def uninstall() {// need to clear everything before manual driver change. 
