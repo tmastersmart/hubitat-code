@@ -224,7 +224,7 @@ def updated() {
 
 
 void refresh(cmd) {
-    if(state.DataUpdate){ logging("Refreshing ${state.MFR} ${state.model} Ver:${state.version}", "info")}
+    if(state.MFR){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
 delayBetween([
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
