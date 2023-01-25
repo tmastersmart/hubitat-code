@@ -29,6 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.7.9    01/23/2023 Fixed init startup routine
 1.7.8    12/14/2022 New bat min code
 1.7.7    11/24/2022 bug fix clustor 0013
 1.7.6    11/15/2022 Cluster mapping rewrite
@@ -65,7 +66,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.8"
+    TheVersion="1.7.9"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -119,20 +120,22 @@ preferences {
 
     }
 }
+// Runs after first pairing.
 def installed() {
 logging("Installed ", "warn")    
 state.DataUpdate = false
 pollHR = 10
-pingIt = 30    
+pingIt = 30 
+state.minVoltTest = 2.2   
 configure()   
 updated()
     
 }
+// Runs on reboot
 def initialize(){
-    pollHR = 10
-    pingIt = 30
-    state.minVoltTest = 2.2
-    installed()
+    clientVersion()    
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
 }
 
 
