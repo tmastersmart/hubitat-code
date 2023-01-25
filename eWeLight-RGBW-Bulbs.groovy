@@ -11,10 +11,11 @@ May work with generics
 
 Seedan Zigbee Smart Light Bulbs, Color Changing Light Bulb, 9W 806LM, Smart Bulb Compatible with Amazon
 Alexa and Samsung SmartThings Hub, Hub Required, E26 Dimmable LED Bulb, 2 Pack
+======================================================================================================
 
- 1.0.2  1/25/2023   Power up routine rewrite
- 1.0.1  1/03/2023   Release
- 1.0.0 12/30/2022   Creation
+v1.0.2  01/25/2023   Power up routine rewrite
+v1.0.1  01/03/2023   Release
+v1.0.0  12/30/2022   Creation
 ======================================================================================================
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -48,33 +49,28 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
+definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
 
-        capability "Health Check"
-		capability "Actuator"
-		capability "Configuration"
-		capability "Initialize"
-		capability "PresenceSensor"
-		capability "Refresh"
-		capability "Switch"
-        capability "Switch Level"
-		capability "Color Control"
-		capability "Color Temperature"
-        capability "Light"
+capability "Health Check"
+capability "Actuator"
+capability "Configuration"
+capability "Initialize"
+capability "PresenceSensor"
+capability "Refresh"
+capability "Switch"
+capability "Switch Level"
+capability "Color Control"
+capability "Color Temperature"
+capability "Light"
 
-        command "uninstall"
-        command "checkPresence"
+command "uninstall"
+command "checkPresence"
 
-		attribute "colorName", "string"
-        attribute "colorMode", "string"
+attribute "colorName", "string"
+attribute "colorMode", "string"
         
-        fingerprint profileId:"C05E", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,0300", model:"ZB-CL01", manufacturer:"eWeLight"// RGBW Bulb RGB and CT (Seedan)
-        
- 
-        
-
-    }
-
+fingerprint profileId:"C05E", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,0300", model:"ZB-CL01", manufacturer:"eWeLight"// RGBW Bulb RGB and CT (Seedan)
+ }
 }
 // If the above fingerprint doesnt work please send me yours. You can get it using internal GENERIC DEVICE driver Just press info
 
