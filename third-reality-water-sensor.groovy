@@ -10,6 +10,7 @@ Manufacturer:Third Reality, Inc
 
 
 ===================================================================================================
+1.2.2    01/29/2023 Changed anti dupe routines to adding State change.
 1.2.1    01/23/2023 Power up init rewriten
 1.2.0    12/14/2022 Bat code rewrite
 1.0.0    12/10/2022 First release
@@ -36,7 +37,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -271,13 +272,14 @@ def parse(String description) {
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
-               logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
-            if (powerLast != batteryPercentage){
-            logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
-            sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
-            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-            }
-
+            logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
+        isChange = false
+        if (powerLast != batteryPercentage){ isChange = true}
+                
+        logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
+        sendEvent(name: "battery", value: batteryPercentage, unit: "%", isStateChange: isChange)      
+        sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", isStateChange: isChange)
+ 
        
         
     }else if (descMap.cluster == "0500"){
@@ -336,24 +338,27 @@ def processStatus(ZoneStatus status) {
 
 private waterON(){
         LastWater = device.currentValue("water")
-        
+        isChange = false
         if(LastWater != "wet"){
-            logging("Water : WET Was:${LastWater}", "warn")
-            sendEvent(name: "water", value: "wet", isStateChange: true)
-            runIn(10,ping)// force pull status
+            runIn(10,ping)
+            isChange = true
         }
-    else {logging("Water : WET Already Received", "warn")}
+            
+        logging("Water : WET Was:${LastWater}", "warn")
+        sendEvent(name: "water", value: "wet", isStateChange: isChange)
+
 }
 
 private waterOFF(){
        LastWater = device.currentValue("water")
-		
-        if(LastWater != "dry"){
-            logging("Water : Dry Was:${LastWater}", "info")
-            sendEvent(name: "water", value: "dry", isStateChange: true)
-            runIn(10,ping)
-        }
-       else {logging("Water : Dry Already Received", "info")}
+       isChange = false
+       if(LastWater != "dry"){
+           runIn(10,ping)
+           isChange = true
+       }
+   
+       logging("Water : Dry Was:${LastWater}", "info")
+       sendEvent(name: "water", value: "dry", isStateChange: isChange)
 }
 
   
