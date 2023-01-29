@@ -263,8 +263,8 @@ def parse(String description) {
          if (powerLast != batteryPercentage){ isChange = true}
         
         logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
-        sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
-        sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+        sendEvent(name: "battery", value: batteryPercentage, unit: "%", isStateChange: isChange)      
+        sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", isStateChange: isChange)
            
 
   
