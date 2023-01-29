@@ -12,6 +12,7 @@ This device gives full bat voltage as 3.5v which .5v to high.
 
 
 ===================================================================================================
+1.2.2    01/29/2023 Changed anti dupe routines to adding State change.
 1.2.1    01/23/2023 Power up init rewriten
 1.2.0    12/14/2022 Bat code rewrite
 1.1.0    12/11/2022 working
@@ -38,7 +39,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.1"
+    TheVersion="1.2.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -257,12 +258,14 @@ def parse(String description) {
            def roundedPct = Math.round(pct * 100)
          if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
-               logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
-            if (powerLast != batteryPercentage){
-            logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
-            sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
-            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
-            }
+           logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
+         isChange = false
+         if (powerLast != batteryPercentage){ isChange = true}
+        
+        logging("Battery:${batteryPercentage}%  ${batteryVoltage}V", "info")  
+        sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
+        sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
+           
 
   
     }else if (descMap.cluster == "0500"){
@@ -318,22 +321,24 @@ def processStatus(ZoneStatus status) {
 
 private motionON(){
         LastMotion = device.currentValue("motion")
-        if(LastMotion != "active"){
+        isChange = false
+        if(LastMotion != "motion"){
+            runIn(10,ping)
+            isChange = true
+        }      
 		logging("Motion : Active", "info")
-		sendEvent(name: "motion", value: "active", isStateChange: true)
-        runIn(10,ping)// force pull status   
-        } 
-       else {logging("Motion: Active Already Received", "info")}
+		sendEvent(name: "motion", value: "active", isStateChange: isChange)
 }
 
 private motionOFF(){
         LastMotion = device.currentValue("motion")
+        isChange = false
         if(LastMotion != "inactive"){
+            runIn(10,ping)
+            isChange = true
+        }   
 		logging("Motion : Inactive", "info")
-        sendEvent(name: "motion", value: "inactive", isStateChange: true)
-        runIn(10,ping)// force pull status
-        }
-       else {logging("Motion: Clear Already Received", "info")}    
+        sendEvent(name: "motion", value: "inactive", isStateChange: isChange)
 }
 
 
