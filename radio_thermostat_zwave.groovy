@@ -148,8 +148,8 @@ metadata {
         
         attribute "thermostatFanState", "string"
         attribute "SetClock", "string"
-//        attribute "SetCool", "string"
-//        attribute "SetHeat", "string"
+        attribute "SetCool", "string"
+        attribute "SetHeat", "string"
         
         command "setDiff"
         command "setSwing"
