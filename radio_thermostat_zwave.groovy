@@ -1,5 +1,6 @@
 /* Radio Thermostat Zwave Hubitat driver
 Hubitat driver for radio thermostat & Iris Thermostat
+Hubitat driver for Iris CT101 Thermostat
 Radio Thermostat Company of America (RTC)
 CT100,CT101,CT30,CT32
 
@@ -14,7 +15,7 @@ ______          _ _         _____ _                                   _        _
 \_| \_\__,_|\__,_|_|\___/    \_/ |_| |_|\___|_|  |_| |_| |_|\___/|___/\__\__,_|\__|
                                                                                   
 No battery is needed on these thrmostats if using C Wire. The driver will restore settings on reboot.
-Unneeded batteries were costing me money so you can now just stop using them.
+Unneeded batteries cost money so you can stop using them. Set driver to ignore battery
 
 Polling chron ends the need to use rouines to refreash the thermostat as some models just dont report
 temp and setpoints to the hub unless polled.
@@ -34,10 +35,12 @@ fingerprint mfr:0098 prod:0001 model:001E ct30e  Displays REMOTE CONTROL box whe
 
 If you have version that identifies as UNKNOWN please send me your fingerprint and the version on the thermostat. 
 If your version has a version # that doesnt match the fingerprints bellow please send me your fingerprint and version.
+If any of the settings dont work on your thermostat please let me know.
 
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.6.5 02/05/2023 2-stage diff reports not working, Config changes,Dashboard improvements
  v5.6.4 12/26/2022 Bug fix supportedFanModes. Thermostat modes fix
  v5.6.0 12/26/2022 Upgrade thermostat modes with double quotes to comply with new firmware 2.3.4.123 change
  v5.5.6 12/14/2022 Ignore bat option for mains only. No bat is actualy needed
@@ -75,7 +78,7 @@ Models with the Radio Thermostat Z-Wave USNAP Module RTZW-01 Require C-Wire or t
 never to rewake. Some will take commands in sleep some wont. c-wire is required.
 Do not even atempt to use battery mode. 
 
-Some models report C-Wire status some dont. 
+Some models report C-Wire status some dont. Some models report Diff some take the command but report back 6 
 
 There are many diffrent versions of the ct30 some with bad firmware and some that dont support all commands.
 ======================================================================================================
@@ -97,22 +100,23 @@ limitations under the License.
 
 
 
-Contains a lot of orginal code and
+Contains a lot of orginal code created by me
+and some code from these drivers
 
-May use some open source code from sources listed here. 
-https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_links.txt
-
-Orginal driver:
+None of these drivers work right on radio Thermostat they all have problems.
+Orginal smartthings driver:
 https://github.com/SmartThingsCommunity/SmartThingsPublic/blob/master/devicetypes/smartthings/ct100-thermostat.src/ct100-thermostat.groovy
-
-These all apear to be forked from the orginal above.
+These are all forks from the above.
 https://github.com/MarioHudds/hubitat/blob/master/Enhanced%20Z-Wave%20Thermostat
 https://community.hubitat.com/t/port-enhanced-z-wave-thermostat-ct-100-w-humidity-and-time-update/4743
 https://github.com/motley74/SmartThingsPublic/blob/master/devicetypes/motley74/ct100-thermostat-custom.src/ct100-thermostat-custom.groovy
+
+May use some open source code from sources listed here. 
+https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_links.txt
 */
 
 def clientVersion() {
-    TheVersion="5.6.4"
+    TheVersion="5.6.5"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -301,10 +305,10 @@ def configure() {
     unschedule()
     state.remove("paypal") 
     getIcons()
-    
+
     state.info ="All thermostats do not work with all settings. Only settings reported in the log as being received will work."
     logging("Configure Driver v${state.version}", "info")
-
+    fanAuto() // set default
 	updated()
     state.cwire =0 
     state.remove("lastBatteryGet")
@@ -316,7 +320,7 @@ def configure() {
         zwave.configurationV2.configurationGet(parameterNumber: 4).format(), // is cwire 1=true 2=false
         zwave.configurationV2.configurationGet(parameterNumber: 7).format(), // swing        
         zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is diff
-        zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off        
+        zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off
         zwave.batteryV1.batteryGet().format(), 
 //        setClock(), 
 	], 2300)
@@ -692,12 +696,15 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
     sendEvent(name: "temperatureSwing", value: state.swing, descriptionText: "${state.swing}${locationScale} - #${test} ${state.version}",displayed: true, isStateChange:true)
     }    
     
-// ConfigurationReport(parameterNumber: 8, size: 2, configurationValue: [4, 4], scaledConfigurationValue: 1028) Diff
+// This is not working. Does not = what was sent? TESTING
    if (cmd.parameterNumber== 8){
-       state.heatDiff = cmd.configurationValue[0] 
-       state.coolDiff = cmd.configurationValue[1] 
-       logging("E10-8 2 stage Differential Heat:${state.heatDiff} Cool:${state.coolDiff}", "info2")
+     if (state.heatDiff == cmd.configurationValue[0]) {logging("E10-8-0 (2 stage Differential) Heat:${cmd.configurationValue[0]}", "info")}
+       else {logging("E10-8-0 Report ERROR (2 stage Differential) Heat:${cmd.configurationValue[0]} Scaled${cmd.scaledConfigurationValue}", "debug")}  
+     if (state.coolDiff == cmd.configurationValue[1]) {logging("E10-8-1 (2 stage Differential) Cool:${cmd.configurationValue[1]}", "info")}
+       else {logging("E10-8-1 Report ERROR (2 stage Differential) Cool:${cmd.configurationValue[1]} Scaled${cmd.scaledConfigurationValue}", "debug")}
    }
+    
+    
 // ConfigurationReport(parameterNumber: 9, size: 1, configurationValue: [2], scaledConfigurationValue: 2)  Fast Recovery
    if (cmd.parameterNumber== 9){
        if (cmd.configurationValue[0] == 1){state.fastrecovery = "fast"}
@@ -769,7 +776,7 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
 
 
 def zwaveEvent(hubitat.zwave.Command cmd ){
-  logging("Received E11 (${cmd})", "debug")
+  logging("Received E11 Untrapped (${cmd})", "debug")
    
 }
 
@@ -824,8 +831,9 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
-		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format()
-	], 30000)
+		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
+	], 10000)
 }
 
 //==================cooling
@@ -871,8 +879,9 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
-        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format()
-	], 30000)
+        zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
+	], 10000)
  
 }
 
@@ -920,7 +929,8 @@ def setThermostatMode(String value) {
     logging("E20 Set Mode:${value} #:${set}", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: set).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
+		zwave.thermostatModeV2.thermostatModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)
 }
 // E21
@@ -934,7 +944,8 @@ def setThermostatFanMode(String value) {
     logging("E21 Set Fan Mode:${value} #:${set}", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: set).format(),
-		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
+		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)   
     
 }
@@ -978,7 +989,8 @@ def heat() {
     logging("Set Mode heat", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 1).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
+		zwave.thermostatModeV2.thermostatModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)
 }
 
@@ -993,7 +1005,8 @@ def cool() {
     logging("Set Mode Cool", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 2).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
+		zwave.thermostatModeV2.thermostatModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)
 }
 
@@ -1006,7 +1019,8 @@ def auto() {
     logging("Set Mode Auto", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 3).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
+		zwave.thermostatModeV2.thermostatModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)
 }
 
@@ -1019,7 +1033,8 @@ def emergencyHeat() {
     logging("Set Mode Emergency heat", "info")
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
-		zwave.thermostatModeV2.thermostatModeGet().format()
+		zwave.thermostatModeV2.thermostatModeGet().format(),
+        zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
 	], 30000)
 }
 
@@ -1156,7 +1171,7 @@ def zwaveEvent(hubitat.zwave.commands.clockv1.ClockReport cmd) {
 }
 
 def saveSettings(cmd){
- logging("SaveSettings", "debug")  
+ logging("Updating Settings", "debug")  
  delayBetween([
      setDiff(cmd),
      setSwing(cmd),
@@ -1175,7 +1190,10 @@ def setDiff(cmd){
     
    if (!coolDiff){coolDiff = 4}
    if (!heatDiff){heatDiff = 4}  
-   logging("Set 2 stage Differential Heat:${heatDiff} Cool:${coolDiff}", "info")
+   logging("Set (2 stage Differential) Heat:${heatDiff} Cool:${coolDiff}", "info")
+    
+   state.heatDiff = heatDiff
+   state.coolDiff = coolDiff 
 
     delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
