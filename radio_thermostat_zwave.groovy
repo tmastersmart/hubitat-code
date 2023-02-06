@@ -40,6 +40,7 @@ If any of the settings dont work on your thermostat please let me know.
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.6.6 02/06/2023 BUG FIX setpoints now wait for therm to report back before setting. Delays changed
  v5.6.5 02/05/2023 2-stage diff reports not working, Config changes,Dashboard improvements
  v5.6.4 12/26/2022 Bug fix supportedFanModes. Thermostat modes fix
  v5.6.0 12/26/2022 Upgrade thermostat modes with double quotes to comply with new firmware 2.3.4.123 change
@@ -116,7 +117,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.6.5"
+    TheVersion="5.6.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -147,8 +148,8 @@ metadata {
         
         attribute "thermostatFanState", "string"
         attribute "SetClock", "string"
-        attribute "SetCool", "string"
-        attribute "SetHeat", "string"
+//        attribute "SetCool", "string"
+//        attribute "SetHeat", "string"
         
         command "setDiff"
         command "setSwing"
@@ -823,7 +824,8 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     state.SetHeat = convertedDegrees
     logging("Set Heat Setpoint ${convertedDegrees} ${locationScale} ---  Reset Last to ${state.SetHeat}", "info")
     sendEvent(name: "SetHeat", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
+//  we cant create event here must wait for the therm to report back.  
+//  sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetHeat} ${state.version}", isStateChange:true)
     
      
     
@@ -833,7 +835,7 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
         zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
-	], 10000)
+	], 2500)
 }
 
 //==================cooling
@@ -869,7 +871,9 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     state.SetCool = convertedDegrees
     logging("Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
     sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
-    sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
+
+//  we cant create event here must wait for the therm to report back.    
+//  sendEvent(name: "thermostatSetpoint", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
 
     
     
@@ -881,7 +885,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 2, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 2).format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
-	], 10000)
+	], 2500)
  
 }
 
