@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "setpoint bug,Def report fix, dashboard fixes, Upgrade thermostat modes with double quotes for new firmware change.",
+  "releaseNotes": "Extra loging for sent commands,setpoint bug,Def report fix, dashboard fixes, Upgrade thermostat modes with double quotes for new hubitat firmware change.",
   "documentationLink": "http://www.winnfreenet.com/wp/2022/08/radio-thermostat-zwave-hubitat-driver-ct101-ct30/",
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
-  "version": "5.6.6",
+  "version": "5.6.7",
   "dateReleased": "2022-22-09",
 	    "category": "Control",
       "tags": [
