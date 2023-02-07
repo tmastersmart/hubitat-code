@@ -40,6 +40,7 @@ If any of the settings dont work on your thermostat please let me know.
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.6.7 02/07/2023 Extra trace logging for sent commands
  v5.6.6 02/06/2023 BUG FIX setpoints now wait for therm to report back before setting. Delays changed
  v5.6.5 02/05/2023 2-stage diff reports not working, Config changes,Dashboard improvements
  v5.6.4 12/26/2022 Bug fix supportedFanModes. Thermostat modes fix
@@ -117,7 +118,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.6.6"
+    TheVersion="5.6.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
 
@@ -325,6 +326,9 @@ def configure() {
         zwave.batteryV1.batteryGet().format(), 
 //        setClock(), 
 	], 2300)
+    logging("Sending >> configurationSet (parameterNumber: 4, size: 1, configurationValue: [2])", "trace")  
+    logging("Sending >> configurationGet (4,7,8,9 = cwire,swing,diff,recovery", "trace")
+    logging("Sending >> get request (man,mode,FanMode) ", "trace")
 }
 
 
@@ -347,7 +351,7 @@ def updated() {
     zwave.sensorMultilevelV3.sensorMultilevelGet().format(), // current temperature 
     saveSettings()
     ], 2300)    
-
+    logging("Sending >> get request (mode,temp) ", "trace")
     
 }
 
@@ -386,6 +390,8 @@ def poll() {
 //        setClock(), // moved to chron
 	], 2300)
 }
+logging("Sending >> get request (temp,Hum,Setpoint 1&2,mode,FanMode,state,battery) ", "trace")
+logging("Sending >> configurationGet (4,7,8,9 = cwire,swing,diff,recovery", "trace")
 //    zwave.configurationV2.configurationSet(parameterNumber: 11, size: 1, configurationValue: 1) // simple UI enabled 1 on 2 off
 //    zwave.configurationV2.configurationGet(parameterNumber: 11) 
 
@@ -829,13 +835,14 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     
      
     
-    logging("Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
+    logging("Sending >> Set (heat type=1) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}  get(temp)", "trace")
 	delayBetween([
 		zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
         zwave.thermostatSetpointV1.thermostatSetpointSet(setpointType: 1, scale: deviceScale, precision: p, scaledValue: convertedDegrees).format(),
 		zwave.thermostatSetpointV1.thermostatSetpointGet(setpointType: 1).format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temperature
 	], 2500)
+    
 }
 
 //==================cooling
@@ -869,7 +876,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     	convertedDegrees = degrees
     }
     state.SetCool = convertedDegrees
-    logging("Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}", "info")
+    logging("Set Cool Setpoint ${convertedDegrees} ${locationScale} ---Reset Last to ${state.SetCool}  Get(temp)", "info")
     sendEvent(name: "SetCool", value: convertedDegrees, unit:locationScale ,descriptionText: "Reset Last to ${state.SetCool} ${state.version}", isStateChange:true)
 
 //  we cant create event here must wait for the therm to report back.    
@@ -877,7 +884,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
 
     
     
-    logging("Set (cool type=2) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees}", "trace")
+    logging("Sending >> Set (cool type=2) scale:${deviceScale}, precision:${p},  scaledValue:${convertedDegrees} Get(temp)", "trace")
 
     
 	delayBetween([
@@ -935,7 +942,9 @@ def setThermostatMode(String value) {
 		zwave.thermostatModeV2.thermostatModeSet(mode: set).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)
+	], 2500)
+    
+    logging("Sending >>  thermostatModeSet ${set} Mode:${value} Get(mode,temp)", "trace")   
 }
 // E21
 def setThermostatFanMode(String value) {
@@ -950,8 +959,8 @@ def setThermostatFanMode(String value) {
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: set).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)   
-    
+	], 2500)   
+    logging("Sending >>  thermostatFanModeSet ${set} Mode:${value} Get(FanMode,temp)", "trace")       
 }
 
 // -------------------------------------mode setting ------------------
@@ -981,7 +990,8 @@ def off() {
 	delayBetween([
 		zwave.thermostatModeV2.thermostatModeSet(mode: 0).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format()
-	], 30000)
+	], 2500)
+    logging("Sending >>  thermostatModeSet 0 Mode:OFF Get(Mode)", "trace")   
 }
 // 1
 def heat() {
@@ -995,7 +1005,8 @@ def heat() {
 		zwave.thermostatModeV2.thermostatModeSet(mode: 1).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)
+	], 2500)
+     logging("Sending >>  thermostatModeSet 1 Mode:HEAT Get(Mode,temp)", "trace")  
 }
 
 def cool() {
@@ -1011,7 +1022,8 @@ def cool() {
 		zwave.thermostatModeV2.thermostatModeSet(mode: 2).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)
+	], 2500)
+       logging("Sending >>  thermostatModeSet 2 Mode:COOL Get(Mode,temp)", "trace")    
 }
 
 def auto() {
@@ -1025,7 +1037,8 @@ def auto() {
 		zwave.thermostatModeV2.thermostatModeSet(mode: 3).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)
+	], 2500)
+    logging("Sending >>  thermostatModeSet 3 Mode:AUTO Get(Mode,temp)", "trace")     
 }
 
 def emergencyHeat() {
@@ -1039,7 +1052,9 @@ def emergencyHeat() {
 		zwave.thermostatModeV2.thermostatModeSet(mode: 4).format(),
 		zwave.thermostatModeV2.thermostatModeGet().format(),
         zwave.sensorMultilevelV3.sensorMultilevelGet().format(),// current temp
-	], 30000)
+	], 2500)
+    
+   logging("Sending >>  thermostatModeSet 4 Mode:Emergency HEAT Get(Mode,temp)", "trace")  
 }
 
 
@@ -1051,7 +1066,9 @@ def fanOn() {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 1).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], 30000)
+	], 2500)
+  
+    logging("Sending >>  thermostatFanModeSet 1 Mode:ON Get(FanMode)", "trace")    
 }
 
 def fanAuto() {
@@ -1059,20 +1076,20 @@ def fanAuto() {
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 0).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], 30000)
+	], 2500)
+   logging("Sending >>  thermostatFanModeSet 0 Mode:Auto Get(FanMode)", "trace")   
 }
 
-def fanCirculate() {
+def fanCirculate() {// Not used on RT
     logging("Set Fan Circulate", "info")
 	delayBetween([
 		zwave.thermostatFanModeV3.thermostatFanModeSet(fanMode: 6).format(),
 		zwave.thermostatFanModeV3.thermostatFanModeGet().format()
-	], 30000)
+	], 2500)
+  logging("Sending >>  thermostatFanModeSet 6 Mode:ON Get(Circulate)", "trace")     
 }
 
-//private getStandardDelay() {
-//	1000
-//}
+
 
 // CUSTOMIZATIONS
 def zwaveEvent(hubitat.zwave.commands.multiinstancev1.MultiInstanceCmdEncap cmd) {   
@@ -1136,7 +1153,9 @@ private setClock(cmd) {
 		zwave.clockV1.clockSet(hour: nowCal.get(Calendar.HOUR_OF_DAY), minute: nowCal.get(Calendar.MINUTE), weekday: weekdayZ).format(),
         zwave.clockV1.clockGet().format(),
         zwave.batteryV1.batteryGet().format()    
-	], 30000)
+	], 2500)
+    logging("Sending >>  clockSet (hour: ${nowCal.get(Calendar.HOUR_OF_DAY)}, minute: ${nowCal.get(Calendar.MINUTE)}, weekday: ${weekdayZ}) Get(clock,bat)", "trace")    
+    
 }
 
 void setDay(day){
@@ -1181,8 +1200,7 @@ def saveSettings(cmd){
      setSwing(cmd),
      setRecovery(cmd),
      setClock()
- ], 30000)     
-   
+ ], 2500)     
 }
 
 
@@ -1203,7 +1221,9 @@ def setDiff(cmd){
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
    zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
    zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
-	], 30000)    
+	], 2500)    
+  logging("Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x00, ${heatDiff}])", "trace")    
+  logging("Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x01, ${coolDiff}])  Get(config 8)", "trace")  
 }
 
 def setSwing(cmd){
@@ -1226,7 +1246,8 @@ def setSwing(cmd){
    delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 7, size: 1, configurationValue: [value]).format(),
    zwave.configurationV2.configurationGet(parameterNumber: 7).format(),    
-	], 30000)  
+	], 2500)  
+  logging("Sending >>  configurationSet (parameterNumber: 7, size: 1, configurationValue: [${value}])  Get(config 7)", "trace")  
 
 }
 
@@ -1243,7 +1264,8 @@ def setRecovery(cmd){
    delayBetween([    
    zwave.configurationV2.configurationSet(parameterNumber: 9, size: 1, configurationValue: [value]).format(),
    zwave.configurationV2.configurationGet(parameterNumber: 9).format(),    
-	], 30000)  
+	], 2500)  
+  logging("Sending >>  configurationSet (parameterNumber: 9, size: 1, configurationValue: [${value}])  Get(config 9)", "trace")  
 
 }
 
