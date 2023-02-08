@@ -6,8 +6,8 @@
   "releaseNotes": "bug fix",
   "version": "3.2.9",
   "dateReleased": "2022-22-09",
-  "category":"Doors & Windows",
-  "tags":  [ "Alarm Systems", "Doors & Windows"],
+  "category":"Doors & Windows", "Security",
+  "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
   "drivers": [
     {
       "name": "Iris v1 Contact Sensor-custom",
