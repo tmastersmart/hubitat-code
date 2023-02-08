@@ -99,7 +99,7 @@
 "name":"Iris Utilitech Siren driver",
 "category": "Security",
 "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"], 
-"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-water-sensor.json",
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-utilitech-siren.json",
 "description": "Verifies state after turn and off. No more refusing to turn off,Presence,Auto dead bat detection, Auto time off timmer that works."
    },	  
    {
