@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "",
+  "releaseNotes": "same code as iris v2 motion driver",
   "version": "1.1.4",
   "dateReleased": "2023-13-02",
   "category": "Control",
