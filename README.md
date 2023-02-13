@@ -52,7 +52,7 @@
 * observer ip driver for hubitat
 
 # Valve
-* Leaksmart valve driver for Hubitat with better battery detection
+* Leaksmart valve driver for Hubitat. Better battery detection, Scheduled Testing, Presence
 
 # Relays-Switches
 * relay/switch driver for hubitat (Sonoff MINI ZB / eWeLink /3A Smart Home /Generic)
