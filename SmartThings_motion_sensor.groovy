@@ -44,7 +44,7 @@ def clientVersion() {
 
 metadata {
 
-definition (name: "SmartThings Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+definition (name: "SmartThings Motion Sensor", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/SmartThings_motion_sensor.groovy") {
 
     capability "Health Check"
 	capability "Battery"
