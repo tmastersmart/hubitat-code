@@ -1,5 +1,5 @@
 /* Iris v2 motion sensor
-Iris v2 motion sensor for hubitat
+CentraLite motion sensor driver for hubitat
 
 CentraLite Model:3326-L
 
@@ -15,6 +15,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.1.4    02/13/2023 CentraLite fingerprints added. New event code
 1.1.3    01/25/2023 Power up init routine rebuilt
 1.1.2    12/14/2022 Min Bat code rewrite
 1.1.1    11/15/2021 First release
@@ -69,7 +70,13 @@ command "checkPresence"
 command "uninstall"
     
 attribute "batteryVoltage", "string"
-    
+
+fingerprint inClusters:"0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", model: "3305-S", manufacturer: "CentraLite"
+fingerprint inClusters:"0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", model: "3325-S", manufacturer: "CentraLite"
+fingerprint inClusters:"0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", model: "3305",   manufacturer: "CentraLite"
+fingerprint inClusters:"0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", model: "3325",   manufacturer: "CentraLite"
+fingerprint inClusters:"0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", model: "3326",   manufacturer: "CentraLite"
+   
 fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3326-L", manufacturer:"CentraLite"
 
 }
@@ -257,25 +264,21 @@ def parse(String description) {
  	def evt = zigbee.getEvent(description)
     if (evt){logging("Event: ${evt}", "debug")} // testing   
     
- if (descMap.cluster == "0001" & descMap.attrId == "0020"){
-           def  powerLast = device.currentValue("battery")
-         def  batVolts  = device.currentValue("batteryVoltage")
+ // New event detction without using clusters 
+if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
+        batteryVoltage = evt.value
+        def  powerLast = device.currentValue("battery")
+        def  batVolts  = device.currentValue("batteryVoltage")
+        def  minVolts  = 2.2 
+        def  maxVolts  = 3
+        if(state.model =="motionv4"){minVolts  = 1.0}
+        if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    
+        logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
         
-         def  minVolts  = 2.2 
-         def  maxVolts  = 3
-         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
-        
-         def rawValue = Integer.parseInt(descMap.value,16)
-         if (rawValue == 0 || rawValue == 255) {return} 
-         def batteryVoltage = rawValue / 10
-        
-        
-        logging("value:${rawValue} bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v", "trace")
-
-        logging("${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts}", "trace")//2.5 -2.4 / 3 - 2.4 
-           def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
-           def roundedPct = Math.round(pct * 100)
-         if (roundedPct <= 0) roundedPct = 1
+        def pct = (batteryVoltage - minVolts) / (maxVolts - minVolts)
+        def roundedPct = Math.round(pct * 100)
+        if (roundedPct <= 0) roundedPct = 1
             batteryPercentage = Math.min(100, roundedPct)
                logging("Battery: now:${batteryPercentage}% Last:${powerLast}% ${batteryVoltage}V ", "debug")   
             if (powerLast != batteryPercentage){
@@ -283,63 +286,53 @@ def parse(String description) {
             sendEvent(name: "battery", value: batteryPercentage, unit: "%")      
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             }
-
-    
+        logging("Battery Voltage:${batteryVoltage} ${batteryPercentage}%", "info") 
+        return   
         
-    }  else if (descMap.cluster == "0402" ) {
-         if (descMap.attrInt == 0) {
+}else if (evt.name == "temperature"){//Event: [name:temperature, value:61, unit:F, descriptionText:xxx was 61F]
+        def temp = evt.value
         tempLast = device.currentValue("temperature")
-        if(!tempAdj){tempAdj = 0}  
-        def rawValue = Integer.parseInt(descMap.value,16)
-        float temp = Integer.parseInt(descMap.value,16)/100   
-        temp = (temp > 100) ? (temp - 655.35) : temp    
-        temperatureC = temp.round(2)    
-        temp = (location.temperatureScale == "F") ? ((temp * 1.8) + 32) : temp    
+        if(!tempAdj){tempAdj = 0}
+        temp = (temp > 100) ? (temp - 655.35) : temp 
         temp = tempOffset ? (temp + tempOffset) : temp
-	    temp = temp.round(2)     
         temperatureF = temp     
         Double correctNum = Double.valueOf(tempAdj) 
         if (correctNum > 0 || correctNum < 0){ 
             temperatureF = (temp + correctNum)
             temperatureF = temperatureF.round(2) 
-        }
- //          logging("${descMap}", "warn")  
-           logging("Temp:${temperatureF}F Last:${tempLast}°${location.temperatureScale} adjust:${correctNum} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C] raw:${rawValue}", "debug")
+        }        
+
+        logging("Temp:${temperatureF}°${evt.unit} Last:${tempLast}°${evt.unit} adjust:${correctNum} [Sensor:${temp}°${evt.unit} ] raw:${evt.value}", "debug")
+        logging("Temp:${temperatureF}°${evt.unit}", "info")
         if (tempLast != temperatureF){     
-           logging("Temp:${temperatureF}F adjust:${correctNum}°${location.temperatureScale} [Sensor:${temp}°${location.temperatureScale} ${temperatureC}°C]", "info")
-           sendEvent(name: "temperature", value: temperatureF, unit: location.temperatureScale)
+           logging("Temp:${temperatureF}F adjust:${correctNum}°${evt.unit} [Sensor:${temp}°${evt.unit} ]", "info")
+           sendEvent(name: "temperature", value: temperatureF, unit: evt.unit)
          }  
-        return     
-		}
+       return     
+}else if (evt.name){ // trap ukn events
+      logging("Unknown Event: ${evt}", "warn")           
+      return    
         
-
-        
-
 }else if (descMap.cluster == "0500"){
-
-        if (descMap.attrId == "0002" ) {
-            value = Integer.parseInt(descMap.value, 16)// non iaszone.ZoneStatus report
-            if(value == 38 ){logging("Motion value:${value}", "debug")
-        }else if(value == 36) {logging("Inactive value:${value}", "debug")
-        } else {logging("500  Unknown value:${value}", "debug")
-            
-        }
-        
-        }else if (descMap.commandInt == "07") {
+    if (descMap.attrId == "0002" ) {
+     value = Integer.parseInt(descMap.value, 16)
+     logging("0500 IAS Zone attrId:${descMap.attrId} value:${value} #${descMap.value} ", "debug")// 36 inactive 38 active
+     return
+    }else if (descMap.commandInt == "07") {
+        logging("0500 IAS Zone attrId:${descMap.attrId} commandInt:${descMap.commandInt} data:${descMap.data}", "debug")
           if (descMap.data[0] == "00") {
-                        logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
-                        
-                       sendEvent(name: "checkInterval", value: 60 * 12, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-                    } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
-                return
-                }   
-if ( descMap.data){
-    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
- return   
-}
+              logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
+              sendEvent(name: "checkInterval", value: 60 * 12, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
+              } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
+             return
+                } 
+logging("0500 IAS Zone (Unknown) command:${descMap.command} data:${descMap.data}", "debug")    
+return  
+        
+
       
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8032"|| descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
@@ -424,6 +417,7 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
+  if(state.model =="3326"){  state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3326-L.jpg' >"}
   if(state.model =="3326-L"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3326-L.jpg' >"}
   state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
