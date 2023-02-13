@@ -1,10 +1,7 @@
 # hubitat-code
- All production drivers are now in the Hubitat Package Manager
+ Hubitat Drivers and Aps, All production drivers are now in the Hubitat Package Manager. Beta and archives are not in HPM.
 
- Test beta and drivers I no longer use are not in the HPM and includes for ref.
-
-
-# Keypads.
+ # Keypads.
 * iris v1 keypad driver for hubitat
 * iris v2 / v3 Keypad Driver for hubitat
  
@@ -58,7 +55,7 @@
 * relay/switch driver for hubitat (Sonoff MINI ZB / eWeLink /3A Smart Home /Generic)
 
 # Bulbs
-* driver for hubitat Seedan eWeLight ZB-CL01 RGBW Bulbs and others
+* driver for hubitat Seedan eWeLight ZB-CL01 RGBW Bulbs and others (eWeLight ZB-CL01)
  
 # Sage
 * SAGE Doorbell Sensor 
