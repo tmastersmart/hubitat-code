@@ -1,0 +1,21 @@
+{
+  "packageName": "CentraLite Motion Detector",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "fingerprints and new event code",
+  "version": "1.1.4",
+  "dateReleased": "2023-13-02",
+  "category":"Doors & Windows",
+   "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "drivers": [
+    {
+      "name": "CentraLite Motion Detector",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/CentraLite_motion_censor.grovy",
+      "required": "true",
+      "description": "CentraLite Motion Sensor with presence. CentraLite Model:3326-L,3325,3305,3325-S,3305-S",
+      "id": "122fe740-5083-4ed5-8978-dbab7f356c1c"
+    }
+    ]
+}
