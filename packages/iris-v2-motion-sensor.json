@@ -6,7 +6,7 @@
   "releaseNotes": "fingerprints and new event code",
   "version": "1.1.4",
   "dateReleased": "2022-22-09",
-  "category":"Doors & Windows",
+  "category": "Control",
    "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
   "drivers": [
     {
