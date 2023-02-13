@@ -3,7 +3,7 @@
     "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "Rewrite Init power up routines",
+  "releaseNotes": "",
   "version": "1.2.6",
   "dateReleased": "2023-1-11",
   "category":"Security",
