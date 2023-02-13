@@ -12,6 +12,7 @@ May work with generics
 Seedan Zigbee Smart Light Bulbs, Color Changing Light Bulb, 9W 806LM, Smart Bulb Compatible with Amazon
 Alexa and Samsung SmartThings Hub, Hub Required, E26 Dimmable LED Bulb, 2 Pack
 ======================================================================================================
+v1.0.4  02/12/2023   Routing cluster detection added
 v1.0.3  01/26/2023   Fixed Color Temp Bug
 v1.0.2  01/25/2023   Power up routine rewrite
 v1.0.1  01/03/2023   Release
@@ -377,7 +378,7 @@ def parse(String description) {
 // end events start cluster detection   
     
 // just ignore these unknown clusters for now
-if (descMap.cluster == "0500" ||descMap.cluster == "0008" ||descMap.cluster == "0300" ||descMap.cluster == "0006"  || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
+if (descMap.cluster == "0500" ||descMap.cluster == "0008" ||descMap.cluster == "0300" ||descMap.cluster == "0006"  || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8032" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
