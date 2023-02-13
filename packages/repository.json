@@ -89,13 +89,6 @@
 "description": "Improved Third Reality Water Sensor with Presence better drop out detection,battery support"
    },
    {
-"name":"Third Reality Motion Sensor",
-"category": "Control",
-"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
-"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-motion-sensor.json",
-"description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
-   },	  
-   {
 "name":"Iris Utilitech Siren driver",
 "category": "Security",
 "tags": ["Alarm Systems","Safety & Security","Misc. Devices","ZWave"], 
@@ -178,15 +171,37 @@
 "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v2-motion-sensor.json",
 "description": "Iris v2 Motion Sensor with presence. CentraLite Model:3326-L"
-   },	  
+   },	
+   {
+"name":"CentraLite Motion Detector",
+"category": "Control",
+"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+"https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/CentraLite_motion_detector.json",
+"description": "CentraLite Motion Sensor with presence. CentraLite Model:3326-L,3325,3305,3325-S,3305-S (not for motionv4 motionv5)"
+   },	    
+    {
+"name":"SmartThings Motion Detector",
+"category": "Control",
+"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+"https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings_motion_driver.json ",
+"description": "SmartThings Motion Sensor with presence. Model:motionv4,motionv5 (Not for Centralite)"
+   },	      
+ 
+ {
+"name":"Third Reality Motion Sensor",
+"category": "Control",
+"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-motion-sensor.json",
+"description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
+   },	 
  {
 "name":"Smartthings multi Sensor V3 (custom)",
 "category":  "Security",
-"tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
+"tags": ["Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-multiswitch-v3.json",
 "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence"
-   },  
- {
+   },      
+  {
 "name":"eWeLight RGBW Bulbs",
 "category":"Control",
 "tags": ["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],	   
