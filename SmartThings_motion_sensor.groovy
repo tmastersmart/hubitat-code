@@ -87,7 +87,7 @@ logging("Installed ", "warn")
 state.DataUpdate = false
 pollHR = 10
 pingIt = 30 
-state.minVoltTest = 2.2   
+state.minVoltTest = 1.0  
 configure()   
 updated()
     
@@ -255,7 +255,7 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         batteryVoltage = evt.value
         def  powerLast = device.currentValue("battery")
         def  batVolts  = device.currentValue("batteryVoltage")
-        def  minVolts  = 2.2 
+        def  minVolts  = 1.0 
         def  maxVolts  = 3
         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
     
@@ -305,7 +305,8 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
     if (descMap.attrId == "0002" ) {
     value = Integer.parseInt(descMap.value, 16)
         logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${value} #${descMap.value} ", "debug")    
- // sent 32 when inactive
+ // motion4 sent 32 when inactive
+ // motion4 sent 40 when active       
         
         }else if (descMap.commandInt == "07") {
           if (descMap.data[0] == "00") {
