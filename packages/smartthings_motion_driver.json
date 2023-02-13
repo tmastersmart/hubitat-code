@@ -1,0 +1,21 @@
+{
+  "packageName": "Smartthings Motion Detector",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "",
+  "version": "1.0.2",
+  "dateReleased": "2023-13-02",
+  "category": "Control",
+   "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "drivers": [
+    {
+      "name": "Smartthings Motion Detector",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris-v2-motion-sensor.groovy",
+      "required": "true",
+      "description": "SmartThings Motion Sensor with presence. Model:motionv4,motionv5 (dont use with Centralite use Centralite driver.)",
+      "id": "48063827-916d-4b42-bee4-7f20e6fdc6cd"
+    }
+    ]
+}
