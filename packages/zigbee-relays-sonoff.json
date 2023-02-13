@@ -4,7 +4,7 @@
   "releaseNotes":   "power up routine",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.7.1",
+  "version": "1.7.2",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
