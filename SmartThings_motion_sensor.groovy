@@ -326,7 +326,7 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
               } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
              return
                 } 
-logging("0500 IAS Zone (Unknown) map:${descMap}", "debug")    
+logging("0500 IAS Zone (Unknown) command:${descMap.command} data:${descMap.data}", "debug")    
 return   
       
 // just ignore these unknown clusters for now
