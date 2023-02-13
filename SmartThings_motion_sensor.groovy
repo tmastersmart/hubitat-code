@@ -2,7 +2,7 @@
 SmartThings motion sensor for hubitat
 
 Model:STS-IRM-250
-
+motionv4
 
 
 
@@ -63,8 +63,8 @@ command "uninstall"
     
 attribute "batteryVoltage", "string"
     
-fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0020,0402,0500,0B05", outClusters:"0019", model:"3326-L", manufacturer:"CentraLite"
 
+fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters:"0019", model:"motionv4", manufacturer:"SmartThings"
 }
 preferences {
 		
@@ -305,16 +305,7 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
     if (descMap.attrId == "0002" ) {
     value = Integer.parseInt(descMap.value, 16)
         logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${value} #${descMap.value} ", "debug")    
-        if(value == 36) {
-             logging("0500 Inactive value:${value}", "debug") // testing
-        //     motionOFF()
-        }else if(value == 38 ){
-             logging("0500 Active value:${value}", "debug") // testing
-        //     motionON()
-        }else {
-            logging("0500 ${state.MFR} Unknown value:${value}", "warn")
-        } 
-
+ // sent 32 when inactive
         
         }else if (descMap.commandInt == "07") {
           if (descMap.data[0] == "00") {
@@ -415,7 +406,7 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
-  if(state.model =="3326-L"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3326-L.jpg' >"}
+//  if(state.model =="motionv4"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3326-L.jpg' >"}
   state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
 
