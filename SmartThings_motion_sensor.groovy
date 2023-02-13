@@ -2,7 +2,8 @@
 SmartThings motion sensor for hubitat
 
 Model:STS-IRM-250  (motionv4)
-motionv5
+
+motionv5 is untested and may require bat map code
 
 
 motionv4 may be sending false bat reports. Works at 1.8v in testing
@@ -66,7 +67,13 @@ attribute "batteryVoltage", "string"
 fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv5", manufacturer:"SmartThings"
 fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv4", manufacturer:"SmartThings",profileId:"0104", endpointId:"01"	    
     
-    
+// centralite also sold as samsung    
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305-S"
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3325-S"
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305"
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3325"
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3326"
+fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3326-L", deviceJoinName: "Iris Motion Sensor"
     
     
 }
@@ -259,8 +266,9 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         batteryVoltage = evt.value
         def  powerLast = device.currentValue("battery")
         def  batVolts  = device.currentValue("batteryVoltage")
-        def  minVolts  = 1.0 
+        def  minVolts  = 2.2 
         def  maxVolts  = 3
+        if(state.model =="motionv4"){minVolts  = 1.0}
         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
     
         logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
