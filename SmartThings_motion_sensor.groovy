@@ -1,16 +1,15 @@
 /* SmartThings motion sensor
 SmartThings motion sensor for hubitat
 
-Model:STS-IRM-250
-motionv4
+Model:STS-IRM-250  (motionv4)
+motionv5
 
 
-
-
+motionv4 may be sending false bat reports. Works at 1.8v in testing
 
 ===================================================================================================
 
-1.0.0    02/13/2023 First release beta test
+1.0.2    02/13/2023 First release beta test
 =================================================================================================== 
 Copyright [2023] [tmaster winnfreenet.com]
 
@@ -33,7 +32,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.1"
+    TheVersion="1.0.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      runIn(3,configure) 
@@ -63,8 +62,13 @@ command "uninstall"
     
 attribute "batteryVoltage", "string"
     
-
-fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters:"0019", model:"motionv4", manufacturer:"SmartThings"
+    
+fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv5", manufacturer:"SmartThings"
+fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv4", manufacturer:"SmartThings",profileId:"0104", endpointId:"01"	    
+    
+    
+    
+    
 }
 preferences {
 		
@@ -407,7 +411,8 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
-//  if(state.model =="motionv4"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/3326-L.jpg' >"}
+//  if(state.model =="motionv5"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/motion5.jpg' >"}
+//  if(state.model =="motionv4"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/motion4.jpg' >"}
   state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
 
