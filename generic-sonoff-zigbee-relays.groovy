@@ -25,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.2 02/12/2023   Cluster 8032 detection added
  1.7.1 01/23/2023   Power Up routine rewrite
  1.7.0 01/05/2023   icon changes
  1.6.9 12/05/2022   AutoSync option added
@@ -71,7 +72,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.1"
+    TheVersion="1.7.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -224,9 +225,9 @@ def updated() {
 
 
 void refresh(cmd) {
-    if(state.MFR){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    if(state.MFR){ logging("Refreshing ${state.MFR} ${state.model} Ver:${state.version}", "info")}
     else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
-    delayBetween([
+delayBetween([
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
     sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
@@ -414,7 +415,7 @@ def parse(String description) {
        
  
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
