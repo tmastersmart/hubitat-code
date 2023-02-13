@@ -306,27 +306,24 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         
 
 }else if (descMap.cluster == "0500"){
+    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} attrId:${descMap.attrId} commandInt:${descMap.commandInt} Data:${descMap.data}", "debug")
     if (descMap.attrId == "0002" ) {
     value = Integer.parseInt(descMap.value, 16)
-        logging("0500 ${state.MFR} non iaszone.ZoneStatus report value:${value} #${descMap.value} ", "debug")    
+        logging("0500 report value:${value} #${descMap.value} ", "debug")    
  // motion4 sent 32 when inactive
- // motion4 sent 40 when active       
+   
         
-        }else if (descMap.commandInt == "07") {
+     }else if (descMap.commandInt == "07") {
           if (descMap.data[0] == "00") {
-                        logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
-                        
-                       sendEvent(name: "checkInterval", value: 60 * 12, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-                    } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
-                return
+              logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
+              sendEvent(name: "checkInterval", value: 60 * 12, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
+              } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
+             return
                 }   
-if ( descMap.data){
-    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} data:${descMap.data}", "debug")
- return   
-}
+return   
       
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "8032" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+}else if (descMap.cluster == "0006" || descMap.cluster == "8032" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
