@@ -314,20 +314,19 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         
 
 }else if (descMap.cluster == "0500"){
-    logging("0500 IAS Zone command:${descMap.command} options:${descMap.options} attrId:${descMap.attrId} commandInt:${descMap.commandInt} Data:${descMap.data}", "debug")
     if (descMap.attrId == "0002" ) {
-    value = Integer.parseInt(descMap.value, 16)
-        logging("0500 report value:${value} #${descMap.value} ", "debug")    
- // motion4 sent 32 when inactive
-   
-        
-     }else if (descMap.commandInt == "07") {
+     value = Integer.parseInt(descMap.value, 16)
+     logging("0500 IAS Zone attrId:${descMap.attrId} value:${value} #${descMap.value} ", "debug")// motion4 sent 32 when inactive
+     return
+    }else if (descMap.commandInt == "07") {
+        logging("0500 IAS Zone attrId:${descMap.attrId} commandInt:${descMap.commandInt} data:${descMap.data}", "debug")
           if (descMap.data[0] == "00") {
               logging("IAS ZONE REPORTING CONFIG RESPONSE: ", "info")
               sendEvent(name: "checkInterval", value: 60 * 12, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
               } else {logging("IAS ZONE REPORING CONFIG FAILED - Error Code: ${descMap.data[0]} ", "warn")}
              return
-                }   
+                } 
+logging("0500 IAS Zone (Unknown) map:${descMap}", "debug")    
 return   
       
 // just ignore these unknown clusters for now
