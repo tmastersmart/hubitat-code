@@ -183,7 +183,7 @@
 "name":"SmartThings Motion Detector",
 "category": "Control",
 "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
-"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings_motion_driver.json ",
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings_motion_driver.json",
 "description": "SmartThings Motion Sensor with presence. Model:motionv4,motionv5 (Not for Centralite)"
    },	      
  
