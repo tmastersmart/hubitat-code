@@ -45,9 +45,11 @@ never reports idle unless in OFF mode. Causes dashboard color to stay red or blu
 Doesnt support modes other CT30s do. Wont reply to bat request.
 May report energySaveHeat:true, energySaveCool: true Then report False.
 
+Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.1 02/18/2023 New simulated fan and operating states for CT30/CT32 units with bad firmware.
  v5.7.0 02/16/2023 minor cleanup/logging changes. CT110 fingerprint added. 2 Stage Diff reporting fixed
                    New testing for supported functions. Non supported functions now hidden and never sent.
  v5.6.9 02/11/2023 Fan Operating State now simulated when not sent from therm. Minor changes to improve reporting
@@ -130,7 +132,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.0"
+    TheVersion="5.7.1"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      runIn(10,configure)// Forces config on updates
@@ -178,10 +180,6 @@ metadata {
   
 		fingerprint deviceId: "0x08"
 		fingerprint inClusters: "0x43,0x40,0x44,0x31"
-        
-        
-
-        
         fingerprint inClusters: "0x20,0x87,0x72,0x31,0x40,0x42,0x44,0x43,0x86"//                     * ct-30e Z-Wave USNAP Module RTZW-01
         fingerprint inClusters: "0x20,0x87,0x72,0x31,0x40,0x44,0x43,0x42,0x86,0x70,0x80,0x88" //     * ct-30 private lable alarm
         fingerprint inClusters: "0x20,0x81,0x87,0x72,0x31,0x40,0x44,0x43,0x42,0x86,0x70,0x80,0x88" //* ct-30e rev v1 Z-Wave USNAP Module RTZW-01
@@ -212,16 +210,12 @@ metadata {
        fingerprint type:"0806", mfr:"0098", prod:"6401", model:"0106",manufacturer: "Radio Thermostat", deviceJoinName:"CT-100 v9.1 Vivint Thermostat"// https://products.z-wavealliance.org/products/795?selectedFrequencyId=2
        fingerprint type:"0806", mfr:"0098", prod:"6402", model:"0100",manufacturer: "Radio Thermostat", deviceJoinName:"CT-100 Plus Radio Thermostat"//https://products.z-wavealliance.org/products/1798?selectedFrequencyId=2
 
-        
         //  https://www.opensmarthouse.org/zwavedatabase/98
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"00FD",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Radio Thermostat"//https://products.z-wavealliance.org/products/1301?selectedFrequencyId=2
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000B",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Lowes Thermostat"
        fingerprint type:"0806", mfr:"0098", prod:"6501", model:"000C",manufacturer: "Radio Thermostat", deviceJoinName:"CT-101 Iris Thermostat" 
         
        fingerprint type:"0806", mfr:"0098", prod:"6E01", model:"0000",manufacturer: "Radio Thermostat", deviceJoinName:"CT-110 Thermostat" //https://products.z-wavealliance.org/products/1333
-         
-
-        
         
        fingerprint type:"0806", mfr:"0098", prod:"C801", model:"001D",manufacturer: "Radio Thermostat", deviceJoinName:"CT-200 Vivint Element Thermostat" 
        fingerprint type:"0806", mfr:"0098", prod:"C801", model:"0022",manufacturer: "Radio Thermostat", deviceJoinName:"CT-200X Vivint Element Thermostat" 
@@ -247,8 +241,12 @@ if (state.parameter[8]){
     input(  "heatDiff", "number", title: "2 Stage Heat differential", description: "Only for 2 stage ElectHeat or HeatPumps. 2nd stage engages when x above setpoint.(2 to 6)", defaultValue: 2,required: true)
     input(  "coolDiff", "number", title: "2 Stage Cool differential", description: "Only for 2 stage HeatPumps. (ignore if not using)(2 to 6)", defaultValue: 2,required: true)
 }
-if (state.parameter[7]){input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on.", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)}
-if (state.parameter[9]){input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. ",  options: ["fast", "economy"], defaultValue: "economy",required: true }
+if (state.parameter[7]){
+    input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on.", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)
+  }
+if (state.parameter[9]){
+    input name: "recovery", type: "enum", title: "Recovery mode", description: "Fast or economy. ",  options: ["fast", "economy"], defaultValue: "economy",required: true 
+   }
     input name: "onlyMode", type: "enum", title: "Mode Bypass", description: "Heat or Cool only mode",  options: ["off", "heatonly","coolonly"], defaultValue: "off",required: true 
     input(  "polling", "enum", title: "Polling minutes", description: "Polling Chron. Press Config after changing ", options: ["5","10","15","20","25","30","35","40","45","50","55",],defaultValue: 15,required: true)
 
@@ -256,9 +254,10 @@ if (state.parameter[9]){input name: "recovery", type: "enum", title: "Recovery m
     input name: "autocorrect", type: "bool", title: "Auto Correct setpoints", description: "Keep thermostat settings matching hub (this will overide local changes)", defaultValue: false,required: true
     input(  "autocorrectNum", "number", title: "Auto Correct errors", description: "send auto corect after number of errors detected. ", defaultValue: 5,required: true)
 
-input name: "ignorebat", type: "bool", title: "Ignore Bat reports", description: "If no batteries inserted. Batteries are not needed if main powered.", defaultValue: false,required: true
-    
-
+if (state.parameter[19]){
+    input name: "FirmwareFix", type: "bool", title: "Simulate States", description: "Bad Firmware Fix. Simulates fan and operating states. Fixes dashboard staying red or blue when not running.", defaultValue: false,required: false
+}
+    input name: "ignorebat", type: "bool", title: "Ignore Bat reports", description: "If no batteries inserted. Batteries are not needed if main powered.", defaultValue: false,required: true    
 }
 
 def installed(){
@@ -456,6 +455,7 @@ def updateParameters(){// set the info line
     if(!state.parameter[11]) {state.parameter[11]=0}
     if(!state.parameter[17]) {state.parameter[17]=0}
     if(!state.parameter[18]) {state.parameter[18]=0}
+    if(!state.parameter[19]) {state.parameter[19]=0}
     
     if (state.parameter[1]){text +="TempReportThreshold,"}
     if (state.parameter[2]){text +="HVAC,"}
@@ -466,7 +466,7 @@ def updateParameters(){// set the info line
     if (state.parameter[7]){text +="Swing,"}
     if (state.parameter[8]){text +="Diff,"}
     if (state.parameter[9]){text +="Recovery,"}
-    if (state.parameter[10]){text +="unknown,"}
+//  if (state.parameter[10]){text +="unknown,"}
     if (state.parameter[11]){text +="UI,"}
     if (state.parameter[12]){text +="Temp,"}
     if (state.parameter[13]){text +="Hum,"}
@@ -475,6 +475,7 @@ def updateParameters(){// set the info line
     if (state.parameter[16]){text +="FanState,"}
     if (state.parameter[17]){text +="energySaveHeat,"}
     if (state.parameter[18]){text +="energySaveCool"}
+//  if (state.parameter[19]){text +="fix"}
     
     state.info ="Supported Parameters: ${text}"
 }
@@ -494,9 +495,10 @@ def parse(String description)
 // 0x81:1  Clock
 // 0x85:1  Association
 // 0x86:1  Version
+// 0x87:1  Indicator    
 // 0x98:1  Security
    //def zwcmd = zwave.parse(description, [0x42:2, 0x43:2, 0x31: 2, 0x60: 3]) old code
-   CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1,0x98:1]   
+   CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1,0x87:1,0x98:1]   
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
    if (!map) {
    logging("Unable to Parse ${description}", "error")   
@@ -600,51 +602,83 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport 
 // E3
 def zwaveEvent(hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport cmd)
 {
-	def map = [:]
     logging("E3 Received State ${cmd.operatingState}", "debug")
-    map.name = "thermostatOperatingState"
-    map.value = "unknown"
+    if (FirmwareFix){
+      ct30OperatingFix()
+      return 
+     } 	
+    value = "idle"
 	switch (cmd.operatingState) {
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_IDLE:
-			map.value = "idle"
+			value = "idle"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_HEATING:
-			map.value = "heating"
+			value = "heating"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_COOLING:
-			map.value = "cooling"
+			value = "cooling"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_FAN_ONLY:
-			map.value = "fan only"
+			value = "fan only"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_HEAT:
-			map.value = "pending heat"
+			value = "pending heat"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_PENDING_COOL:
-			map.value = "pending cool"
+			value = "pending cool"
 			break
 		case hubitat.zwave.commands.thermostatoperatingstatev1.ThermostatOperatingStateReport.OPERATING_STATE_VENT_ECONOMIZER:
-			map.value = "vent economizer"
+			value = "vent economizer"
 			break
 	}
     
-     if(state.model =="CT30e bad"){
-        logging("E3 Received State. Ignoring defective firmware ${state.model}", "debug")
-        map.value = "idle"
-       } 	
-    logging("E3 ${map.name} - ${map.value} ", "info2")
-    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
+    
+    logging("E3 Operating State - ${value} ", "info2")
+    sendEvent(name: "thermostatOperatingState", value: value,descriptionText: "Operating State ${value} ${state.version}", isStateChange:true)
+
+fanStateFix()
+}
 
 // --------------simulate fan state for ct sending bad data--------------------
-    fanTest  = device.currentValue("thermostatFanMode")
-    if(fanTest == "fanAuto"){ // fan should follow operating state if in auto
-     if (map.value == "idle"){ value = "idle"}
-        else {value = "running"}  
-    }   
-    else if (fanTest == "fanOn"){value = "running"}     
-    logging("E3 Fan State Simulated: ${value} ", "info2")
-    sendEvent(name: "thermostatFanState", value: value,descriptionText: "Simulated FanState ${value} ${state.version}", isStateChange:true)
+private fanStateFix(){
+fanTest  = device.currentValue("thermostatFanMode")
+fanSTest = device.currentValue("thermostatFanState")     
+OpeTest  = device.currentValue("thermostatOperatingState")
+if(fanTest == "fanAuto"){ // fan should follow operating state if in auto
+ if (OpeTest == "idle"){ value = "idle"}
+ else {value = "running"}  
+ } 
+else if (fanTest == "fanOn"){value = "running"} 
+
+if (fanSTest == value){return}// all is ok just exit
+logging("E4.2 Fan State Simulated: ${value} ", "info2")
+sendEvent(name: "thermostatFanState", value: value,descriptionText: "Simulated Fan State ${value} ${state.version}", isStateChange:true)
+    
 }
+
+private ct30OperatingFix(){
+fanTest   = device.currentValue("thermostatFanMode")
+modeTest  = device.currentValue("thermostatMode") 
+tempTest  = device.currentValue("temperature")    
+// set the operating state 
+value="idle"    
+ if (modeTest =="heat"){ 
+     if (tempTest < state.SetHeat){value="heating"}
+ }
+ if (modeTest =="cool"){ 
+     if (tempTest > state.SetCool){value="cooling"}
+ }         
+logging("E3.1 Operating State Simulated: ${value} ", "info2")
+sendEvent(name: "thermostatOperatingState", value: value,descriptionText: "Simulated Operating State ${value} ${state.version}", isStateChange:true)
+// set the fan operating state 
+valueF="idle"  
+if(fanTest == "fanOn" || value == "heating" || value=="cooling"){ valueF="running"}
+logging("E4.1 Fan State Simulated: ${value} ", "info2")
+sendEvent(name: "thermostatFanState", valueF: value,descriptionText: "Simulated Fan State ${valueF} ${state.version}", isStateChange:true)
+
+    
+}
+
 // Fan State Report 
 def zwaveEvent(hubitat.zwave.commands.thermostatfanstatev1.ThermostatFanStateReport cmd) {
     logging("E4 Received Fan State ${cmd.fanOperatingState}", "debug")
@@ -715,12 +749,7 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
     logging("E6 ${map.name} - ${map.value} ", "info2")
     sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
  
-// This is simulated due to ct not sending fan state
-    if (map.value == "fanOn" || map.value == "fanCirculate" ){ 
-        value = "running"
-        logging("E6 Simulated Fan State: ${value} ", "info2")
-        sendEvent(name: "thermostatFanState", value: value,descriptionText: "Simulated FanState ${value} ${state.version}", isStateChange:true)
-    }
+    fanStateFix()
 
 }
 //off:true, heat:true, cool:true, auto:true, auxiliaryemergencyHeat:false, resume:false, fanOnly:false, furnace:false, energySaveHeat:false, energySaveCool: false, away:false
@@ -933,16 +962,19 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
 //   state.remove("fingerprint")
     
    state.model ="unknown"
-    
+   state.parameter[19] =0 // disable the Firmware fix
     if (map.type=="1E12" | map.type=="1E10" | map.type=="0000" | map.type=="0001"){
-      state.model ="CT30"  
+      state.model ="CT30"
+      state.parameter[19] =1 // Allow the Firmware fix  
       if (map.model=="015E") {state.model ="CT30e rev.01"}
       if (map.model=="015C") {state.model ="CT30e"}
       if (map.model=="001E") {state.model ="CT30e bad"}  
     } 
     
-    if (map.type=="2002" ){ state.model ="CT32"}// 0002:0100,2002:0100,2002:0102 
-    if (map.type=="0002" ){ state.model ="CT32"}
+    if (map.type=="2002" || map.type=="0002"){ 
+        state.model ="CT32"
+        state.parameter[19] =1 // Allow the Firmware fix
+    }
     if (map.type=="3200" ){ state.model ="CT50"}
     if (map.type=="5003" ){ state.model ="CT80"}
     if (map.type=="6401" || map.type=="6402" || map.type=="0015"){ state.model ="CT100"} 
@@ -977,32 +1009,21 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
 // VersionReport(zWaveLibraryType:3, zWaveProtocolVersion:2, zWaveProtocolSubVersion:78, applicationVersion:5, applicationSubVersion:0)
 // VersionReport(zWaveLibraryType:3, zWaveProtocolVersion:3, zWaveProtocolSubVersion:28, applicationVersion:9, applicationSubVersion:0)   
 def zwaveEvent(hubitat.zwave.commands.versionv1.VersionReport cmd) {
-  
-//    device.updateDataValue("firmwareVersion",   "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
-    device.updateDataValue("protocolVersion",   "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
-    device.updateDataValue("applicationVersion","${cmd.applicationVersion}.${cmd.applicationSubVersion}")
-//    device.updateDataValue("hardwareVersion",   "${cmd.hardwareVersion}")
-    logging("E12 VersionReport v1 protocolVersion: ${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion} applicationVersion: ${cmd.applicationVersion}.${cmd.applicationSubVersion}", "info2")
-    
+   device.updateDataValue("protocolVersion",   "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
+   device.updateDataValue("applicationVersion","${cmd.applicationVersion}.${cmd.applicationSubVersion}")
+   logging("E12 VersionReport v1 protocolVersion: ${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion} applicationVersion: ${cmd.applicationVersion}.${cmd.applicationSubVersion}", "info2")
 }
-
-
 
 def zwaveEvent(hubitat.zwave.Command cmd ){
-    
-  if (debugLogging){logging("E11 Received Untrapped (${cmd})", "warn")}    
-    
-
+  if (debugLogging){logging("E11 Received command Untrapped (${cmd})", "warn")}    
 }
 
-
-    
-// have yet to see data here
 def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
-    logging("Received E12 v2${cmd}", "info")
-    device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
-    device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
-    device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
+ if (debugLogging){logging("E12 Received v2 Untrapped (${cmd})", "warn")}  
+    
+//    device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
+//    device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
+//   device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
 }
 
 //==================heating
@@ -1119,12 +1140,20 @@ def setThermostatMode(String value) {
     else if(value == "heat"){ set = 1}
     else if(value == "cool"){ set = 2}
     else if(value == "auto"){ set = 3}
-    else if(value == "energySaveHeat"){set = 1 }
-    else if(value == "energySaveCool"){set = 2 }
-    
-    
-    
+    else if(value == "energySaveHeat"){set = 1}
+    else if(value == "energySaveCool"){set = 2}
     else if(value == "emergency heat"){set = 4}
+
+// not working test code  
+//    else if(value == "emergency heat"){
+//       Etest  = device.currentValue("supportedThermostatModes")
+//      if ("emergency heat" in Etest ){ set = 4}
+//       else{ 
+//            set = 1
+//            logging("E20 emergency heat not supported", "warn")
+//        }
+//    }
+    
     // process heat cool or only
     else if(value == "heat" && onlyMode == "coolonly"){ 
        coolOnly()
@@ -1183,6 +1212,11 @@ def cool() {setThermostatMode("cool")}
 def auto() {setThermostatMode("auto")}
 def emergencyHeat() {setThermostatMode("emergency heat")}
 
+def fanOn()        {setThermostatFanMode("On")}
+def fanAuto()      {setThermostatFanMode("Auto")}
+def fanCirculate() {setThermostatFanMode("Circulate")}// not supported
+
+
 
 // fan settings------------------------------
 // E21
@@ -1191,7 +1225,7 @@ def setThermostatFanMode(String value) {
     if(value == "Auto"){   set=0}
     else if(value == "On"){set=1}
     else {
-    runIn(2,configure) // We need to reconfig the values are not set correct  
+    runIn(10,configure) // Unsupported We need to reconfig 
     return
     }
     logging("E21 SetFanMode:${value}", "info")
@@ -1204,27 +1238,24 @@ def setThermostatFanMode(String value) {
         zwave.thermostatOperatingStateV1.thermostatOperatingStateGet().format(),
 	], 2500)   
 }
-def fanOn()        {setThermostatFanMode("On")}
-def fanAuto()      {setThermostatFanMode("Auto")}
-def fanCirculate() {setThermostatFanMode("Circulate")}
 
 
 
-// CUSTOMIZATIONS
+// Decapsulate command
 def zwaveEvent(hubitat.zwave.commands.multiinstancev1.MultiInstanceCmdEncap cmd) {   
-//    Decapsulate command 
     def encapsulatedCommand = cmd.encapsulatedCommand([0x31: 2])
     if (encapsulatedCommand) {
         logging("E14 ${encapsulatedCommand}", "debug")
         return zwaveEvent(encapsulatedCommand)
     }
+    else {logging("E14 No encapsulatedCommand found", "debug")}
 }
 // E15
 def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
     logging("E15 battery  ${cmd}", "debug")
     state.parameter[14]=1
     if (cmd.batteryLevel == 0xFF){ // I have never seen this but its in the spec.
-        logging("---- Power Restored ----", "info")
+        logging("E15 - Power Restored -", "info")
         sendEvent(name: "powerSource", value: "mains",descriptionText: "Power Mains ${state.version}", isStateChange: true)
         return
     }
