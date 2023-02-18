@@ -3,11 +3,12 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "",
+  "releaseNotes": "First Release",
   "version": "1.0.2",
   "dateReleased": "2023-13-02",
   "category": "Control",
-   "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "apps" : [],
   "drivers": [
     {
       "name": "SmartThings Motion Detector",
