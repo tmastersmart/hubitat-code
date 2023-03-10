@@ -25,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.3 03/09/2023   Bug fix in recovery line 249
  1.7.2 02/12/2023   Cluster 8032 detection added
  1.7.1 01/23/2023   Power Up routine rewrite
  1.7.0 01/05/2023   icon changes
@@ -72,7 +73,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.2"
+    TheVersion="1.7.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -246,6 +247,7 @@ def ping() {
 // Resend the proper state to get back in sync
 def sync (){
     if(autoSync == false){return}
+    if (!state.error){state.error = 0}
     state.error = state.error +1 
     if(state.error > 12){
     logging("Loss of control. Resync falure. Errors:${state.error}", "warn") 
@@ -315,14 +317,15 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // presence routine. v5 11-12-22
+    // presence routine. v5.1 03-10-23
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
     def checkMin = 200
     def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
-    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+//  logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+    logging("Check Presence its been ${state.lastCheckInMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
         state.tries = 0
         test = device.currentValue("presence")
@@ -388,7 +391,6 @@ def parse(String description) {
             return
         }
         
-        logging("ON/OFF report [${status}]", "debug")
       if (status == "01"){onEvents()}
       if (status == "00"){offEvents()}
      
@@ -435,8 +437,9 @@ def parse(String description) {
 
 // prevent dupe events
 def onEvents(){
+    logging("ON report", "debug")
     Test = device.currentValue("switch")
-    logging("is ON our state was:${Test}", "info")
+    logging("is ON our last state was:${Test}", "info")
     if (Test != "on"){sendEvent(name: "switch", value: "on",isStateChange: true)}
     
     if (state.Alarm == "alarm"){ sendEvent(name: "alarm", value: "on",isStateChange: true)}
@@ -448,6 +451,7 @@ def onEvents(){
     }
 }
 def offEvents(){
+    logging("OFF report", "debug")
     alarmTest = device.currentValue("alarm")   
     if (alarmTest != "off"){sendEvent(name: "alarm",  value: "off",isStateChange: true)}
     alarmTest = device.currentValue("siren") 
@@ -456,7 +460,7 @@ def offEvents(){
     if (alarmTest != "off"){sendEvent(name: "strobe", value: "off",isStateChange: true)}
     Test = device.currentValue("switch")
     if (Test != "off"){ sendEvent(name: "switch", value: "off",isStateChange: true)}
-    logging("is OFF our state was:${Test}", "info")
+    logging("is OFF our last state was:${Test}", "info")
     if (autoSync== true){ 
      if (state.switch == true){sync()} 
     }
