@@ -25,7 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
- 1.7.3 03/09/2023   Bug fix in recovery line 249
+ 1.7.3 03/10/2023   Bug fix in recovery line 249
  1.7.2 02/12/2023   Cluster 8032 detection added
  1.7.1 01/23/2023   Power Up routine rewrite
  1.7.0 01/05/2023   icon changes
