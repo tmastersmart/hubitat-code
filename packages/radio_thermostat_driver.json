@@ -3,10 +3,10 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "new C/F routines,Fix for google home",
+  "releaseNotes": "c/f mismatch detection,new C/F routines,Fix for google home",
   "documentationLink": "http://www.winnfreenet.com/wp/2022/08/radio-thermostat-zwave-hubitat-driver-ct101-ct30/",
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
-  "version": "5.7.3",
+  "version": "5.7.4",
   "dateReleased": "2022-22-09",
 	    "category": "Control",
       "tags": [
