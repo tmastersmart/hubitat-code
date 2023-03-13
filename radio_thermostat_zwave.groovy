@@ -9,6 +9,8 @@ Supports
 poll chron, time set chron,humidity,heat or cool only,C-wire,Diff,Mans detection
 Google Home
 
+C/F notice your hub must match your thermostats settings no conversion is done.
+Go to Hub Settings set C/F then go to thermostat and set C/F to match
 ______          _ _         _____ _                                   _        _   
 | ___ \        | (_)       |_   _| |                                 | |      | |  
 | |_/ /__ _  __| |_  ___     | | | |__   ___ _ __ _ __ ___   ___  ___| |_ __ _| |_ 
@@ -50,6 +52,7 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.4 03/13/2023 error detection for c/f mismatch
  v5.7.3 03/10/2023 Rewrote C/F routines. 
  v5.7.2 02/19/2023 Simulated ct30 state dupes removed.Better log. Event codes reordered
                    Google Home support added
@@ -140,7 +143,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.3"
+    TheVersion="5.7.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      runIn(10,configure)// Forces config on updates
@@ -1112,8 +1115,8 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
 	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
 	def p = (state.precision == null) ? 1 : state.precision
+    if (state.scale !=locationScale){logging("E14 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${state.scale} Both Must match", "error")}
 
-    if (state.scale !=locationScale){logging("*E14 ERROR Hub scale:${locationScale} != thermostat Scale:${state.scale} MUST FIX NOW!", "error")}
 //    def convertedDegrees
 //    if (locationScale == "C" && deviceScaleString == "F") {
 //    	convertedDegrees = celsiusToFahrenheit(degrees)
@@ -1166,7 +1169,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     def locationScale = getTemperatureScale()
 	def p = (state.precision == null) ? 1 : state.precision
 
-    if (state.scale !=locationScale){logging("*E15 ERROR Hub scale:${locationScale} != thermostat Scale:${state.scale} MUST FIX NOW!", "error")}
+    if (state.scale !=locationScale){logging("E15 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${state.scale} Both Must match", "error")}
 //    def convertedDegrees
 //    if (locationScale == "C" && deviceScaleString == "F") {
 //    	convertedDegrees = celsiusToFahrenheit(degrees)
