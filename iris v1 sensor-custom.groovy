@@ -1,4 +1,4 @@
-      /* Iris v1 contact sensor-custom
+/* Iris v1 contact sensor-custom
 
 iris v1 contact sensor for hubitat
 
@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.3.0 03/16/2023 Bug in min volt storage
 v3.2.9 12/10/2022 Auto min adj started throwing errors. Rewritten
                   firmware verson to hard to read fixed
 v3.2.8 12/05/2022 was not ref after ranging
@@ -108,7 +109,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.2.9"
+    TheVersion="3.3.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -406,7 +407,7 @@ def checkPresence() {
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
          sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
-         state.minVoltTest = device.currentValue("batteryVoltage")   
+         state.minVolt = device.currentValue("batteryVoltage")   
          return // we dont want a ping after this or it could toggle
          }
          
