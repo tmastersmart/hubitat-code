@@ -516,7 +516,10 @@ def parse(String description) {
     	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
         // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
         // what is the lowest voltage this device can work on.
-       if(state.minVoltTest){state.remove("minVoltTest")}   
+       if(state.minVoltTest){
+           state.minVolt = state.minVoltTest
+           state.remove("minVoltTest")
+           }   
        if(!state.minVolt){
        state.minVolt= 2.21
        logging("Min voltage set to ${state.minVolt}v Let bat run down to 0 for auto adj to work.", "info")
