@@ -2,6 +2,7 @@
 Hubitat driver for radio thermostat
 Hubitat driver for Iris CT101 Thermostat
 Radio Thermostat Company of America (RTC)
+Building a better thermostat driver that just works.....
 
 CT30,CT32,CT50,CT80,CT100,CT101,CT110,CT200
 
@@ -52,6 +53,8 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.6 03/17/2023 CT30 was corrupting modes. Mode setup rewritten with bug checking
+ v5.7.5 03/13/2023 get rid of nulls in database fields
  v5.7.4 03/13/2023 error detection for c/f mismatch
  v5.7.3 03/10/2023 Rewrote C/F routines. 
  v5.7.2 02/19/2023 Simulated ct30 state dupes removed.Better log. Event codes reordered
@@ -143,7 +146,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.4"
+    TheVersion="5.7.6"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      runIn(10,configure)// Forces config on updates
@@ -457,19 +460,30 @@ logging("Sending >> configurationGet (4,7,8,9 = cwire,swing,diff,recovery", "tra
 
 def updateParameters(){// set the info line
     text =""
+    // build the database
     if(!state.parameter) {state.parameter=[]}
-    state.parameter[0] =0
-    state.parameter[3] =0
-    state.parameter[10] =0
+    if(!state.parameter[1]) {state.parameter[1]=0}
+    if(!state.parameter[2]) {state.parameter[2]=0}
+    if(!state.parameter[3]) {state.parameter[3]=0}
+    if(!state.parameter[4]) {state.parameter[4]=0}
+    if(!state.parameter[5]) {state.parameter[5]=0}
+    if(!state.parameter[6]) {state.parameter[6]=0}
+    if(!state.parameter[7]) {state.parameter[7]=0}
+    if(!state.parameter[8]) {state.parameter[8]=0}    
     if(!state.parameter[7]) {state.parameter[7]=0}
     if(!state.parameter[8]) {state.parameter[8]=0}
-    if(!state.parameter[8]) {state.parameter[9]=0}
-    if(!state.parameter[14]) {state.parameter[14]=0}
+    if(!state.parameter[9]) {state.parameter[9]=0}
+    if(!state.parameter[10]) {state.parameter[10]=0}
     if(!state.parameter[11]) {state.parameter[11]=0}
+    if(!state.parameter[12]) {state.parameter[12]=0}
+    if(!state.parameter[13]) {state.parameter[13]=0}
+    if(!state.parameter[14]) {state.parameter[14]=0}
+    if(!state.parameter[15]) {state.parameter[15]=0}
+    if(!state.parameter[16]) {state.parameter[16]=0}
     if(!state.parameter[17]) {state.parameter[17]=0}
     if(!state.parameter[18]) {state.parameter[18]=0}
     if(!state.parameter[19]) {state.parameter[19]=0}
-    
+// build the info line from the database
     if (state.parameter[1]){text +="TempReportThreshold,"}
     if (state.parameter[2]){text +="HVAC,"}
     if (state.parameter[3]){text +="Lock,"}
@@ -488,7 +502,7 @@ def updateParameters(){// set the info line
     if (state.parameter[16]){text +="FanState,"}
     if (state.parameter[17]){text +="energySaveHeat,"}
     if (state.parameter[18]){text +="energySaveCool"}
-//  if (state.parameter[19]){text +="fix"}
+    if (state.parameter[19]){text +="Firmwarefix"}
     
     state.info ="Supported Parameters: ${text}"
 }
@@ -816,38 +830,32 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
     fanStateFix()
 
 }
-//off:true, heat:true, cool:true, auto:true, auxiliaryemergencyHeat:true, resume:false, fanOnly:false, furnace:false, energySaveHeat:false, energySaveCool: false, away:false
+// --------read the MODES from Thermostat ----------
+// off:true, heat:true, cool:true, auto:true, auxiliaryemergencyHeat:true, resume:false, fanOnly:false, furnace:false, energySaveHeat:false, energySaveCool: false, away:false
 // autoChangeover dryAir moistAir resume
+// new firmware update requires quotes ["off", "heat", "cool", "auto", "emergency heat"] 
+// Bug fix for CT30 bad reports energySaveHeat & energySaveCool then reports it doesnt have them? 
+// Ignore energySave and treat it as cool heat
 def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeSupportedReport cmd) {
-	def supportedModes = ""
+	def supportedModes = '"off"'// force off as the first mode
     logging("E7 Received ${cmd}", "debug")
     if(cmd.energySaveHeat) { state.parameter[17]=1 }
     if(cmd.energySaveCool) { state.parameter[18]=1 }
-    
-    
-	if(cmd.off) { supportedModes += '"off"' }
-	if(cmd.heat) { supportedModes += ',"heat"' }
-	if(cmd.auxiliaryemergencyHeat) { supportedModes += ',"emergency heat"' }
-    if(cmd.cool) { supportedModes += ',"cool"' }
-    if(cmd.auto) { supportedModes += ',"auto"' }
-//off:false, heat:false, cool:false, auto:false, auxiliaryemergencyHeat:false, resume:false, fanOnly:false, furnace:false, energySaveHeat:true, energySaveCool: true, away:false)
-    if(cmd.energySaveHeat) { supportedModes += ',"energySaveHeat"' } // CT30 bad reports these then reports it doesnt have them?
-    if(cmd.energySaveCool) { supportedModes += ',"energySaveCool"' }
-     
-    
-    
-    
-
-// custom setup for heat or cool only    
- 	if(onlyMode == "coolonly"){supportedModes = '"off","cool"'}
- 	if(onlyMode == "heatonly"){supportedModes = '"off","heat"'
+//	if(cmd.off) { supportedModes += '"off"' }
+	if(cmd.heat || cmd.energySaveHeat) { supportedModes += ',"heat"' 
      if(cmd.auxiliaryemergencyHeat) { supportedModes += ',"emergency heat"' }
-    }        
+     }
+    if(cmd.cool || cmd.energySaveCool) { supportedModes += ',"cool"' }
+    if(cmd.auto) { supportedModes += ',"auto"' }
+    
+ 	if(onlyMode == "coolonly"){supportedModes = '"off","cool"'}// custom setup for AC only
+    if(onlyMode == "heatonly"){supportedModes = '"off","heat"' // custom setup for HEAT only
+      if(cmd.auxiliaryemergencyHeat) { supportedModes += ',"emergency heat"' }
+      }
     logging("E7 supportedModes [${supportedModes}]", "info2")
     sendEvent(name: "supportedThermostatModes", value: "[${supportedModes}]",descriptionText: "${supportedModes} ${state.version}", isStateChange:true)
-//  new firmware update requires quotes ["off", "heat", "cool", "auto", "emergency heat"] 
-    
 }
+
 // auto:true, low: true, autoHigh: false, high: false autoMedium:false, medium:false circulation:false, humidityCirculation:false
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeSupportedReport cmd) {
 	def supportedFanModes = '' // ["Auto","On"]
@@ -1555,6 +1563,7 @@ private logging(String message, String level) {
 }
 
 /*
+Building a better thermostat driver that just works.....
 
 Radio Thermostat CT30 hubitat driver
 Radio Thermostat CT32 hubitat driver
