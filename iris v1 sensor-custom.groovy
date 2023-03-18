@@ -22,6 +22,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.3.1 03/18/2023 Changed to 2 dec bat voltage, If you see errors reinitalise to reset bat mins
 v3.3.0 03/16/2023 Bug in min volt storage
 v3.2.9 12/10/2022 Auto min adj started throwing errors. Rewritten
                   firmware verson to hard to read fixed
@@ -109,8 +110,10 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.3.0"
- if (state.version != TheVersion){ 
+    TheVersion="3.3.1"
+    
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
@@ -248,13 +251,18 @@ def initialize() {
 
 	state.presenceUpdated = 0
 	state.rangingPulses = 0
+    
+    // reset the min bat state
+    state.remove("state.minVolt")
+
 
 	// Remove state variables from old versions.
     state.remove("operatingMode")
     state.remove("LQI")
-    
+    state.remove("operatingMode")
+    removeDataValue("state.minVoltTest")
 	// Remove unnecessary device details.
-	removeDataValue("application")
+	
 
 
     if(!option1){sendEvent(name: "powerSource", value: "battery")}
@@ -513,22 +521,20 @@ def parse(String description) {
      // some sensors report bat and temp at diffrent times some both at once?
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-    	batteryVoltage = batteryVoltageRaw.setScale(3, BigDecimal.ROUND_HALF_UP)
+    	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
+     logging("BAT voltage RAW:${batteryVoltageRaw} Converted:${batteryVoltage}v ", "debug")
         // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
         // what is the lowest voltage this device can work on.
-       if(state.minVoltTest){
-           state.minVolt = state.minVoltTest
-           state.remove("minVoltTest")
-           }   
        if(!state.minVolt){
-       state.minVolt= 2.21
+       state.minVolt= 2.19 // can work to 2.109
        logging("Min voltage set to ${state.minVolt}v Let bat run down to 0 for auto adj to work.", "info")
        }  
-       if (batteryVoltageRaw < state.minVolt){
+       //  Map clusterId:00F0 command:FB map:[1F, 40, 40, 6F, 04, 22, 0B, AC, 00, D5, FF, 03, 02]
+       if (batteryVoltage < state.minVolt){
           if (state.minVolt > 2.17){ 
-                state.minVolt = batteryVoltageRaw
-                logging("Min Voltage Lowered to ${state.minVolt}v", "info")  
-           }                             
+                state.minVolt = batteryVoltage
+               logging("Min Voltage Lowered to ${state.minVolt}v", "info")  
+          }                             
        } 
 		BigDecimal batteryPercentage = 0
         BigDecimal batteryVoltageScaleMin = state.minVolt 
