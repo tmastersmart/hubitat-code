@@ -3,10 +3,7 @@
 iris v1 contact sensor for hubitat
 
 Totaly rewritten battery support.
-No more negative battery readings. Min voltage will auto adjust to sensor.
-This is new and will be added to all my scripts.
-The default settings supplied by iris are wrong and vary from device to device.
-
+No more negative battery readings.
 
 Adjustment for temp sensor
 
@@ -22,6 +19,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.3.2 09/20/2023 Bug in min volt testing causing error
 v3.3.1 03/18/2023 Changed to 2 dec bat voltage, If you see errors reinitalise to reset bat mins
 v3.3.0 03/16/2023 Bug in min volt storage
 v3.2.9 12/10/2022 Auto min adj started throwing errors. Rewritten
@@ -110,7 +108,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.3.1"
+    TheVersion="3.3.2"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -259,8 +257,8 @@ def initialize() {
 	// Remove state variables from old versions.
     state.remove("operatingMode")
     state.remove("LQI")
-    state.remove("operatingMode")
-    removeDataValue("state.minVoltTest")
+    state.remove("minVoltTest")
+
 	// Remove unnecessary device details.
 	
 
@@ -522,22 +520,9 @@ def parse(String description) {
      if (batteryVoltageHex != "FFFF") {
      	batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
     	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
-     logging("BAT voltage RAW:${batteryVoltageRaw} Converted:${batteryVoltage}v ", "debug")
-        // Auto adjustment like iris hub did it  2.17 is 0 on the test device 
-        // what is the lowest voltage this device can work on.
-       if(!state.minVolt){
-       state.minVolt= 2.19 // can work to 2.109
-       logging("Min voltage set to ${state.minVolt}v Let bat run down to 0 for auto adj to work.", "info")
-       }  
-       //  Map clusterId:00F0 command:FB map:[1F, 40, 40, 6F, 04, 22, 0B, AC, 00, D5, FF, 03, 02]
-       if (batteryVoltage < state.minVolt){
-          if (state.minVolt > 2.17){ 
-                state.minVolt = batteryVoltage
-               logging("Min Voltage Lowered to ${state.minVolt}v", "info")  
-          }                             
-       } 
-		BigDecimal batteryPercentage = 0
-        BigDecimal batteryVoltageScaleMin = state.minVolt 
+        logging("BAT voltage RAW:${batteryVoltageRaw} Converted:${batteryVoltage}v ", "debug")
+        BigDecimal batteryPercentage = 0
+        BigDecimal batteryVoltageScaleMin = 2.19   // in testing various results depending on sensor.
 		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
@@ -549,7 +534,7 @@ def parse(String description) {
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
           logging("Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
 
-          if (batteryVoltageRaw < state.minVolt){state.minVolt = batteryVoltageRaw}  // Record the min volts seen working      
+          if (batteryVoltage < batteryVoltageScaleMin){state.minVolt = batteryVoltage}  // Record the min volts seen working      
          } // end dupe events detection
 
         }// end battery report  
