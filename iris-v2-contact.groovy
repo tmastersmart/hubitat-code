@@ -248,9 +248,11 @@ def configure() {
 
 
 def parse(String description) {
+    clientVersion()
     logging("Parse: [${description}]", "trace")
     state.lastCheckin = now()
     checkPresence()
+    
    
     if (description?.startsWith('enroll request')) { 
      zigbee.enrollResponse()
