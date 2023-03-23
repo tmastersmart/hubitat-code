@@ -19,7 +19,8 @@ added option to ignore tamper on broken cases.
 
 
 =================
-v3.3.2 09/20/2023 Bug in min volt testing causing error
+v3.3.3 03/23/2023 Bat request in refresh
+v3.3.2 03/20/2023 Bug in min volt testing causing error
 v3.3.1 03/18/2023 Changed to 2 dec bat voltage, If you see errors reinitalise to reset bat mins
 v3.3.0 03/16/2023 Bug in min volt storage
 v3.2.9 12/10/2022 Auto min adj started throwing errors. Rewritten
@@ -108,7 +109,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.3.2"
+    TheVersion="3.3.3"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -360,7 +361,10 @@ def ping(){
 
 void refresh() {
     logging("Refreshing ${state.model} v${state.version}", "info")
-	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"])// version information request
+    delayBetween([ 
+    sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00F6 {11 00 FC 01} {0xC216}"]),// version information request    
+	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x0500 {11 80 00 00 05} {0xC216}"]),// Forces Bat report (normal mode)
+    ], 3000)   
 }
 
 // 3 seconds mains 6 battery  2 flash good 3 bad
@@ -522,7 +526,7 @@ def parse(String description) {
     	batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
         logging("BAT voltage RAW:${batteryVoltageRaw} Converted:${batteryVoltage}v ", "debug")
         BigDecimal batteryPercentage = 0
-        BigDecimal batteryVoltageScaleMin = 2.19   // in testing various results depending on sensor.
+        BigDecimal batteryVoltageScaleMin = 2.18   // in testing various results depending on sensor.
 		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
