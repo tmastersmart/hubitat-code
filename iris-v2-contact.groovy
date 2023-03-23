@@ -29,6 +29,7 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
+1.8.0    03/23/2023 New hub updates broke low bat storage.
 1.7.9    01/23/2023 Fixed init startup routine
 1.7.8    12/14/2022 New bat min code
 1.7.7    11/24/2022 bug fix clustor 0013
@@ -66,13 +67,14 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.7.9"
- if (state.version != TheVersion){ 
+    TheVersion="1.8.0"
+
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
 }
-
 
 
 metadata {
@@ -135,8 +137,8 @@ updated()
 def initialize(){
     logging("initialize ", "debug")
     clientVersion()    
-    randomSixty = Math.abs(new Random().nextInt() % 180)
-    runIn(randomSixty,refresh)
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
 }
 
 
@@ -292,7 +294,8 @@ def parse(String description) {
         
          def  minVolts  = 2.2 
          def  maxVolts  = 3
-         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+// hub updates cause this to crash. Fix later      
+// if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
         
          def rawValue = Integer.parseInt(descMap.value,16)
          if (rawValue == 0 || rawValue == 255) {return} 
