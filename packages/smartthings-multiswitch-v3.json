@@ -6,7 +6,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "New min v setting,Bat event rewrite,Init power up routine rewrite",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "dateReleased": "2022-22-09",
   "category":  "Doors & Windows",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
