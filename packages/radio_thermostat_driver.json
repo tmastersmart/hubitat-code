@@ -8,7 +8,7 @@
   "communityLink": "https://community.hubitat.com/t/driver-release-radio-thermostat-zwave-driver/99188",
   "version": "5.7.8",
   "dateReleased": "2022-22-09",
-	    "category": "Control",
+  "category": "Control",
       "tags": [
         "Temperature & Humidity",
 	"Climate Control",      
