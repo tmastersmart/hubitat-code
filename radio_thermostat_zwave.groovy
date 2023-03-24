@@ -4,7 +4,12 @@ Hubitat driver for Iris CT101 Thermostat
 Radio Thermostat Company of America (RTC)
 Building a better thermostat driver that just works.....
 
-CT30,CT32,CT50,CT80,CT100,CT101,CT110,CT200
+
+
+brand: Radio Thermostat
+manufacturer: 152
+model: CT30,CT32,CT50,CT80,CT100,CT101,CT110,CT200
+
 
 Supports
 poll chron, time set chron,humidity,heat or cool only,C-wire,Diff,Mans detection
