@@ -53,6 +53,7 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.8 03/24/2023 Bug fix in scale in setpoint. Last update broke it
  v5.7.7 03/24/2023 Bug in scale detection causing errors in the log
  v5.7.6 03/17/2023 CT30 was corrupting modes. Mode setup rewritten with bug checking
  v5.7.5 03/13/2023 get rid of nulls in database fields
@@ -147,7 +148,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.7"
+    TheVersion="5.7.8"
  if (state.version != TheVersion){    
      logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -633,7 +634,7 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport 
        if (cmd.scale == 1){scale="F"}
        else {scale="C"}
        state.scale = cmd.scale
-       logging("E2 Device Scale is ${scale}/${state.scale}", "info")            
+       logging("E2 Device Scale is ${scale}/${state.scale}", "info2")            
        value = cmd.scaledSensorValue
        name = "temperature"
        state.parameter[12]=1
@@ -1119,8 +1120,14 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
        return
     } 
 
-    if (state.scale == 1){scale="F"}
-    else {scale="C"}
+    if (state.scale == 1){
+        scale="F"
+        deviceScale = 1
+    }
+    else {
+        scale="C"
+        deviceScale = 0
+    }
     
 //	def deviceScale = state.scale ?: 1
 //	def deviceScaleString = deviceScale == 2 ? "C" : "F"
@@ -1173,8 +1180,14 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
        heatingOnly()
     }
     
-    if (state.scale == 1){scale="F"}
-    else {scale="C"}
+    if (state.scale == 1){
+        scale="F"
+        deviceScale = 1
+    }
+    else {
+        scale="C"
+        deviceScale = 0
+    }
     
     def locationScale = getTemperatureScale()
 	def p = (state.precision == null) ? 1 : state.precision
@@ -1193,7 +1206,7 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
 //    state.SetCool = convertedDegrees
     state.SetCool = Math.round(degrees)// Google is sending 70.1 and RT must be rounded
     if(state.SetCool !=degrees && info2Logging){
-       logging("*E15 Set Cool Setpoint ${degrees} not supported! Rounded to ${state.SetCool}", "warn")
+       logging("E15 Set Cool Setpoint ${degrees} not supported! Rounded to ${state.SetCool}", "warn")
     }
     logging("E15 Set Cool Setpoint ${state.SetCool} ${scale} ---  Reset Last to ${state.SetCool} ", "info")
     sendEvent(name: "SetCool", value: degrees, unit:scale ,descriptionText: "Reset Last to ${state.SetCool} ${scale}${state.version}", isStateChange:true)
