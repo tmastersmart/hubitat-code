@@ -1,13 +1,21 @@
 /* Iris v1 contact sensor-custom
+USA Version Only
 
 iris v1 contact sensor for hubitat
 
-Totaly rewritten battery support.
-No more negative battery readings.
+device: Contact Sensor Device
+fcc: WJHWD11
+manufacturer: IRIS
+model: DWS800
 
-Adjustment for temp sensor
+Temp and low bad adjust, no more negatve battery reports.
+Option to ignore tamper on broken cases. These are getting old.
 
-Tested on Firmware : 2012-09-20 The last iris pushed update.
+
+
+
+
+Tested on firmware: 40.16.256 2012-09-20 The last iris pushed update.
 New out of the box devices may have older firmware.
 
 
@@ -19,6 +27,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.3.5 03/23/2023 New low bat setting. Bug fixes
 v3.3.3 03/23/2023 Bat request in refresh
 v3.3.2 03/20/2023 Bug in min volt testing causing error
 v3.3.1 03/18/2023 Changed to 2 dec bat voltage, If you see errors reinitalise to reset bat mins
@@ -109,7 +118,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.3.3"
+    TheVersion="3.3.5"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -171,14 +180,11 @@ preferences {
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
     
     input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
+    input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on. minVolt test will be set when battery runs down", options: ["1.11","1.12","1.13","1.14","1.15","1.16","1.17","1.18","1.19","2","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.2","2.21","2.22","2.23","2.24","2.25","2.26","2.27","2.28","2.29"], defaultValue: "2.21" ,required: true  
+
+    input name: "tempAdj",type:"enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8","-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
 	input name: "option1",      type: "bool", title: "Trigger Mains", description: "Use as a mains detection switch ",defaultValue: false
 
-
-    input name: "tempAdj",type:"enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8",
-    "-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",
-    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",
-    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",
-   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
 
 
 }
@@ -198,6 +204,7 @@ def uninstall() {
     unschedule(),
     state.icon = "",
     state.donate = "",
+    state.remove("minVolt"),   
     state.remove("presenceUpdated"),    
 	state.remove("version"),
     state.remove("checkPhase"),
@@ -282,7 +289,11 @@ def configure() {
 
     getIcons()
 	unschedule()
-
+    if(state.minVolt){
+     state.minVoltTest = state.minVolt
+     state.remove("minVolt") 
+    }
+ 
 
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
@@ -417,7 +428,7 @@ def checkPresence() {
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
          sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
-         state.minVolt = device.currentValue("batteryVoltage")   
+         state.minVoltTest = device.currentValue("batteryVoltage")   
          return // we dont want a ping after this or it could toggle
          }
          
@@ -528,6 +539,42 @@ def parse(String description) {
         BigDecimal batteryPercentage = 0
         BigDecimal batteryVoltageScaleMin = 2.18   // in testing various results depending on sensor.
 		BigDecimal batteryVoltageScaleMax = 3.00  // 3.2 new battery
+         
+// last hub update makes it impossible to do math on states and numbers from settings
+// What used to work no longer does. You can no longer save a number then pull it back and do math.
+// I gave up and created this Kludge for the bug. This is longer but safer         
+    if (minVoff == "1.11"){minVolts = 1.11 }
+    if (minVoff == "1.12"){minVolts = 1.12 }
+    if (minVoff == "1.13"){minVolts = 1.13 }
+    if (minVoff == "1.14"){minVolts = 1.14 }
+    if (minVoff == "1.15"){minVolts = 1.15 }         
+    if (minVoff == "1.16"){minVolts = 1.16 }
+    if (minVoff == "1.17"){minVolts = 1.17 }
+    if (minVoff == "1.18"){minVolts = 1.18 }
+    if (minVoff == "1.19"){minVolts = 1.19 }
+    if (minVoff == "2")   {minVolts = 2    }
+    if (minVoff == "2.10"){minVolts = 2.10 }     
+    if (minVoff == "2.11"){minVolts = 2.11 }
+    if (minVoff == "2.12"){minVolts = 2.12 }
+    if (minVoff == "2.13"){minVolts = 2.13 }
+    if (minVoff == "2.14"){minVolts = 2.14 }
+    if (minVoff == "2.15"){minVolts = 2.15 }         
+    if (minVoff == "2.16"){minVolts = 2.16 }
+    if (minVoff == "2.17"){minVolts = 2.17 }
+    if (minVoff == "2.18"){minVolts = 2.18 }
+    if (minVoff == "2.19"){minVolts = 2.19 }
+    if (minVoff == "2.2") {minVolts = 2.2  }
+    if (minVoff == "2.21"){minVolts = 2.21 }
+    if (minVoff == "2.22"){minVolts = 2.22 }
+    if (minVoff == "2.23"){minVolts = 2.23 }
+    if (minVoff == "2.24"){minVolts = 2.24 }
+    if (minVoff == "2.25"){minVolts = 2.25 }         
+    if (minVoff == "2.26"){minVolts = 2.26 }
+    if (minVoff == "2.27"){minVolts = 2.27 }
+    if (minVoff == "2.28"){minVolts = 2.28 }
+    if (minVoff == "2.29"){minVolts = 2.29 }     
+         
+         //["1.11","1.12","1.13","1.14",1.15","1.16","1.17","1.18","1.19","2","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.2"]
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
@@ -538,7 +585,7 @@ def parse(String description) {
            sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V MinVolts:${batteryVoltageScaleMin} v${state.version}")    
           logging("Battery:${batteryPercentage}% ${batteryVoltage}V", "info")
 
-          if (batteryVoltage < batteryVoltageScaleMin){state.minVolt = batteryVoltage}  // Record the min volts seen working      
+//          if (batteryVoltage < batteryVoltageScaleMin){state.minVolt = batteryVoltage}  // Record the min volts seen working      
          } // end dupe events detection
 
         }// end battery report  
