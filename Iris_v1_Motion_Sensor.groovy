@@ -1,10 +1,18 @@
 /* Iris v1 Motion Detector driver for hubutat
    USA version only. 
 
+device: PIR Device
+fcc: WJHWD11
+manufacturer: IRIS
+model: MT800
+
+Temp and low bad adjust, no more negatve battery reports.
+Option to ignore tamper on broken cases. These are getting old.
 
 
-Improved battery and temp reporting no more negatve battery reports.
-Low bat value is now set by each device automaticaly. The way IRIS did it
+
+
+ 
 
 
 ======================================================
