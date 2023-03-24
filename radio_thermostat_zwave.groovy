@@ -53,6 +53,7 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.7 03/24/2023 Bug in scale detection causing errors in the log
  v5.7.6 03/17/2023 CT30 was corrupting modes. Mode setup rewritten with bug checking
  v5.7.5 03/13/2023 get rid of nulls in database fields
  v5.7.4 03/13/2023 error detection for c/f mismatch
@@ -146,8 +147,9 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.6"
- if (state.version != TheVersion){ 
+    TheVersion="5.7.7"
+ if (state.version != TheVersion){    
+     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      runIn(10,configure)// Forces config on updates
  }
@@ -625,30 +627,30 @@ if (setpoint!=0){
 def zwaveEvent(hubitat.zwave.commands.sensormultilevelv2.SensorMultilevelReport cmd)
 {
 	logging("E2 Received sensorMultilevelv2", "debug")
-//    logging("E2 Received sensorType:${cmd.sensorType} scaledSensorValue:${cmd.scaledSensorValue} scale:${cmd.scale}","trace")
-    name = "NA"
+    logging("E2 Received sensorType:${cmd.sensorType} scaledSensorValue:${cmd.scaledSensorValue} scale:${cmd.scale}","trace")
     if (cmd.sensorType == 0) {return }  // ct30 (fixed in rev1)
 	if (cmd.sensorType == 1) {
-        state.scale = cmd.scale // Device scale
-        if (cmd.scale == 1){scale="F"}
-        else {scale="C"}
-        unit = scale
-        value = cmd.scaledSensorValue
-//		value = convertTemperatureIfNeeded(cmd.scaledSensorValue, cmd.scale == 1 ? "F" : "C", cmd.precision)
-//		unit = getTemperatureScale()
-		name = "temperature"
-        state.parameter[12]=1
+       if (cmd.scale == 1){scale="F"}
+       else {scale="C"}
+       state.scale = cmd.scale
+       logging("E2 Device Scale is ${scale}/${state.scale}", "info")            
+       value = cmd.scaledSensorValue
+       name = "temperature"
+       state.parameter[12]=1
+       logging("E2 ${name} ${value} ${scale}", "info")
+       sendEvent(name:name ,value:value ,unit: scale, descriptionText:"${name} ${value} ${scale} ${state.version}", isStateChange: true)
+       return
+        
 	} else if (cmd.sensorType == 5) {
 		value = cmd.scaledSensorValue
 		unit = "%"
 		name = "humidity"
         state.parameter[13]=1
-	}
-    if (name != "NA"){
-    logging("E2 ${name} ${value} ${unit}", "info")
+        logging("E2 ${name} ${value} ${unit}", "info")
         sendEvent(name:name ,value:value ,unit: unit, descriptionText:"${name} ${value} ${unit} ${state.version}", isStateChange: true)
+        return
     }
-    else {logging("E2 Unknown data ${cmd}", "warn")}
+    logging("E2 Unknown data ${cmd}", "warn")
     if (FirmwareFix){ct30OperatingFix()}	
 }
 // E3
@@ -879,14 +881,15 @@ def zwaveEvent(hubitat.zwave.commands.basicv1.BasicReport cmd) {
 def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
     logging("E10 Received ${cmd}", "debug")
     if(!state.parameter){state.parameter=[]}
-    if (cmd.parameterNumber== 1){//0 to 4
+    if (cmd.parameterNumber== 1){//0 to 4 This is not working on my ct101
         state.parameter[1]=1 
         def value = cmd.scaledConfigurationValue
 //        def test = cmd2Integer(cmd.configurationValue)
         if (value <=5 && value >=0){logging("E10-1 Temp Report Threshold ${value}", "info2")}
         else {
-            if (debugLogging){logging("E10-1 ERROR Temp Report Threshold value:${cmd.configurationValue} Scaled:${cmd.scaledConfigurationValue} Not a valid value", "warn")} 
+            if (debugLogging){logging("E10-1 ERROR Temp Report Threshold must be 0-4 value:${cmd.configurationValue} Scaled:${cmd.scaledConfigurationValue} Not a valid value", "warn")} 
         }
+     return   
     }
 //2	4	HVAC Settings	1 to 2147483647	Byte 1: normal (1) or heat pump (2). Byte 2, Bits 7-4: Gas (1) or Electric (2). Byte 2, Bits 3-0: # of Auxiliary Stages. 
 //     Byte 3: # of Heat Pump Stages. Byte 4: # of Cool Stages. value:[1, 34, 0, 1] Scaled:19005441
@@ -1119,11 +1122,12 @@ def setHeatingSetpoint(Double degrees, Integer delay = 30000) {
     if (state.scale == 1){scale="F"}
     else {scale="C"}
     
-	def deviceScale = state.scale ?: 1
-	def deviceScaleString = deviceScale == 2 ? "C" : "F"
-    def locationScale = getTemperatureScale()
+//	def deviceScale = state.scale ?: 1
+//	def deviceScaleString = deviceScale == 2 ? "C" : "F"
+    def locationScale = getTemperatureScale() 
 	def p = (state.precision == null) ? 1 : state.precision
-    if (state.scale !=locationScale){logging("E14 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${state.scale} Both Must match", "error")}
+    logging("E14 Hub Scale:${locationScale} Device Scale:${scale}/${state.scale}", "debug")
+    if (scale !=locationScale){logging("E14 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${scale} Both Must match", "error")}
 
 //    def convertedDegrees
 //    if (locationScale == "C" && deviceScaleString == "F") {
@@ -1172,13 +1176,13 @@ def setCoolingSetpoint(Double degrees, Integer delay = 30000) {
     if (state.scale == 1){scale="F"}
     else {scale="C"}
     
-	def deviceScale = state.scale ?: 1
-	def deviceScaleString = deviceScale == 2 ? "C" : "F"
     def locationScale = getTemperatureScale()
 	def p = (state.precision == null) ? 1 : state.precision
 
-    if (state.scale !=locationScale){logging("E15 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${state.scale} Both Must match", "error")}
-//    def convertedDegrees
+    logging("E15 Hub Scale:${locationScale} Device Scale:${scale}/${state.scale}", "debug")
+    if (scale !=locationScale){logging("E15 ERROR Hub is set to scale:${locationScale} and thermostat is set to Scale:${scale} Both Must match", "error")}
+
+    //    def convertedDegrees
 //    if (locationScale == "C" && deviceScaleString == "F") {
 //    	convertedDegrees = celsiusToFahrenheit(degrees)
 //    } else if (locationScale == "F" && deviceScaleString == "C") {
