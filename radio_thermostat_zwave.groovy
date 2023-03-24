@@ -378,7 +378,6 @@ def configure() {
 
 
 def updated() {
-    clientVersion()
     updateParameters()
     if (!polling){polling=15}    // Poll the device every x min
     // options: ["10","15","20","30","40","50"]
@@ -421,8 +420,6 @@ def refresh() {
     poll()
 }
 def poll() {
-    clientVersion()
-
     updateParameters()
     def nowCal = Calendar.getInstance(location.timeZone)
     Timecheck = "${nowCal.getTime().format("EEE MMM dd", location.timeZone)}"
@@ -538,6 +535,7 @@ def parse(String description)
 // 0x87:1  Indicator    
 // 0x8F:3    
 // 0x98:1  Security
+   clientVersion() 
    CommandClassCapabilities = [0x31:3,0x40:2,0x42:1,0x43:2,0x44:3,0x45:1,0x60:3,0x70:2,0x72:2,0x80:1,0x81:1,0x85:1,0x86:1,0x87:1,0x98:1]  
    hubitat.zwave.Command map = zwave.parse(description, CommandClassCapabilities)
    if (!map) {
