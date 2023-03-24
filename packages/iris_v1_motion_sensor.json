@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "releaseNotes": "bug fix hub broke low bat automated storage. Added setting for low bat,Bug fix ignore the tamper setting was not in setup.",
-  "version": "2.4.9",
+  "version": "2.5.0",
   "dateReleased": "2022-22-09",
   "category":"Doors & Windows",
      "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
