@@ -4,7 +4,7 @@
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",
   "releaseNotes": "Low bad adjustments rewritten. Please set manualy",
-  "version": "3.3.5",
+  "version": "3.3.6",
   "dateReleased": "2022-22-09",
   "category":"Security",
   "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],
