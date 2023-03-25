@@ -27,6 +27,7 @@ added option to ignore tamper on broken cases.
 
 
 =================
+v3.3.7 03/25/2023 bug in bat setting code
 v3.3.6 03/23/2023 New low bat setting. Bug fixes
 v3.3.3 03/23/2023 Bat request in refresh
 v3.3.2 03/20/2023 Bug in min volt testing causing error
@@ -118,7 +119,7 @@ Uk Iris code
  */
 
 def clientVersion() {
-    TheVersion="3.3.6"
+    TheVersion="3.3.7"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -543,36 +544,36 @@ def parse(String description) {
 // last hub update makes it impossible to do math on states and numbers from settings
 // What used to work no longer does. You can no longer save a number then pull it back and do math.
 // I gave up and created this Kludge for the bug. This is longer but safer         
-    if (minVoff == "1.1"){minVolts = 1.1 }
-    if (minVoff == "1.2"){minVolts = 1.2 }
-    if (minVoff == "1.3"){minVolts = 1.3 }
-    if (minVoff == "1.4"){minVolts = 1.4 }
-    if (minVoff == "1.5"){minVolts = 1.5 }         
-    if (minVoff == "1.6"){minVolts = 1.6 }
-    if (minVoff == "1.7"){minVolts = 1.7 }
-    if (minVoff == "1.8"){minVolts = 1.8 }
-    if (minVoff == "1.9"){minVolts = 1.9 }
-    if (minVoff == "2")   {minVolts = 2    }
-    if (minVoff == "2.10"){minVolts = 2.10 }     
-    if (minVoff == "2.11"){minVolts = 2.11 }
-    if (minVoff == "2.12"){minVolts = 2.12 }
-    if (minVoff == "2.13"){minVolts = 2.13 }
-    if (minVoff == "2.14"){minVolts = 2.14 }
-    if (minVoff == "2.15"){minVolts = 2.15 }         
-    if (minVoff == "2.16"){minVolts = 2.16 }
-    if (minVoff == "2.17"){minVolts = 2.17 }
-    if (minVoff == "2.18"){minVolts = 2.18 }
-    if (minVoff == "2.19"){minVolts = 2.19 }
-    if (minVoff == "2.2") {minVolts = 2.2  }
-    if (minVoff == "2.21"){minVolts = 2.21 }
-    if (minVoff == "2.22"){minVolts = 2.22 }
-    if (minVoff == "2.23"){minVolts = 2.23 }
-    if (minVoff == "2.24"){minVolts = 2.24 }
-    if (minVoff == "2.25"){minVolts = 2.25 }         
-    if (minVoff == "2.26"){minVolts = 2.26 }
-    if (minVoff == "2.27"){minVolts = 2.27 }
-    if (minVoff == "2.28"){minVolts = 2.28 }
-    if (minVoff == "2.29"){minVolts = 2.29 }     
+    if (minVoff == "1.1"){batteryVoltageScaleMin = 1.1 }
+    if (minVoff == "1.2"){batteryVoltageScaleMin = 1.2 }
+    if (minVoff == "1.3"){batteryVoltageScaleMin = 1.3 }
+    if (minVoff == "1.4"){batteryVoltageScaleMin = 1.4 }
+    if (minVoff == "1.5"){batteryVoltageScaleMin = 1.5 }         
+    if (minVoff == "1.6"){batteryVoltageScaleMin = 1.6 }
+    if (minVoff == "1.7"){batteryVoltageScaleMin = 1.7 }
+    if (minVoff == "1.8"){batteryVoltageScaleMin = 1.8 }
+    if (minVoff == "1.9"){batteryVoltageScaleMin = 1.9 }
+    if (minVoff == "2")   {batteryVoltageScaleMin = 2    }
+    if (minVoff == "2.10"){batteryVoltageScaleMin = 2.10 }     
+    if (minVoff == "2.11"){batteryVoltageScaleMin = 2.11 }
+    if (minVoff == "2.12"){batteryVoltageScaleMin = 2.12 }
+    if (minVoff == "2.13"){batteryVoltageScaleMin = 2.13 }
+    if (minVoff == "2.14"){batteryVoltageScaleMin = 2.14 }
+    if (minVoff == "2.15"){batteryVoltageScaleMin = 2.15 }         
+    if (minVoff == "2.16"){batteryVoltageScaleMin = 2.16 }
+    if (minVoff == "2.17"){batteryVoltageScaleMin = 2.17 }
+    if (minVoff == "2.18"){batteryVoltageScaleMin = 2.18 }
+    if (minVoff == "2.19"){batteryVoltageScaleMin = 2.19 }
+    if (minVoff == "2.2") {batteryVoltageScaleMin = 2.2  }
+    if (minVoff == "2.21"){batteryVoltageScaleMin = 2.21 }
+    if (minVoff == "2.22"){batteryVoltageScaleMin = 2.22 }
+    if (minVoff == "2.23"){batteryVoltageScaleMin = 2.23 }
+    if (minVoff == "2.24"){batteryVoltageScaleMin = 2.24 }
+    if (minVoff == "2.25"){batteryVoltageScaleMin = 2.25 }         
+    if (minVoff == "2.26"){batteryVoltageScaleMin = 2.26 }
+    if (minVoff == "2.27"){batteryVoltageScaleMin = 2.27 }
+    if (minVoff == "2.28"){batteryVoltageScaleMin = 2.28 }
+    if (minVoff == "2.29"){batteryVoltageScaleMin = 2.29 }     
          
          //["1.11","1.12","1.13","1.14",1.15","1.16","1.17","1.18","1.19","2","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.2"]
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
