@@ -23,15 +23,16 @@ To go back to internal drivers without removing use uninstall then change driver
 
 
 ===================================================================================================
-1.2.6    01/25/2023 Fix Init routines
-1.2.5    01/23/2023 Rewrite bat and temp events
-1.2.4    01/22/2023 Presence timmer setting increased
-1.2.3    01/11/2023 Tamper Code Rewrite. Samjin spoorts for false tamper in log. Bug in logs fixed
-1.2.2    12/21/2022 Tamper code rewrite
-1.2.1    12/14/2022 New low bat code.
-1.2.0    12/10/2022 Tamper not showing up as usable fixed.
-1.1.1    12/09/2022 Improvements and SmartThings changes
-1.0.0    12/07/2022 First release
+v1.2.7  03/25/2023 Low bat setting
+v1.2.6  01/25/2023 Fix Init routines
+v1.2.5  01/23/2023 Rewrite bat and temp events
+v1.2.4  01/22/2023 Presence timmer setting increased
+v1.2.3  01/11/2023 Tamper Code Rewrite. Samjin spoorts for false tamper in log. Bug in logs fixed
+v1.2.2  12/21/2022 Tamper code rewrite
+v1.2.1  12/14/2022 New low bat code.
+v1.2.0  12/10/2022 Tamper not showing up as usable fixed.
+v1.1.1  12/09/2022 Improvements and SmartThings changes
+v1.0.0  12/07/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -55,13 +56,14 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.6"
- if (state.version != TheVersion){ 
+    TheVersion="1.2.7"
+
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
-}
-
+}    
 
 
 metadata {
@@ -106,6 +108,7 @@ preferences {
    input name: "pingYes",type: "bool", title: "Enable schedule Ping", description: "", defaultValue: false,required: true
    input name: "pingIt" ,type: "enum", title: "Ping Time",description: "Ping every x mins. Press config after saving",options: ["5","10","15","20","25","30"], defaultValue: "10",required:true
    input name: "tempAdj",type: "enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8", "-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8","-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: 0 ,required: true  
+   input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on", options: ["1.6","1.7","1.8","1.9","2","2.1","2.2","2.3","2.4","2.5","2.6"], defaultValue: "2.2" ,required: true  
 
    input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
    input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30"], defaultValue: 8 ,required: true 
@@ -291,7 +294,21 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         def  batVolts  = device.currentValue("batteryVoltage")
         def  minVolts  = 2.2 
         def  maxVolts  = 3
-        if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    
+    if (minVoff == "1.6"){minVolts = 1.6 }      
+    if (minVoff == "1.7"){minVolts = 1.7 }      
+    if (minVoff == "1.8"){minVolts = 1.8 }      
+    if (minVoff == "1.9"){minVolts = 1.9 }
+    if (minVoff == "2.0"){minVolts = 2 }
+    if (minVoff == "2.1"){minVolts = 2.1 }
+    if (minVoff == "2.2"){minVolts = 2.2 }
+    if (minVoff == "2.3"){minVolts = 2.3 }
+    if (minVoff == "2.4"){minVolts = 2.4 }
+    if (minVoff == "2.5"){minVolts = 2.5 }      
+    if (minVoff == "2.6"){minVolts = 2.6 }          
+    
+    
+
     
         logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
         
