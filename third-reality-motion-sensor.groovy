@@ -2,21 +2,18 @@
 
 A Third Reality Motion Sensor Driver For Hubitat
 
-
 manufacturer: Third Reality, Inc
 model: 3RMS16BZ
 softwareBuild: v1.00.24
 
-
 This device gives full bat voltage as 3.5v which .5v to high.
-
-
 ===================================================================================================
-1.2.2    01/29/2023 Changed anti dupe routines to adding State change.
-1.2.1    01/23/2023 Power up init rewriten
-1.2.0    12/14/2022 Bat code rewrite
-1.1.0    12/11/2022 working
-1.0.0    12/10/2022 First release
+v1.2.3  03/25/2023 added low bat setting
+v1.2.2  01/29/2023 Changed anti dupe routines to adding State change.
+v1.2.1  01/23/2023 Power up init rewriten
+v1.2.0  12/14/2022 Bat code rewrite
+v1.1.0  12/11/2022 working
+v1.0.0  12/10/2022 First release
 =================================================================================================== 
 Copyright [2022] [tmaster winnfreenet.com]
 
@@ -39,8 +36,9 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.2"
- if (state.version != TheVersion){ 
+    TheVersion="1.2.3"
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
@@ -70,6 +68,7 @@ preferences {
 
     input name: "pingYes",type: "bool", title: "Enable schedule Ping", description: "", defaultValue: false,required: true
     input name: "pingIt" ,type: "enum", title: "Ping Time",description: "Ping every x mins. Press config after saving",options: ["5","10","15","20","25","30"], defaultValue: "10",required:true
+   input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on", options: ["1","1.6","1.7","1.8","1.9","2","2.1","2.2","2.3","2.4","2.5","2.6"], defaultValue: "2.2" ,required: true  
 
     input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
     input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 8 ,required: true 
@@ -243,7 +242,18 @@ def parse(String description) {
         
          def  minVolts  = 2.1 
          def  maxVolts  = 3.2
-         if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    if (minVoff == "1.0"){minVolts = 1 }  
+    if (minVoff == "1.6"){minVolts = 1.6 }      
+    if (minVoff == "1.7"){minVolts = 1.7 }      
+    if (minVoff == "1.8"){minVolts = 1.8 }      
+    if (minVoff == "1.9"){minVolts = 1.9 }
+    if (minVoff == "2.0"){minVolts = 2 }
+    if (minVoff == "2.1"){minVolts = 2.1 }
+    if (minVoff == "2.2"){minVolts = 2.2 }
+    if (minVoff == "2.3"){minVolts = 2.3 }
+    if (minVoff == "2.4"){minVolts = 2.4 }
+    if (minVoff == "2.5"){minVolts = 2.5 }      
+    if (minVoff == "2.6"){minVolts = 2.6 }     
         
          def rawValue = Integer.parseInt(descMap.value,16)
          if (rawValue == 0 || rawValue == 255) {return} 
