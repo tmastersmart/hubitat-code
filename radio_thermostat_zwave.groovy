@@ -58,6 +58,7 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.7.9 03/26/2023 New firmware version ident routine. Fix bad firmware dec order
  v5.7.8 03/24/2023 Bug fix in scale in setpoint. Last update broke it
  v5.7.7 03/24/2023 Bug in scale detection causing errors in the log
  v5.7.6 03/17/2023 CT30 was corrupting modes. Mode setup rewritten with bug checking
@@ -153,7 +154,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.8"
+    TheVersion="5.7.9"
  if (state.version != TheVersion){    
      logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -365,6 +366,7 @@ def configure() {
     delayBetween([
         zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:1).format(), // get reports without polling
         zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),// fingerprint
+        zwave.versionV1.versionGet().format(),
 		zwave.thermostatModeV2.thermostatModeSupportedGet().format(),
         zwave.thermostatFanModeV3.thermostatFanModeSupportedGet().format(),
         zwave.configurationV2.configurationSet(parameterNumber: 4, size: 1, configurationValue: [2]).format(), // cwire enabled
@@ -372,8 +374,7 @@ def configure() {
         zwave.configurationV2.configurationGet(parameterNumber: 7).format(), // swing        
         zwave.configurationV2.configurationGet(parameterNumber: 8).format(), // is diff
         zwave.configurationV2.configurationGet(parameterNumber: 9).format(), // is fast recovery on ? 1on 0 off
-        zwave.versionV1.versionGet().format(),
-	], 3500)
+  ], 3500)
 }
 
 
@@ -1036,7 +1037,7 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
     map.mfr   = hubitat.helper.HexUtils.integerToHexString(cmd.manufacturerId, 2)
     map.model = hubitat.helper.HexUtils.integerToHexString(cmd.productId, 2)
     map.type  = hubitat.helper.HexUtils.integerToHexString(cmd.productTypeId, 2)
-    logging("fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
+    logging("E11 fingerprint mfr:${map.mfr} prod:${map.type} model:${map.model}", "debug")
    
 //   state.remove("fingerprint")
     
@@ -1070,7 +1071,7 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
     if (map.type=="6E01"){state.model = "CT110"} // model=0000
 
     
-    logging("fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
+    logging("E11 Fingerprint ${state.model} [${map.mfr}-${map.type}-${map.model}] ", "info")
     if (!getDataValue("manufacturer")) {updateDataValue("manufacturer", map.mfr)}
     if (!getDataValue("brand")){        updateDataValue("brand", "Radio Thermostat")}
     
@@ -1085,25 +1086,29 @@ def zwaveEvent(hubitat.zwave.commands.manufacturerspecificv2.ManufacturerSpecifi
         
     
 }
-// VersionReport(zWaveLibraryType:3, zWaveProtocolVersion:2, zWaveProtocolSubVersion:78, applicationVersion:5, applicationSubVersion:0)
-// VersionReport(zWaveLibraryType:3, zWaveProtocolVersion:3, zWaveProtocolSubVersion:28, applicationVersion:9, applicationSubVersion:0)   
+
+// We get v1 reports not v2
 def zwaveEvent(hubitat.zwave.commands.versionv1.VersionReport cmd) {
-   device.updateDataValue("protocolVersion",   "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
-   device.updateDataValue("applicationVersion","${cmd.applicationVersion}.${cmd.applicationSubVersion}")
-   logging("E12 VersionReport v1 protocolVersion: ${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion} applicationVersion: ${cmd.applicationVersion}.${cmd.applicationSubVersion}", "info2")
+    logging("E12 Received versionv1.VersionReport", "debug")  
+    Double firmware0Version = cmd.applicationVersion + (cmd.applicationSubVersion/ 100)
+    Double protocolVersion  = cmd.zWaveProtocolVersion + (cmd.zWaveProtocolSubVersion / 100)
+    logging("E12 Version Report - FirmwareVersion: ${firmware0Version}, ProtocolVersion: ${protocolVersion} ${state.model} ","info2")
+    device.updateDataValue("firmwareVersion", "${firmware0Version}")
+    device.updateDataValue("protocolVersion", "${protocolVersion}")
+    device.removeDataValue("hardwareVersion")// We dont get any hardware reports
+    state.firmwareVersion = firmware0Version
 }
 
 def zwaveEvent(hubitat.zwave.Command cmd ){
-  if (debugLogging){logging("E11 Received command Untrapped (${cmd})", "warn")}    
+  if (debugLogging){logging("E12.2 Received command Untrapped (${cmd})", "warn")}    
 }
 
+// we dont get v2 reports but this is stock code for it
 def zwaveEvent(hubitat.zwave.commands.versionv2.VersionReport cmd) {
- if (debugLogging){logging("E12 Received v2 Untrapped (${cmd})", "warn")}  
-    
-//    device.updateDataValue("firmwareVersion", "${cmd.firmware0Version}.${cmd.firmware0SubVersion}")
-//    device.updateDataValue("protocolVersion", "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}")
-//   device.updateDataValue("hardwareVersion", "${cmd.hardwareVersion}")
-}
+    logging("E12.3 Received versionv2.VersionReport", "debug")
+
+    }
+
 
 //==================heating
 def FixHeat(){
