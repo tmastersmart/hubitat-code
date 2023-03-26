@@ -2,6 +2,9 @@
 SmartThings motion sensor for hubitat
 
 Model:STS-IRM-250  (motionv4)
+Model:STS-IRM-251  (motionv5)
+
+
 
 motionv5 is untested and may require bat map code
 
@@ -9,7 +12,8 @@ motionv5 is untested and may require bat map code
 motionv4 may be sending false bat reports. Works at 1.8v in testing
 
 ===================================================================================================
-
+1.0.4    03/26/2023 Min volt setting
+1.0.3    02/14/2023 
 1.0.2    02/13/2023 First release beta test
 =================================================================================================== 
 Copyright [2023] [tmaster winnfreenet.com]
@@ -33,13 +37,13 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.0.2"
- if (state.version != TheVersion){ 
+    TheVersion="1.0.4"
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
-     runIn(3,configure) 
+     configure() 
  }
 }
-
 
 
 metadata {
@@ -64,17 +68,10 @@ command "uninstall"
 attribute "batteryVoltage", "string"
     
     
-fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv5", manufacturer:"SmartThings"
-fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv4", manufacturer:"SmartThings",profileId:"0104", endpointId:"01"	    
+fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv5", manufacturer:"SmartThings" // 2017
+fingerprint inClusters:"0000,0001,0003,000F,0020,0402,0500", outClusters: "0019", model: "motionv4", manufacturer:"SmartThings",profileId:"0104", endpointId:"01"//	2016 
     
-// centralite also sold as samsung    
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305-S"
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3325-S"
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3305"
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3325"
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3326"
-fingerprint inClusters: "0000,0001,0003,0402,0500,0020,0B05", outClusters: "0019", manufacturer: "CentraLite", model: "3326-L", deviceJoinName: "Iris Motion Sensor"
-    
+  
     
 }
 preferences {
@@ -86,6 +83,7 @@ preferences {
    input name: "pingYes",type: "bool", title: "Enable schedule Ping", description: "", defaultValue: false,required: true
    input name: "pingIt" ,type: "enum", title: "Ping Time",description: "Ping every x mins. Press config after saving",options: ["5","10","15","20","25","30"], defaultValue: "10",required:true
    input name: "tempAdj",type: "enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8", "-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8","-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8",   "6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: 0 ,required: true  
+   input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on", options: ["1","1.6","1.7","1.8","1.9","2","2.1","2.2","2.3","2.4","2.5","2.6"], defaultValue: "1" ,required: true  
 
    input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
    input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 8 ,required: true 
@@ -269,7 +267,18 @@ if (evt.name == "batteryVoltage"){//Event: [name:batteryVoltage, value:2.9]
         def  minVolts  = 2.2 
         def  maxVolts  = 3
         if(state.model =="motionv4"){minVolts  = 1.0}
-        if(state.minVoltTest){minVolts = state.minVoltTest} // this should hold the lowest voltage if set
+    if (minVoff == "1.0"){minVolts = 1 }  
+    if (minVoff == "1.6"){minVolts = 1.6 }      
+    if (minVoff == "1.7"){minVolts = 1.7 }      
+    if (minVoff == "1.8"){minVolts = 1.8 }      
+    if (minVoff == "1.9"){minVolts = 1.9 }
+    if (minVoff == "2.0"){minVolts = 2 }
+    if (minVoff == "2.1"){minVolts = 2.1 }
+    if (minVoff == "2.2"){minVolts = 2.2 }
+    if (minVoff == "2.3"){minVolts = 2.3 }
+    if (minVoff == "2.4"){minVolts = 2.4 }
+    if (minVoff == "2.5"){minVolts = 2.5 }      
+    if (minVoff == "2.6"){minVolts = 2.6 }         
     
         logging("bat${batteryVoltage}v batLast${batVolts}v batLast${powerLast}% MinV ${state.minVoltTest}v (${batteryVoltage} -${minVolts} / ${maxVolts} - ${minVolts})", "trace")
         
@@ -348,19 +357,27 @@ return
 
 
 // sends standard zigbee command
+// motionv5 alarm1
+// motionv4 alarm1 and alarm2 Likely supports tamper
 def processStatus(ZoneStatus status) {
     logging("ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()}", "debug")
-	if (status.isAlarm1Set() || status.isAlarm2Set()) {motionON()}
+	if (status.isAlarm1Set()) {motionON1()}
+    else if(status.isAlarm2Set()) {motionON2()}
 	else {motionOFF()}
 }
 
-private motionON(){
-		logging("Motion : Active", "info")
+private motionON1(){
+		logging("Motion 1 : Active", "info")
+		sendEvent(name: "motion", value: "active", isStateChange: true)
+}
+
+private motionON2(){
+		logging("Motion 2 : Active", "info")
 		sendEvent(name: "motion", value: "active", isStateChange: true)
 }
 
 private motionOFF(){
-		logging("Motion : Inactive", "info")
+		logging("Motion 0 : Inactive", "info")
         sendEvent(name: "motion", value: "inactive", isStateChange: true)
 }
 
@@ -415,8 +432,8 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons(){
-//  if(state.model =="motionv5"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/motion5.jpg' >"}
 //  if(state.model =="motionv4"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/motion4.jpg' >"}
+  state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/motion4.jpg' >"  
   state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
 
