@@ -1,0 +1,21 @@
+{
+  "packageName": "Dimable CT Bulb driver - Zigbee",
+  "author": "TheMaster",
+  "releaseNotes":   "first release",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "version": "1.0.5",
+  "dateReleased": "2023-3-27",
+  "category":"Control",
+  "tags":["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],
+  "drivers": [
+    {
+      "name":"Dimable CT Bulb driver - Zigbee",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/dimable_ct_bulb_driver.groovy",
+      "required": "true",
+      "description": "Works with most all dimibale LED bulbs and CT Bulbs",
+      "id": "e8fe55f0-f40b-4a80-9d7b-5754844412b3"
+    }
+    ]
+}
