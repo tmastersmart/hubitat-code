@@ -50,7 +50,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-definition (name: "Dimable CT Bulb driver - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
+definition (name: "Dimable CT Bulb driver - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/dimable_ct_bulb_driver.groovy") {
 
 capability "Health Check"
 capability "Actuator"
