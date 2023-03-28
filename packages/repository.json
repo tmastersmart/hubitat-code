@@ -200,7 +200,14 @@
 "tags": ["Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/smartthings-multiswitch-v3.json",
 "description": "Smartthings multiswitch v3 by Samjin. Fixes bad battery reports autodetect dead battery,presence"
-   },      
+   }, 
+  {
+"name":"Dimable CT Bulb driver - Zigbee",
+"category":"Control",
+"tags": ["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],	   
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/dimable_ct_bulbs.json",
+"description": "Works with most dimable led and CT Bulbs"
+   },
   {
 "name":"eWeLight RGBW Bulbs",
 "category":"Control",
