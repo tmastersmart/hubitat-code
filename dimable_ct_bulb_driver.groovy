@@ -39,7 +39,7 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.3"
+    TheVersion="1.0.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
