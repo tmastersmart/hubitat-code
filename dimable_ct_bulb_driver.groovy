@@ -18,7 +18,7 @@ model: ZBT-CCTLight-GLS0109
 
 
 ======================================================================================================
-v1.0.5  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
+v1.0.6  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
 v1.0.4  03/27/2023   First release  
 ======================================================================================================
 Copyright [2023] [tmaster winnfreenet.com]
@@ -40,7 +40,7 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.5"
+    TheVersion="1.0.6"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -551,13 +551,13 @@ def checkLevel(){
       return
     }
   }
-  if(!state.switch){ // if we are listed as off
-   if (level > 0){// we should be on.
-     logging("Correcting On/Off state by level ${level}=ON", "info")
-      on()
-      return
-    }
-}
+//  if(!state.switch){ // if we are listed as off
+//   if (level > 0){// we should be on.
+//     logging("Correcting On/Off state by level ${level}=ON", "info")
+//      on()
+//      return
+//    }
+//}
 }
 
 
