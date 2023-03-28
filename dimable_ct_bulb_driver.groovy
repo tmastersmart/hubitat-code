@@ -18,7 +18,7 @@ model: ZBT-CCTLight-GLS0109
 
 
 ======================================================================================================
-v1.0.6  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
+v1.0.7  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
 v1.0.4  03/27/2023   First release  
 ======================================================================================================
 Copyright [2023] [tmaster winnfreenet.com]
@@ -40,7 +40,7 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.6"
+    TheVersion="1.0.7"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -543,21 +543,16 @@ def setLevel(value, rate = null) {
 // verify level 0 matches our on off state.
 // This is very importiant as bulb is turned on and off by level so our state must match
 def checkLevel(){
-  level = device.currentValue("level")  
+  level = device.currentValue("level")
+  
   if(state.switch){ // if we are listed as on
-    if (level == 0){// we should be off.
-      logging("Correcting On/Off state by level ${level}=OFF", "info")
-      off()
-      return
-    }
+    if (level == 0){state.switch = false}
+    return
   }
-//  if(!state.switch){ // if we are listed as off
-//   if (level > 0){// we should be on.
-//     logging("Correcting On/Off state by level ${level}=ON", "info")
-//      on()
-//      return
-//    }
-//}
+  if(!state.switch){ // if we are listed as off
+    if (level > 0){state.switch = true}
+  }
+   
 }
 
 
