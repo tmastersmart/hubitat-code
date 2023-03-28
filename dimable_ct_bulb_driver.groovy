@@ -18,7 +18,8 @@ model: ZBT-CCTLight-GLS0109
 
 
 ======================================================================================================
-v1.0.4  02/12/2023   First release  
+v1.0.5  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
+v1.0.4  03/27/2023   First release  
 ======================================================================================================
 Copyright [2023] [tmaster winnfreenet.com]
 
@@ -39,12 +40,14 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.4"
- if (state.version != TheVersion){ 
+    TheVersion="1.0.5"
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
 }
+
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
@@ -243,7 +246,6 @@ def configure() {
 
 def updated() {
 	// Runs whenever preferences are saved.
-    clientVersion()
 	loggingUpdate()
     ping() 
     getIcons()
@@ -262,8 +264,8 @@ delayBetween([
     sendZigbeeCommands(zigbee.levelRefresh()), 
     sendZigbeeCommands(zigbee.colorTemperatureRefresh()),
 //  sendZigbeeCommands(zigbee.readAttribute(0x0300, 0x0000)),//COLOR_CONTROL_CLUSTER - hue
-    sendZigbeeCommands(zigbee.readAttribute(0x0300, 0x0001)),//COLOR_CONTROL_CLUSTER - saturation
-    sendZigbeeCommands(zigbee.readAttribute(0x0300, 0x0007)),// color - read color temp
+//  sendZigbeeCommands(zigbee.readAttribute(0x0300, 0x0001)),//COLOR_CONTROL_CLUSTER - saturation
+//  sendZigbeeCommands(zigbee.readAttribute(0x0300, 0x0007)),// color - read color temp
    ], 1500)    
   
     if(resendState){sync()}
@@ -300,16 +302,30 @@ def sync (){
 
 def off() {
     state.switch = false
-    runIn(20,ping)
-    logging("Sending OFF ${state.switch}", "info")
-	sendZigbeeCommands(zigbee.command(0x006, 0x00))
+//   runIn(20,ping)
+    logging("Sending OFF ", "info")
+    
+delayBetween([    
+   	sendZigbeeCommands(zigbee.command(0x006, 0x00)),
+    sendZigbeeCommands(zigbee.onOffRefresh()),
+    sendZigbeeCommands(zigbee.levelRefresh()),
+       ], 1500)     
+    
 }
 
 def on() {
     state.switch = true
-    runIn(20,ping)
-    logging("Sending ON ${state.switch}", "info")
-	sendZigbeeCommands(zigbee.command(0x006, 0x01))
+//    runIn(20,ping)
+    logging("Sending ON ", "info")
+    level = device.currentValue("level")
+    if(level ==0){runIn(2,setLevel(100))}// Make sure level is not 0 when turning on
+  
+delayBetween([    
+   	sendZigbeeCommands(zigbee.command(0x006, 0x01)),
+    sendZigbeeCommands(zigbee.onOffRefresh()),
+    sendZigbeeCommands(zigbee.levelRefresh()),
+       ], 1500)   
+ 
 }
 
 
@@ -356,20 +372,17 @@ def checkPresence() {
 
 
 def parse(String description) {
+    clientVersion()
     logging("Parse: [${description}]", "trace")
     state.lastCheckin = now()
     checkPresence()
+    runIn(2,checkLevel)
    
     if (description?.startsWith('enroll request')) { 
      zigbee.enrollResponse()
      return  
     }  
     
-//   	if (description.startsWith("zone status")) {// iaszone.ZoneStatus
-//		ZoneStatus zoneStatus = zigbee.parseZoneStatus(description)
-//		processStatus(zoneStatus)
-//        return
-//    }
 
     Map descMap = zigbee.parseDescriptionAsMap(description) 
     logging("MAP: ${descMap}", "debug")    
@@ -407,8 +420,8 @@ def parse(String description) {
 
     } else if (evt.name == "level"){
        status = descMap.value
-       logging("level: ${evt.value}  #${status}", "info")    
-	   sendEvent(name: "level", value: evt.value, displayed:true)
+       logging("level:${evt.value}", "info") //  HEX#${status} 
+	   sendEvent(name: "level", value: evt.value,descriptionText:"level ${evt.value} HEX#${status}",displayed:true)
        return        
         
     } else if (evt.name == "switch"){ 
@@ -527,8 +540,25 @@ def setLevel(value, rate = null) {
 
 }
 
-
-
+// verify level 0 matches our on off state.
+// This is very importiant as bulb is turned on and off by level so our state must match
+def checkLevel(){
+  level = device.currentValue("level")  
+  if(state.switch){ // if we are listed as on
+    if (level == 0){// we should be off.
+      logging("Correcting On/Off state by level ${level}=OFF", "info")
+      off()
+      return
+    }
+  }
+  if(!state.switch){ // if we are listed as off
+   if (level > 0){// we should be on.
+     logging("Correcting On/Off state by level ${level}=ON", "info")
+      on()
+      return
+    }
+}
+}
 
 
 
