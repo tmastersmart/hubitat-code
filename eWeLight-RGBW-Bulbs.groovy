@@ -50,7 +50,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
+definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight-RGBW-Bulbs.groovy") {
 
 capability "Health Check"
 capability "Actuator"
