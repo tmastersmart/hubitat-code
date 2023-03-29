@@ -306,12 +306,13 @@ def sync (){
 
 def off() {
     state.switch = false
-//   runIn(20,ping)
+   runIn(20,ping)
+   runIn(26,checkLevel)
     logging("Sending OFF ", "info")
     
 delayBetween([    
    	sendZigbeeCommands(zigbee.command(0x006, 0x00)),
-    sendZigbeeCommands(zigbee.onOffRefresh()),
+//    sendZigbeeCommands(zigbee.onOffRefresh()),
     sendZigbeeCommands(zigbee.levelRefresh()),
        ], 1500)     
     
@@ -319,14 +320,15 @@ delayBetween([
 
 def on() {
     state.switch = true
-//    runIn(20,ping)
+    runIn(20,ping)
+    runIn(26,checkLevel)
     logging("Sending ON ", "info")
     level = device.currentValue("level")
 ///    if(level ==0){runIn(2,setLevel(100))}// Make sure level is not 0 when turning on
   
 delayBetween([    
    	sendZigbeeCommands(zigbee.command(0x006, 0x01)),
-    sendZigbeeCommands(zigbee.onOffRefresh()),
+//    sendZigbeeCommands(zigbee.onOffRefresh()),
     sendZigbeeCommands(zigbee.levelRefresh()),
        ], 1500)   
  
@@ -379,7 +381,7 @@ def parse(String description) {
     logging("Parse: [${description}]", "trace")
     state.lastCheckin = now()
     checkPresence()
-    runIn(2,checkLevel)
+
    
     if (description?.startsWith('enroll request')) { 
      zigbee.enrollResponse()
@@ -582,9 +584,11 @@ def setColorTemperature(value,lvl,nu) {
 def setLevel(value, rate = null) {
     logging("Send SetLevel ${value}", "info")
     runIn(20,ping)
+    runIn(26,checkLevel)
     delayBetween([
     sendZigbeeCommands(zigbee.setLevel(value)),
     sendZigbeeCommands(zigbee.levelRefresh()),
+    sendZigbeeCommands(zigbee.onOffRefresh()),  
    ], 1500)     
 
 }
