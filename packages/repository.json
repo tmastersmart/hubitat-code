@@ -209,11 +209,11 @@
 "description": "Works with most dimable led and CT Bulbs"
    },
   {
-"name":"eWeLight RGBW Bulbs",
+"name":"RGBW CT Bulbs - Zigbee",
 "category":"Control",
 "tags": ["Misc. Devices","Lights & Switches","Presence & Location","Zigbee"],	   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/eWeLight-RGBW-Bulbs.json",
-"description": "Works with eWeLight,Seedan and other RGBW bulbs identifying as ZB-CL01. May work with others provides presence and checkin monitoring"
+"description": "Works with eWeLight,Seedan and other RGBW bulbs,ZB-CL01. May work with others provides presence and checkin monitoring"
    }  
   ]
 }
