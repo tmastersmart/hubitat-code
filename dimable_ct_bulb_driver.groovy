@@ -18,7 +18,7 @@ model: ZBT-CCTLight-GLS0109
 
 
 ======================================================================================================
-v1.0.7  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
+v1.0.8  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
 v1.0.4  03/27/2023   First release  
 ======================================================================================================
 Copyright [2023] [tmaster winnfreenet.com]
@@ -40,7 +40,7 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.7"
+    TheVersion="1.0.8"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -533,8 +533,9 @@ def setColorTemperature(value,lvl,nu) {
 
 def setLevel(value, rate = null) {
     logging("Send SetLevel ${value}", "info")
+     if (value > 0){state.switch = true}
     runIn(20,ping)
-    runIn(26,checkLevel)
+    runIn(2,checkLevel)
     delayBetween([
     sendZigbeeCommands(zigbee.setLevel(value)),
     sendZigbeeCommands(zigbee.levelRefresh()),
