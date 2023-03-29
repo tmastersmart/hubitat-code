@@ -15,7 +15,7 @@ May work with generics
 Seedan Zigbee Smart Light Bulbs, Color Changing Light Bulb, 9W 806LM, Smart Bulb Compatible with Amazon
 Alexa and Samsung SmartThings Hub, Hub Required, E26 Dimmable LED Bulb, 2 Pack
 ======================================================================================================
-v1.0.7  03/28/2023   Fixes bulb not reporting on/off state with level change.
+v1.0.8  03/28/2023   Fixes bulb not reporting on/off state with level change.
 v1.0.4  02/12/2023   Routing cluster detection added
 v1.0.3  01/26/2023   Fixed Color Temp Bug
 v1.0.2  01/25/2023   Power up routine rewrite
@@ -43,7 +43,7 @@ colorMode RGB / CT
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.7"
+    TheVersion="1.0.8"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -583,6 +583,7 @@ def setColorTemperature(value,lvl,nu) {
 
 def setLevel(value, rate = null) {
     logging("Send SetLevel ${value}", "info")
+    if (value > 0){state.switch = true}
     runIn(20,ping)
     runIn(26,checkLevel)
     delayBetween([
