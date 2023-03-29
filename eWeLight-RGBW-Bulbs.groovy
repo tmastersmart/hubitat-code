@@ -1,10 +1,13 @@
-/** eWeLight RGBW Bulbs - Zigbee ZB-CL01
-driver for hubitat Seedan eWeLight ZB-CL01 RGBW Bulbs and others
-eWeLight ZB-CL01 driver
+/** RGBW CT Bulbs - Zigbee
+
+driver for hubitat 
+
+
 
 
 This driver was created to handel 
 ZB-CL01 - eWeLight RGBW bulbs
+Seedan eWeLight ZB-CL01 RGBW Bulbs and others
 
 May work with generics
 
@@ -12,6 +15,7 @@ May work with generics
 Seedan Zigbee Smart Light Bulbs, Color Changing Light Bulb, 9W 806LM, Smart Bulb Compatible with Amazon
 Alexa and Samsung SmartThings Hub, Hub Required, E26 Dimmable LED Bulb, 2 Pack
 ======================================================================================================
+v1.0.7  03/28/2023   Fixes bulb not reporting on/off state with level change.
 v1.0.4  02/12/2023   Routing cluster detection added
 v1.0.3  01/26/2023   Fixed Color Temp Bug
 v1.0.2  01/25/2023   Power up routine rewrite
@@ -39,18 +43,22 @@ colorMode RGB / CT
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.3"
- if (state.version != TheVersion){ 
+    TheVersion="1.0.7"
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
 }
+
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
-    
-definition (name: "eWeLight/Seedan RGBW Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight-RGBW-Bulbs.groovy") {
+// RGBCW 
+definition (name: "RGBW CT Bulbs - Zigbee", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/eWeLight-RGBW-Bulbs.groovy") {
+          
+
 
 capability "Health Check"
 capability "Actuator"
@@ -71,7 +79,65 @@ attribute "colorName", "string"
 attribute "colorMode", "string"
         
 fingerprint profileId:"C05E", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0008,0300", model:"ZB-CL01", manufacturer:"eWeLight"// RGBW Bulb RGB and CT (Seedan)
- }
+
+  // fingerprints from 
+  // https://github.com/randyborden/SmartThingsPublic/blob/cec851786a938376b46ad34ce0618e37c4d5c592/devicetypes/smartthings/zigbee-rgbw-bulb.src/zigbee-rgbw-bulb.groovy
+		// Generic fingerprint
+		fingerprint profileId: "0104", deviceId: "0102", inClusters: "0006, 0008, 0300", deviceJoinName: "Light" //Generic RGBW Light
+		fingerprint profileId: "0104", deviceId: "010D", inClusters: "0006, 0008, 0300", deviceJoinName: "Light" //Generic RGBW Light
+		// Samsung LED
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300", outClusters: "0019", manufacturer: "Samsung Electronics", model: "SAMSUNG-ITM-Z-002", deviceJoinName: "Samsung Light", mnmn: "Samsung Electronics", vid: "SAMSUNG-ITM-Z-002" //ITM RGBW
+		// AduroSmart
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 1000", outClusters: "0019", deviceId: "010D", manufacturer: "AduroSmart Eria", model: "AD-RGBW3001", deviceJoinName: "Eria Light" //Eria ZigBee RGBW Bulb
+		// Aurora/AOne
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300", outClusters: "0019", manufacturer: "Aurora", model: "RGBCXStrip50AU", deviceJoinName: "AOne Light", mnmn:"SmartThings", ocfDeviceType: "oic.d.switch", vid: "generic-rgbw-color-bulb-2500K-6000K" //AOne Smart Strip Controller
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000, FEDC", outClusters: "000A, 0019", manufacturer: "Aurora", model: " RGBGU10Bulb50AU", deviceJoinName: "Aurora Light" //Aurora Smart RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0004, 0003, 0006, 0008, 0005, 0300, FFFF, 1000", outClusters: "0019", manufacturer: "Aurora", model: "RGBBulb51AU", deviceJoinName: "Aurora Light" //Aurora RGBW GLS Lamp
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 1000, FFFF", outClusters: "0019", manufacturer: "Aurora", model: "RGBBulb51AU", deviceJoinName: "AOne Light" //AOne Smart RGBW GLS Lamp
+		//CWD 
+		fingerprint manufacturer: "CWD", model: "ZB.A806Ergbw-A001", deviceJoinName: "CWD Light" //model: "E27 RGBW & Colour Tuneable", brand: "Collingwood"
+		fingerprint manufacturer: "CWD", model: "ZB.A806Brgbw-A001", deviceJoinName: "CWD Light" //model: "BC RGBW & Colour Tuneable", brand: "Collingwood"
+		fingerprint manufacturer: "CWD", model: "ZB.M350rgbw-A001", deviceJoinName: "CWD Light" //model: "GU10 RGBW & Colour Tuneable", brand: "Collingwood"
+		// Innr
+		fingerprint profileId: "0104", inClusters: "0000, 0004, 0003, 0005, 0006, 0008, 0300, 1000", outClusters: "0019", manufacturer: "innr", model: "RB 285 C", deviceJoinName: "Innr Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Innr Smart Bulb Color
+		fingerprint profileId: "0104", inClusters: "0000, 0004, 0003, 0005, 0006, 0008, 0300, 1000", outClusters: "0019", manufacturer: "innr", model: "BY 285 C", deviceJoinName: "Innr Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Innr Smart Bulb Color
+		fingerprint manufacturer: "innr", model: "RB 250 C", deviceJoinName: "Innr Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Innr Smart Candle Colour
+		fingerprint manufacturer: "innr", model: "RS 230 C", deviceJoinName: "Innr Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Innr Smart GU10 Spot Colour
+		fingerprint manufacturer: "innr", model: "AE 280 C", deviceJoinName: "Innr Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Innr Smart Color Bulb E26 AE 280 C
+		// Müller Licht
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000, FEDC", outClusters: "000A, 0019", manufacturer: "MLI", model: "ZBT-ExtendedColor", deviceJoinName: "Tint Light", mnmn:"SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K" //Müller Licht Bulb White+Color
+		// LEDVANCE/OSRAM/SYLVANIA
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "LIGHTIFY Flex RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart Flex RGBW
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "Flex RGBW", deviceJoinName: "OSRAM Light" //OSRAM SMART+ Flex RGBW
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "LIGHTIFY A19 RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart A19 RGBW
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "LIGHTIFY BR RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart BR30 RGBW
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "LIGHTIFY RT RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart RT5/6 RGBW
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0B04,FC0F", outClusters: "0019", manufacturer: "OSRAM", model: "LIGHTIFY FLEX OUTDOOR RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart RGBW Flex
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01, FC08", outClusters: "0003, 0019", manufacturer: "LEDVANCE", model: "RT HO RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart RT HO RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "A19 RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart A19 RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "FLEX Outdoor RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart Flex RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "FLEX RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart Flex RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "BR30 RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart BR30 RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "RT RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart RT5/6 RGBW
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "Outdoor Pathway RGBW", deviceJoinName: "SYLVANIA Light" //SYLVANIA Outdoor Pathway Full Color
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, FC01", outClusters: "0019", manufacturer: "LEDVANCE", model: "Flex RGBW Pro", deviceJoinName: "SYLVANIA Light" //SYLVANIA Smart Flex 11 RGBW
+		// Leedarson/Ozom
+		fingerprint profileId: "0104", inClusters: "0000, 0004, 0003, 0006, 0008, 0005, 0300", outClusters: "0019", manufacturer: "LEEDARSON LIGHTING", model: "5ZB-A806ST-Q1G", deviceJoinName: "Ozom Light" //Ozom Multicolor Smart Light
+		// Sengled
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0702,0B05,FC03,FC04", outClusters: "0019", manufacturer: "sengled", model: "E11-N1EA", deviceJoinName: "Sengled Multicolor"
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0702,0B05,FC03,FC04", outClusters: "0019", manufacturer: "sengled", model: "E12-N1E", deviceJoinName: "Sengled Element Color Plus"
+		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0008,0300,0702,0B05,FC03,FC04", outClusters: "0019", manufacturer: "sengled", model: "E21-N1EA", deviceJoinName: "Sengled Multicolor"
+		fingerprint manufacturer: "sengled", model: "E1G-G8E", deviceJoinName: "Sengled Smart Light Strip", mnmn:"SmartThings", vid: "generic-rgbw-color-bulb-2000K-6500K"
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0702, 0B05, FC03", outClusters: "0019", manufacturer: "sengled", model: "E11-U3E", deviceJoinName: "Sengled Element Color Plus", mnmn:"SmartThings", vid: "generic-rgbw-color-bulb-2000K-6500K"
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0702, 0B05, FC03", outClusters: "0019", manufacturer: "sengled", model: "E11-U2E", deviceJoinName: "Sengled Element Color Plus"
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0702, 0B05, FC03, FC04", outClusters: "0019", manufacturer: "sengled", model: "E1F-N5E", deviceJoinName: "Sengled Light"
+		// Q Smart Lights
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0005, 0006, 0008, 0300, 0B05, 1000, FEDC", outClusters: "000A, 0019", manufacturer: "Neuhaus Lighting Group", model: "ZBT-ExtendedColor", deviceJoinName: "Q-Smart Light", mnmn:"SmartThings", vid: "generic-rgbw-color-bulb-1800K-6500K"
+		// Ajax Online
+		fingerprint manufacturer: "Ajaxonline", model: "AJ-RGBCCT 5 in 1", deviceJoinName: "Ajax Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-2000K-6500K"
+		fingerprint manufacturer: "Ajax online Ltd", model: "AJ_ZB30_GU10", deviceJoinName: "Ajax Light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb-2000K-6500K" // Raw Description: 0B 0104 010D 01 08 0000 0003 0004 0005 0006 0008 0300 1000 00
+
+}
 }
 // If the above fingerprint doesnt work please send me yours. You can get it using internal GENERIC DEVICE driver Just press info
 
@@ -80,8 +146,8 @@ fingerprint profileId:"C05E", endpointId:"01", inClusters:"0000,0003,0004,0005,0
 preferences {
 	
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
-	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
-	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
+  	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
+  	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
 
     input name: "autoSync",     type: "bool", title: "AutoSync to hub state", description: "Recovery from powerfalure, Keeps bulb in sync with digital state. Do not use with group Messaging it is unable to see the group commans and will malfunction!", defaultValue: true,required: true
@@ -106,9 +172,8 @@ updated()
 // Runs on reboot
 def initialize(){
     logging("initialize ", "debug")
-    clientVersion()    
   	randomSixty = Math.abs(new Random().nextInt() % 180)
-	runIn(randomSixty,refresh)
+  	runIn(randomSixty,refresh)
 }
 
 
@@ -185,7 +250,6 @@ def configure() {
 
 def updated() {
 	// Runs whenever preferences are saved.
-    clientVersion()
 	loggingUpdate()
     ping() 
     getIcons()
@@ -242,18 +306,31 @@ def sync (){
 
 def off() {
     state.switch = false
-    runIn(20,ping)
-    logging("Sending OFF ${state.switch}", "info")
-	sendZigbeeCommands(zigbee.command(0x006, 0x00))
+//   runIn(20,ping)
+    logging("Sending OFF ", "info")
+    
+delayBetween([    
+   	sendZigbeeCommands(zigbee.command(0x006, 0x00)),
+    sendZigbeeCommands(zigbee.onOffRefresh()),
+    sendZigbeeCommands(zigbee.levelRefresh()),
+       ], 1500)     
+    
 }
 
 def on() {
     state.switch = true
-    runIn(20,ping)
-    logging("Sending ON ${state.switch}", "info")
-	sendZigbeeCommands(zigbee.command(0x006, 0x01))
+//    runIn(20,ping)
+    logging("Sending ON ", "info")
+    level = device.currentValue("level")
+///    if(level ==0){runIn(2,setLevel(100))}// Make sure level is not 0 when turning on
+  
+delayBetween([    
+   	sendZigbeeCommands(zigbee.command(0x006, 0x01)),
+    sendZigbeeCommands(zigbee.onOffRefresh()),
+    sendZigbeeCommands(zigbee.levelRefresh()),
+       ], 1500)   
+ 
 }
-
 
 
 def checkPresence() {
@@ -298,9 +375,11 @@ def checkPresence() {
 
 
 def parse(String description) {
+    clientVersion()
     logging("Parse: [${description}]", "trace")
     state.lastCheckin = now()
     checkPresence()
+    runIn(2,checkLevel)
    
     if (description?.startsWith('enroll request')) { 
      zigbee.enrollResponse()
@@ -510,6 +589,21 @@ def setLevel(value, rate = null) {
 
 }
 
+// verify level 0 matches our on off state.
+// This is very importiant as bulb is turned on and off by level so our state must match
+def checkLevel(){
+  level = device.currentValue("level")
+  
+  if(state.switch){ // if we are listed as on
+    if (level == 0){state.switch = false}
+    return
+  }
+  if(!state.switch){ // if we are listed as off
+    if (level > 0){state.switch = true}
+  }
+   
+}
+
 
 def setColor(value){
 //     def rate = value?.rate ? value.rate * 400 : (transitionTime?.toInteger() ?: 400)
@@ -616,9 +710,10 @@ String integerToHexString(Integer value, Integer minBytes, boolean reverse=false
 
 void getIcons(){
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+    state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/rgb-bulb.jpg' >"
     
     if (state.model == "ZB-CL01"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/zb-cl01.jpg' >"}
- 
+
 
  }
 
