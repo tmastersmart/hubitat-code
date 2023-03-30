@@ -18,6 +18,7 @@ model: ZBT-CCTLight-GLS0109
 
 
 ======================================================================================================
+v1.1.0  03/30/2023   AutoSync temp removed for more debugging
 v1.0.8  03/28/2023   Second release, Fixes bulb not reporting on/off state with level change.
 v1.0.4  03/27/2023   First release  
 ======================================================================================================
@@ -40,7 +41,7 @@ limitations under the License.
  *	
  */
 def clientVersion() {
-    TheVersion="1.0.8"
+    TheVersion="1.1.0"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -156,7 +157,7 @@ preferences {
   	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
   	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-    input name: "autoSync",     type: "bool", title: "AutoSync to hub state", description: "Recovery from powerfalure, Keeps bulb in sync with digital state. Do not use with group Messaging it is unable to see the group commans and will malfunction!", defaultValue: true,required: true
+//    input name: "autoSync",     type: "bool", title: "AutoSync to hub state", description: "Recovery from powerfalure, Keeps bulb in sync with digital state. Do not use with group Messaging it is unable to see the group commans and will malfunction!", defaultValue: false,required: true
     input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "For problem devices that dont wake up or dont reply to commands.", defaultValue: false,required: true
     input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. 0=disable Press config after saving",options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: "10",required: true 
 
@@ -283,13 +284,15 @@ delayBetween([
 }
 
 // Resend the proper state to get back in sync
+
 def sync (){
+    autoSync = false// DISABLED FOR DEBUGGING--- NOT RELIABLE YET
     if(autoSync == false){return}
     if(!state.error){state.error = 0}
     state.error = state.error +1 
     if(state.error > 12){
     logging("Loss of control. Resync falure. Errors:${state.error}", "warn")
-    runIn(10,ping)    
+//    runIn(10,ping)    
     return // prevent a non stop loop  
     }
     
@@ -302,7 +305,7 @@ def sync (){
 
 def off() {
     state.switch = false
-    runIn(20,ping)
+    runIn(40,ping)
     runIn(26,checkLevel)
     logging("Sending OFF ", "info")
     
@@ -316,7 +319,7 @@ delayBetween([
 
 def on() {
     state.switch = true
-    runIn(20,ping)
+    runIn(40,ping)
     runIn(26,checkLevel)
     logging("Sending ON ", "info")
     level = device.currentValue("level")
