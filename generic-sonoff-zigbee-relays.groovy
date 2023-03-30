@@ -25,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.4 03/30/2023   Hub zigbee update. Changed how on off sent
  1.7.3 03/10/2023   Bug fix in recovery line 249
  1.7.2 02/12/2023   Cluster 8032 detection added
  1.7.1 01/23/2023   Power Up routine rewrite
@@ -73,12 +74,14 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.3"
- if (state.version != TheVersion){ 
+    TheVersion="1.7.4"
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
 }
+
 import hubitat.zigbee.clusters.iaszone.ZoneStatus
 import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
@@ -232,7 +235,7 @@ delayBetween([
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// mf
     sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// model
     sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000)),// switch
+    sendZigbeeCommands(zigbee.onOffRefresh()),// use both formats
    ], 1000)    
   
     if(resendState){sync()}
@@ -241,7 +244,8 @@ delayBetween([
 def ping() {
     logging("Ping ", "info")
     if(resendState){sync()}
-    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))// switch
+    sendZigbeeCommands(zigbee.onOffRefresh())
+//    sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))// switch
 }
 
 // Resend the proper state to get back in sync
@@ -287,14 +291,14 @@ def off() {
     state.Alarm = "off"
     runIn(20,ping)
     logging("Sending OFF", "info")
-	zigbee.command(0x006, 0x00)
+    sendZigbeeCommands(zigbee.command(0x006, 0x00))// send off
 }
 
 def on() {
     state.switch = true
     runIn(20,ping)
     logging("Sending ON", "info")
-	zigbee.command(0x006, 0x01)
+    sendZigbeeCommands(zigbee.command(0x006, 0x01))// send on
 }
 
 
