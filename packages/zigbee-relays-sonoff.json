@@ -1,7 +1,7 @@
 {
-  "packageName": "Zigbee Sonoff - generic relays",
+  "packageName": "Zigbee generic outlets and relays",
   "author": "TheMaster",
-  "releaseNotes":   "logging fix and bug fix,power up routine",
+  "releaseNotes":   "",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "version": "1.7.4",
@@ -10,7 +10,7 @@
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
   "drivers": [
     {
-      "name":"Zigbee Sonoff - generic relays",
+      "name":"Zigbee generic outlets and relays",
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy",
       "required": "true",
