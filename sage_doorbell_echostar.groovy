@@ -22,8 +22,9 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
-v2.8.4  04/06/2023  detection of hub bug
-v2.8.3  11/22/2022   cluster 0013
+v2.8.5  04/06/2023  detection of hub bug
+v2.8.4  12/21/2022  Bat fix
+v2.8.3  11/22/2022  cluster 0013
 v2.8.2  11/12/2022  nother bug fix for presence
 v2.8.0  11/11/2022  Presence updated with retries
 v2.7.0  11/05/2022  Merged in changes made in Light switch driver,added schedule options
@@ -72,7 +73,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.4"
+    TheVersion="2.8.5"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -166,6 +167,7 @@ def configure() {
 
     buttons = device.currentValue("numberOfButtons")
     if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
+    sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
 
     if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
@@ -213,6 +215,7 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)  
         return    
         }
     }
