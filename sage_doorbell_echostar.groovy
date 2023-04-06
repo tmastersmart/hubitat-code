@@ -22,7 +22,7 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
-v2.8.5  04/06/2023  detection of hub bug
+v2.8.6  04/06/2023  detection of hub bug
 v2.8.4  12/21/2022  Bat fix
 v2.8.3  11/22/2022  cluster 0013
 v2.8.2  11/12/2022  nother bug fix for presence
@@ -73,7 +73,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.5"
+    TheVersion="2.8.6"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -266,8 +266,8 @@ def parse(String description) {
     }  
        if (descMap.clusterId){descMap.cluster = descMap.clusterId} // fix for 2 formats
    
-  	def evt = zigbee.getEvent(description)
-    if (evt){logging("Event: ${evt}", "debug")} // testing     
+// def evt = zigbee.getEvent(description)
+// if (evt){logging("Event: ${evt}", "debug")} // testing     
  
  if (descMap.clusterId == "0006"  && descMap.profileId == "0104" ){
             def buttonNumber = (descMap.command as int)
