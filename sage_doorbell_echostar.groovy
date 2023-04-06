@@ -22,8 +22,8 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
-v2.8.4  12/21/2022  Bat fix 
-v2.8.3  11/15/2022  Cluster map detection
+v2.8.4  04/06/2023  detection of hub bug
+v2.8.3  11/22/2022   cluster 0013
 v2.8.2  11/12/2022  nother bug fix for presence
 v2.8.0  11/11/2022  Presence updated with retries
 v2.7.0  11/05/2022  Merged in changes made in Light switch driver,added schedule options
@@ -73,11 +73,13 @@ import hubitat.helper.HexUtils
 
 def clientVersion() {
     TheVersion="2.8.4"
- if (state.version != TheVersion){ 
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
-     configure() // Forces config on updates
+     configure() 
  }
 }
+
 
 
 metadata {
@@ -86,7 +88,6 @@ metadata {
 		capability "Configuration"
         capability "Pushable Button"
         capability "ReleasableButton"
-        capability "Holdable Button"
 		capability "Refresh"
         capability "Battery"
         capability "PresenceSensor"
@@ -165,8 +166,7 @@ def configure() {
 
     buttons = device.currentValue("numberOfButtons")
     if (buttons != 2){sendEvent(name: "numberOfButtons", value: 2, displayed: true)}
-    sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true) 
-    
+
     if(!timeBetweenPresses){timeBetweenPresses = 10}
 	String zigbeeEui = swapEndianHex(device.hub.zigbeeEui)
     logging("Configure", "info")
@@ -213,7 +213,6 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)     
         return    
         }
     }
@@ -264,7 +263,8 @@ def parse(String description) {
     }  
        if (descMap.clusterId){descMap.cluster = descMap.clusterId} // fix for 2 formats
    
-    
+  	def evt = zigbee.getEvent(description)
+    if (evt){logging("Event: ${evt}", "debug")} // testing     
  
  if (descMap.clusterId == "0006"  && descMap.profileId == "0104" ){
             def buttonNumber = (descMap.command as int)
@@ -284,7 +284,13 @@ def parse(String description) {
 //        logging("${descMap}", "warn")
 // device does not support battery cluster  
      
-
+/// profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[C3, FD, FF, 04, 01, 01, 19, 00, 00]  <-hub error causes this
+}else if (descMap.cluster == "0006" && descMap.profileId == "0000"){
+    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT --- Trying enrollResponse", "error")
+    zigbee.enrollResponse()  
+    return
+   
+   
 }else if (descMap.cluster == "0000"){
     if( descMap.attrId == "0004") {
     logging("Manufacturer:${descMap.value} ", "debug")
@@ -301,25 +307,38 @@ def parse(String description) {
     updateDataValue("fcc", "DKN-401DM")
     }   
    if (descMap.clusterId == "0006" ){
-    logging("Cluster 0000 id:0006 ${descMap}", "warn")
+    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT --- Trying enrollResponse", "error")
     zigbee.enrollResponse()
+    return
    }  
 
+}else if (descMap.clusterId == "0013") {
+        logging("0013 Enroll Request. ", "info")
+        zigbee.enrollResponse()   
+        return
 
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8031" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
-   text= ""
+
+}else if (descMap.cluster == "8032" ||descMap.cluster == "8031" || descMap.cluster == "8021" ||descMap.cluster == "0500" || descMap.cluster == "0000" ||descMap.cluster == "0001" ||descMap.cluster == "0006" || descMap.cluster == "0402" || descMap.cluster == "8038" || descMap.cluster == "8005") {
+      
+ text= "unknown"
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
  else if (descMap.cluster =="8031"){text="Link Quality"}
  else if (descMap.cluster =="8032"){text="Routing Table"}
- else if (descMap.cluster =="8013"){text="Multistate event"} 
-   
-   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
-   logging("Ignoring ${map.cluster} ${text}", "debug") 
-     
+      
+      if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Ignoring ${descMap.cluster} ${text}", "debug") 
+       
+
+
+//}else if (descMap.cluster == "0006") {
+//        logging("cluster:${descMap.cluster} 0006 Seen after a Enroll Request. Unknown", "debug")
+//       zigbee.enrollResponse()
+        
  }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
 
 } 
+
 
 def push(cmd){
 
@@ -397,15 +416,21 @@ void sendZigbeeCommands(List<String> cmds) {
     sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
-// Logging block v3
-//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+
+// Logging block  v4
+
 void loggingUpdate() {
     logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
-
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
