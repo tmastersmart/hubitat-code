@@ -22,6 +22,7 @@ Help is needed do you know the command to send to stop the reporting above?
 
 
 ================================================================================
+v2.8.7  04/08/2023  Logging 
 v2.8.6  04/06/2023  detection of hub bug
 v2.8.4  12/21/2022  Bat fix
 v2.8.3  11/22/2022  cluster 0013
@@ -73,7 +74,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="2.8.6"
+    TheVersion="2.8.7"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -92,6 +93,7 @@ metadata {
 		capability "Refresh"
         capability "Battery"
         capability "PresenceSensor"
+        capability "Initialize"
         
         command "checkPresence"
         command "uninstall"
@@ -122,7 +124,16 @@ def installed() {
     runIn(20,refresh)
 }
 
-
+def initialize() {
+    logging("Initialize", "info")
+	// Set states to starting values and schedule a single refresh.
+	// Runs on reboot, or can be triggered manually.
+    clientVersion()
+    zigbee.enrollResponse()  
+	// multi devices will run this on reboot make sure they all use a diffrent time
+  	randomSixty = Math.abs(new Random().nextInt() % 180)
+	runIn(randomSixty,refresh)
+}
 def uninstall() {
 	unschedule()
     state.remove("lastCheckInMin") 
@@ -199,7 +210,7 @@ runIn(8,refresh)
 
 
 def checkPresence() {
-    // presence routine. v5.1 11-12-22
+    // presence routine. v5.2 4-8-23
     // simulated 0% battery detection
     if(!state.tries){state.tries = 0} 
     state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
@@ -208,9 +219,9 @@ def checkPresence() {
     def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
     state.lastCheckInMin = timeSinceLastCheckin/60
     logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+    test = device.currentValue("presence")
     if (state.lastCheckInMin <= checkMin){ 
         state.tries = 0
-        test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
             logging("Creating presence event: ${value}  ","info")
@@ -222,7 +233,6 @@ def checkPresence() {
     if (state.lastCheckInMin >= checkMin) { 
       state.tries = state.tries + 1
       if (state.tries >=5){
-        test = device.currentValue("presence")
         if (test != "not present" ){
          value = "not present"
          logging("Creating presence event: ${value}","warn")
@@ -230,7 +240,7 @@ def checkPresence() {
          sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
          return // we dont want a ping after this or it could toggle
          }
-         
+     logging("${test}","info")    
      } 
        
      runIn(2,ping)
@@ -289,8 +299,8 @@ def parse(String description) {
      
 /// profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[C3, FD, FF, 04, 01, 01, 19, 00, 00]  <-hub error causes this
 }else if (descMap.cluster == "0006" && descMap.profileId == "0000"){
-    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT --- Trying enrollResponse", "error")
-    zigbee.enrollResponse()  
+    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT", "error")
+    runIn(20,initialize) 
     return
    
    
@@ -310,8 +320,8 @@ def parse(String description) {
     updateDataValue("fcc", "DKN-401DM")
     }   
    if (descMap.clusterId == "0006" ){
-    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT --- Trying enrollResponse", "error")
-    zigbee.enrollResponse()
+    logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT ", "error")
+    runIn(20,initialize)
     return
    }  
 
@@ -452,6 +462,8 @@ private logging(String message, String level) {
 }
 
 void getIcons(){
+    
     state.icon="<img src='https://github.com/tmastersmart/hubitat-code/raw/main/images/sage.jpg'>"
+    
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  }
