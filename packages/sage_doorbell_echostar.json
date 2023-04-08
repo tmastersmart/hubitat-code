@@ -1,12 +1,12 @@
 {
   "packageName": "sage doorbell echostar",
   "author": "TheMaster",
-  "releaseNotes": "detection of the hub bug ",
+  "releaseNotes": "Initialize routine added, detection of the hub bug ",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
   "documentationLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
   "communityLink": "https://community.hubitat.com/t/release-sage-doorbell-false-triggers-with-last-update/101697",
-  "version": "2.8.6",
+  "version": "2.8.7",
   "dateReleased": "2022-25-09",
 	"category": "Security",
       "tags": [
