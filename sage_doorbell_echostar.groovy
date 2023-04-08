@@ -226,7 +226,7 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-        sendEvent(name: "battery", value: 90, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)  
+        batSim(90) 
         return    
         }
     }
@@ -237,7 +237,7 @@ def checkPresence() {
          value = "not present"
          logging("Creating presence event: ${value}","warn")
          sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
-         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         batSim(0)   
          return // we dont want a ping after this or it could toggle
          }
      logging("${test}","info")    
@@ -252,7 +252,15 @@ def checkPresence() {
 }
 
 
+def batSim(bat){
+testB = device.currentValue("battery")
 
+if (bat != testB){
+  logging("battery: ${bat}%","info")
+  sendEvent(name: "battery", value: bat, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)
+}
+  
+}
 
 
 
@@ -300,7 +308,8 @@ def parse(String description) {
 /// profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[C3, FD, FF, 04, 01, 01, 19, 00, 00]  <-hub error causes this
 }else if (descMap.cluster == "0006" && descMap.profileId == "0000"){
     logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT", "error")
-    runIn(20,initialize) 
+    runIn(20,initialize)
+    batSim(50) 
     return
    
    
@@ -322,6 +331,7 @@ def parse(String description) {
    if (descMap.clusterId == "0006" ){
     logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT ", "error")
     runIn(20,initialize)
+    batSim(50)   
     return
    }  
 
