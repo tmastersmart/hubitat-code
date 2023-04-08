@@ -308,7 +308,7 @@ def parse(String description) {
 /// profileId:0000 clusterId:0006 clusterInt:6 sourceEndpoint00 destinationEndpoint00 options:0040 command:00 data:[C3, FD, FF, 04, 01, 01, 19, 00, 00]  <-hub error causes this
 }else if (descMap.cluster == "0006" && descMap.profileId == "0000"){
     logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT", "error")
-    runIn(20,initialize)
+//    runIn(20,initialize)  Best to ignore it ----
     batSim(50) 
     return
    
@@ -330,7 +330,7 @@ def parse(String description) {
     }   
    if (descMap.clusterId == "0006" ){
     logging("HUB bug is back ->Cluster 0000 id:0006 I cant fix this and it will run down the BAT ", "error")
-    runIn(20,initialize)
+//    runIn(20,initialize)  Best to ignore it ----
     batSim(50)   
     return
    }  
