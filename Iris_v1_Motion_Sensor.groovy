@@ -16,6 +16,7 @@ Option to ignore tamper on broken cases. These are getting old.
 
 
 ======================================================
+v2.5.1 04/07/2023 Bug fix in min voltage
 v2.5.0 03/24/2023 Adjustment for voltage settings under 2v
 v2.4.9 03/24/2023 Fix for last hub update breaking low bat 
 v2.4.8 12/17/2022 was not detecting known firmware
@@ -89,7 +90,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.5.0"
+    TheVersion="2.5.1"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -143,14 +144,13 @@ metadata {
 preferences {
 	
     
-    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+  input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true   
 
-    input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
-    input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on. minVolt test will be set when battery runs down", options: ["1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","2","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.2","2.21","2.22","2.23","2.24","2.25","2.26","2.27","2.28","2.29"], defaultValue: "2.21" ,required: true  
-    input name: "tempAdj",type:"enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8","-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8","6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
-
+  input name: "tamperIgnore", type: "bool", title: "Ignore the Tamper alarm", defaultValue: false
+  input name: "minVoff",type: "enum", title: "Min Voltage",description: "Using minVoltTest set the min voltage your sensor will run on. minVolt test will be set when battery runs down", options: ["1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","2","2.10","2.11","2.12","2.13","2.14","2.15","2.16","2.17","2.18","2.19","2.2","2.21","2.22","2.23","2.24","2.25","2.26","2.27","2.28","2.29"], defaultValue: "2.21" ,required: true  
+  input name: "tempAdj",type: "enum", title: "Temperature Offset",description: "", options: ["-10","-9.8","-9.6","-9.4","-9.2","-9.0","-8.8","-8.6","-8.4","-8.2","-8.0","-7.8","-7.6","-7.4","-7.2","-7.0","-6.8","-6.6","-6.4","-6.2","-6.0","-5.8","-5.6","-5.4","-5.2","-5.0","-4.8",    "-4.6","-4.4","-4.2","-4.0","-3.8","-3.6","-3.4","-3.2","-3.0","-2.8","-2.6","-2.4","-2.2","-2.0","-1.8","-1.6","-1.4","-1.2","-1.0","-0.8","-0.6","-0.4","-0.2","0",    "0.2","0.4","0.6","0.8","1.0","1.2","1.4","1.6","1.8","2.0","2.2","2.4","2.6","2.8","3.0","3.2","3.4","3.6","3.8","4.0","4.2","4.4","4.6","4.8","5.0","5.2","5.4","5.6","5.8","6.0","6.2","6.4","6.6","6.8","7.0","7.2","7.4","7.6","7.8","8.0","8.2","8.4","8.6","8.8","9.0","9.2","9.4","9.6","9.8","10"], defaultValue: "0",required: true  
 }
 
 def installed() {
@@ -468,36 +468,36 @@ def parse(String description) {
 // last hub update makes it impossible to do math on states and numbers from settings
 // What used to work no longer does. You can no longer save a number then pull it back and do math.
 // I gave up and created this Kludge for the bug. This is longer but safer         
-    if (minVoff == "1.1"){minVolts = 1.1 }
-    if (minVoff == "1.2"){minVolts = 1.2 }
-    if (minVoff == "1.3"){minVolts = 1.3 }
-    if (minVoff == "1.4"){minVolts = 1.4 }
-    if (minVoff == "1.5"){minVolts = 1.5 }         
-    if (minVoff == "1.6"){minVolts = 1.6 }
-    if (minVoff == "1.7"){minVolts = 1.7 }
-    if (minVoff == "1.8"){minVolts = 1.8 }
-    if (minVoff == "1.9"){minVolts = 1.9 }
-    if (minVoff == "2")   {minVolts = 2    }
-    if (minVoff == "2.10"){minVolts = 2.10 }     
-    if (minVoff == "2.11"){minVolts = 2.11 }
-    if (minVoff == "2.12"){minVolts = 2.12 }
-    if (minVoff == "2.13"){minVolts = 2.13 }
-    if (minVoff == "2.14"){minVolts = 2.14 }
-    if (minVoff == "2.15"){minVolts = 2.15 }         
-    if (minVoff == "2.16"){minVolts = 2.16 }
-    if (minVoff == "2.17"){minVolts = 2.17 }
-    if (minVoff == "2.18"){minVolts = 2.18 }
-    if (minVoff == "2.19"){minVolts = 2.19 }
-    if (minVoff == "2.2") {minVolts = 2.2  }
-    if (minVoff == "2.21"){minVolts = 2.21 }
-    if (minVoff == "2.22"){minVolts = 2.22 }
-    if (minVoff == "2.23"){minVolts = 2.23 }
-    if (minVoff == "2.24"){minVolts = 2.24 }
-    if (minVoff == "2.25"){minVolts = 2.25 }         
-    if (minVoff == "2.26"){minVolts = 2.26 }
-    if (minVoff == "2.27"){minVolts = 2.27 }
-    if (minVoff == "2.28"){minVolts = 2.28 }
-    if (minVoff == "2.29"){minVolts = 2.29 }
+    if (minVoff == "1.1"){batteryVoltageScaleMin = 1.1 }
+    if (minVoff == "1.2"){batteryVoltageScaleMin = 1.2 }
+    if (minVoff == "1.3"){batteryVoltageScaleMin = 1.3 }
+    if (minVoff == "1.4"){batteryVoltageScaleMin = 1.4 }
+    if (minVoff == "1.5"){batteryVoltageScaleMin = 1.5 }         
+    if (minVoff == "1.6"){batteryVoltageScaleMin = 1.6 }
+    if (minVoff == "1.7"){batteryVoltageScaleMin = 1.7 }
+    if (minVoff == "1.8"){batteryVoltageScaleMin = 1.8 }
+    if (minVoff == "1.9"){batteryVoltageScaleMin = 1.9 }
+    if (minVoff == "2")   {batteryVoltageScaleMin = 2    }
+    if (minVoff == "2.10"){batteryVoltageScaleMin = 2.10 }     
+    if (minVoff == "2.11"){batteryVoltageScaleMin = 2.11 }
+    if (minVoff == "2.12"){batteryVoltageScaleMin = 2.12 }
+    if (minVoff == "2.13"){batteryVoltageScaleMin = 2.13 }
+    if (minVoff == "2.14"){batteryVoltageScaleMin = 2.14 }
+    if (minVoff == "2.15"){batteryVoltageScaleMin = 2.15 }         
+    if (minVoff == "2.16"){batteryVoltageScaleMin = 2.16 }
+    if (minVoff == "2.17"){batteryVoltageScaleMin = 2.17 }
+    if (minVoff == "2.18"){batteryVoltageScaleMin = 2.18 }
+    if (minVoff == "2.19"){batteryVoltageScaleMin = 2.19 }
+    if (minVoff == "2.2") {batteryVoltageScaleMin = 2.2  }
+    if (minVoff == "2.21"){batteryVoltageScaleMin = 2.21 }
+    if (minVoff == "2.22"){batteryVoltageScaleMin = 2.22 }
+    if (minVoff == "2.23"){batteryVoltageScaleMin = 2.23 }
+    if (minVoff == "2.24"){batteryVoltageScaleMin = 2.24 }
+    if (minVoff == "2.25"){batteryVoltageScaleMin = 2.25 }         
+    if (minVoff == "2.26"){batteryVoltageScaleMin = 2.26 }
+    if (minVoff == "2.27"){batteryVoltageScaleMin = 2.27 }
+    if (minVoff == "2.28"){batteryVoltageScaleMin = 2.28 }
+    if (minVoff == "2.29"){batteryVoltageScaleMin = 2.29 }
          
          
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
