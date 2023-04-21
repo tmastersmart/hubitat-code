@@ -79,7 +79,8 @@ notices must be preserved. Contributors provide an express grant of patent right
  */
 def clientVersion() {
     TheVersion="4.2.4"
- if (state.version != TheVersion){ 
+if (state.version != TheVersion){
+    logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() 
  }
