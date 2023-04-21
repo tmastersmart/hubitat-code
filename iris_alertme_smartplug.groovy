@@ -12,7 +12,10 @@ Centrica Connected home Limited Wireless Smartplug SP11
                                                                             |___/
 
 USA version  model# SPG800 FCC ID WJHSP11
-================
+====================================================================================
+v4.2.4 04/21/2023 Ranging added after power recovery
+v4.2.3 03/15/2023
+v4.2.2 03/01/2023 Added missing isStateChange to On/Off events. 
 v4.2.1 12/05/2022 Was not Refreshing after ranging
 v4.2.0 11/29/2022 control loss increased ranging.
 v4.1.0 11/15/2022 Bug fix in refreash and on off control
@@ -75,7 +78,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.2.1"
+    TheVersion="4.2.4"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -109,7 +112,7 @@ metadata {
 
 		attribute "strobe", "string"
 		attribute "siren", "string"
-
+//        attribute "Voltage", "string"
 		attribute "power", "string"
 
 
@@ -127,7 +130,14 @@ preferences {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
-	
+
+    input name: "autoSync",     type: "bool", title: "AutoSync to hub state", description: "Disables local button on relays, Recovery from powerfalure, Keeps relay in sync with digital state. ChildGuard outlets.", defaultValue: false,required: true
+    input name: "resendState",  type: "bool", title: "Resend Last State on Refresh", description: "For problem devices that dont wake up or dont reply to commands.", defaultValue: false,required: true
+    input name: "pollHR" ,	    type: "enum", title: "Check Presence Hours",description: "Chron Schedule. Press config after saving",options: ["1","2","3","4"], defaultValue: "1",required: true 
+
+	input name: "disableLogsOff",type: "bool", title: "Disable Auto Logs off", description: "For debugging doesnt auto disable", defaultValue: false,required: true
+    
+    
 }
 
 
@@ -197,7 +207,7 @@ state.remove("relayClosed")
 state.remove("battery")
 state.remove("batteryVoltage")
 state.remove("powerSource")
-state.remove("batteryWithUnit")
+state.remove("pendingChanges")
 state.remove("operatingMode")
 state.remove("power")
 state.remove("operation")
@@ -212,7 +222,9 @@ state.remove("operation")
     clientVersion()
 	// multi devices will run this on reboot make sure they all use a diffrent time
   	randomSixty = Math.abs(new Random().nextInt() % 180)
-	runIn(randomSixty,refresh)
+//	runIn(randomSixty,refresh)   
+//  It needs ranging on recovery from power falure or it may not respond for hrs
+    runIn(randomSixty,rangeAndRefresh)
 }
 
 
@@ -225,17 +237,23 @@ def configure() {
 
 	// Schedule randon ranging in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)  
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
-
-    // Check presence in hrs
+	schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", rangeAndRefresh)	
+    logging("RangeAndRefreash Every 5hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+    
+// Check presence in hrs
+    if (!pollHR){ pollHR= 1}
+    state.poll = pollHR
 	randomSixty = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)    
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
+    logging("CHRON: ${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", "debug") 
+    schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${state.poll} * * ? *", checkPresence)	
+    logging("Presence Check Every ${state.poll}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+  
 
-   
-
-	rangeAndRefresh()
+//	rangeAndRefresh()
 
     
     runIn(randomSixty,rangeAndRefresh)
@@ -307,7 +325,20 @@ def rangeAndRefresh() {
     runIn(10,refresh)
 }
 
-
+// Resend the proper state to get back in sync
+def sync (){
+    if(autoSync == false){return}
+    if (!state.error){state.error = 0}
+    state.error = state.error +1 
+    if(state.error > 12){
+    logging("Loss of control. Resync falure. Errors:${state.error}", "warn") 
+    return // prevent a non stop loop  
+    }
+    
+    logging("Resyncing State. Errors:${state.error}", "warn") 
+    if (state.switch== true){ runIn(4,on)}
+    else {runIn(4,off)}
+}
 
                    
 def siren(cmd){
@@ -423,15 +454,16 @@ def parse(String description) {
                   currentStrobe = device.currentValue("strobe")
             logging("State: mode:${state.operatingMode} On/Off:${onOff} [${map.data}]", "debug")
         if (onOff == "00" || operatingModeCode =="06" ) {
-  	     if (current == "on"){
-           sendEvent(name: "switch", value: "off",descriptionText: "${state.uptime} V${state.version}")
+  	    if (current == "on"){
+           sendEvent(name: "switch", value: "off",descriptionText: "${state.uptime} V${state.version}",isStateChange: true)
            if (currentSiren  != "off"){sendEvent(name: "siren",  value: "off")}
            if (currentStrobe != "off"){sendEvent(name: "strobe", value: "off")}
            logging("Switch : OFF ", "info")
-		   }  else {logging("Switch :OFF Our state:${current}", "info")}    
+		   }  
+        else {logging("Switch :OFF Our state:${current}", "info")}    
         }
        if (onOff == "01" || operatingModeCode =="07") {
-	       if (current != "on"){
+	   if (current != "on"){
                if(state.alarmcmd == 1){
                     sendEvent(name: "siren", value: "on")
                     logging("Sirene Alarm : ON", "info")
@@ -445,8 +477,8 @@ def parse(String description) {
                     sendEvent(name: "siren", value: "on")
                     logging("Siren-Strobe Alarm : ON", "info")
                 }
-                sendEvent(name: "switch", value: "on",descriptionText: "${state.uptime} V${state.version}")
-                logging("Switch : ON", "info")
+            sendEvent(name: "switch", value: "on",descriptionText: "${state.uptime} V${state.version}",isStateChange: true)
+            logging("Switch : ON", "info")
 	         }
            else {logging("Switch :ON Our state:${current}", "info")} 
 		} 
@@ -521,16 +553,24 @@ else if (map.clusterId == "00EF") {
     // bit 5 and 6 reversed
     // bit 7 and 8 reversed
     // LQI = 10 (lqi * 100.0) / 255.0
-    def temperatureValue  = "NA"
+    def temp  = 0
     def batteryVoltageHex = "NA"
     BigDecimal batteryVoltage = 0
 	batteryVoltageHex = receivedData[5..6].reverse().join()
-    temperatureValue = receivedData[7..8].reverse().join()
+//    temp = receivedData[7..8].reverse().join()
+//    BigDecimal temperatureCelsius = hexToBigDecimal(temp) / 16
+//   temp = (temperatureCelsius * 9/5) + 32//      fixed from UK code use F
+// Voltage:12.81V Temp:-8c Temp17.6  (logging temp data may not be a real value)
     if (batteryVoltageHex != "FFFF") {
-        batteryVoltage = zigbee.convertHexToInt(batteryVoltageHex) / 1000
-		batteryVoltage = batteryVoltage.setScale(3, BigDecimal.ROUND_HALF_UP)
-        logging("Battery: ${map.clusterId} :${map.command} Volts:${batteryVoltage}", "debug")
-      }
+        batteryVoltageRaw = zigbee.convertHexToInt(batteryVoltageHex) / 1000
+        batteryVoltage = batteryVoltageRaw.setScale(2, BigDecimal.ROUND_HALF_UP)
+ //       powerLast = device.currentValue("Voltage")
+ //       if(powerLast != batteryVoltage){ 
+ //           sendEvent(name: "Voltage", value: batteryVoltage, unit: "V", descriptionText: "Volts:${batteryVoltage}V Temp:${temperatureCelsius}c v${state.version}")
+ //           logging("Voltage:${batteryVoltage}V", "info")
+ //       }
+ logging("Voltage:${batteryVoltage}V", "debug")
+ }
  
     
     
@@ -669,7 +709,6 @@ void getIcons(){
     state.remove("logo")
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
     state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-v1-smartplug.jpg' >"
-//  state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/iris-switch.jpg' >"
 
  }
 
