@@ -9,11 +9,9 @@ Compatible with:
 WS-0800-IP WS-0900-IP WS-1200 WS-1200-IP WS-1201 WS-1201-IP WS-1400-IP 
 WS-1401-IP WS-1550-IP WS-1000-WiFi WS-1001-WiFi WS-1002-WiFi
 
-
 https://github.com/tmastersmart/hubitat-code/blob/main/observer_ip_link.groovy
 
 SolarRad must be set to W/m2 on station. 
-
 
 Script reads from station and post to hub localy
 with no need to pull data from the Ambent Weather
@@ -25,6 +23,7 @@ Create a Outdoor and indoor sensor using this driver
 Give permission in the API maker then enter the 
 ID #s for the sensors and API in the script.
 
+v1.9        05/08/2023 Created Weather Status varable
 v1.8        09/28/2022 Updated logging
 v1.7        09/02/2022  attribute "WU" added
 v1.6        08/18/2022  Fix numeric varables so scripts can use math 
@@ -33,12 +32,13 @@ v1.4
 v1.3        06/07/2021
 v1.2 beta   06/02/2021
 
-    
+   
 
 */
 def clientVersion() {
-    TheVersion="1.8"
- if (state.version != TheVersion){ 
+    TheVersion="1.9"
+ if (state.version != TheVersion){
+     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
      configure() // Forces config on updates
  }
@@ -51,6 +51,7 @@ metadata {
         capability "Illuminance Measurement"
         capability "Relative Humidity Measurement"
         capability "Temperature Measurement"
+        capability "TemperatureMeasurement"
         capability "Pressure Measurement"
         capability "Water Sensor"    
         capability "Ultraviolet Index"
@@ -96,7 +97,7 @@ metadata {
         command "initialize" 
         
 
-        
+        attribute "weather-string", "string"
         attribute "weather", "string"                   
         attribute "Agent", "string"
         attribute "Model", "string"
@@ -106,7 +107,7 @@ metadata {
         attribute "WU", "string"
         
         attribute "ultraviolet", "string"
-		attribute "Rain", "Number"       
+    		attribute "Rain", "Number"       
         attribute "RainDaily", "Number"
         attribute "RainRate", "Number"
         attribute "RainHour", "Number"
@@ -213,6 +214,7 @@ def setTemperature(temp) {
     def unit = "°${location.temperatureScale}"
     logging("${device} : Temperature is ${temp}${unit}", "info")
     sendEvent(name: "temperature", value: temp, descriptionText: "Temperature is ${temp}${unit}", unit: unit)
+    SetString()
 }
 
 def setPressure(Pressure) {
@@ -293,8 +295,10 @@ def setWind_cardinal(wind_cardinal) {
 }
 // Date is last value posted. 
 def setPWSDate(PWSDate) {
-    logging("${device} : Date is ${PWSDate}", "debug")
+
+    logging("${device} : Station Date ${PWSDate}", "debug")
     sendEvent(name: "PWSDate", value: PWSDate,  unit: "")
+
 }
 def setDew(Dew) {
     logging("${device} : Dewpoint is ${Dew}", "debug")
@@ -310,6 +314,59 @@ def dry() {
     logging("${device} : dry", "debug")
     sendEvent(name: "water", value: "dry")
 }
+
+def SetString(){
+
+    def nowTime = new Date().time
+    def nowCal = Calendar.getInstance(location.timeZone) // get current location timezone
+    state.pollTime = "${nowCal.getTime().format("EEE MMM dd HH:mm z", location.timeZone)}"
+    hr = "${nowCal.getTime().format("h", location.timeZone)}"
+    mn = "${nowCal.getTime().format("mm", location.timeZone)}" 
+   Time1 = "${hr} hours ${mn} minutes"
+//     wet = device.currentValue("wet")
+//     dry = device.currentValue("dry")
+    gust = device.currentValue("gust")
+   Dgust = device.currentValue("WindDGust")
+   windS  = device.currentValue("WindSpeed")
+   Drain = device.currentValue("RainDaily")
+   Rrain = device.currentValue("RainRate")
+   temp  = device.currentValue("temperature")
+//    ill  = device.currentValue("illuminance")
+    pres = device.currentValue("pressure")
+    hum  = device.currentValue("humidity")
+    we   = device.currentValue("weather")
+    dew  = device.currentValue("Dew")
+    uvi  = device.currentValue("uvi")
+//Altemeter= device.currentValue("Altemeter")
+  
+ //inside sensor null fix
+ if(!windS){windS= 0} 
+ if(!we){we ="";} 
+ if(dew){dewpoint ="DewPoint ${dew}"}
+ else{DewPoint = ""} 
+ 
+  
+ wind = "Wind Speed ${windS} Miles Per Hour"
+ if (windS == 0 ){wind=""}
+ if (gust  >0) {wind ="${wind} Gusting at ${gust} Miles Per Hour"}   
+ if (Dgust >0) {wind ="${wind} Daily Gust ${Dgust} Miles Per Hour"}
+
+ rain = ""
+ if (Drain > 0){  
+ rain ="${rain} Daily Rain ${Drain} inches"
+  if (Rrain >0) {rain="Rain rate ${Rrain} inches per hour"}
+ } 
+
+ uviI =""
+  if(uvi >0){uviI="ultraviolet index ${uvi}"} 
+  
+  weatherString = "at ${Time1} ${we} temperature ${temp} ${DewPoint}  ${wind} ${rain}  Pressure ${pres} Humidity ${hum} percent ${uviI}" 
+  
+ logging("${device} : ${weatherString}", "debug")
+ sendEvent(name: "weather-string", value: weatherString)
+}
+
+
 
 // Logging block 
 //	device.updateSetting("infoLogging",[value:"true",type:"bool"])
