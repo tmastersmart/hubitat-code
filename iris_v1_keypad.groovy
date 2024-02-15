@@ -18,6 +18,8 @@ Button Controller support to map coomands to buttons 1-0
 Must set keypad in (Hubitat® Safety Monitor) and (Lock Code manager) for it to work 
 
 =================================================================================================
+  v7.0.3 02/15/2024 Valid pin presses OFF for you. 
+                    This fixes a problem with the new firmware being slower than it was in 2022
   v7.0.2 11/12/2022 Another bug fix for presence
   v7.0.0 11/11/2022 Rewrote logging code (smaller code size) Added improvements from my iris drivers
   v6.9.0 10/30/2022 Bug fix in presence routine was not giving warning before timing out.
@@ -266,7 +268,7 @@ notices must be preserved. Contributors provide an express grant of patent right
 
  */
 def clientVersion() {
-    TheVersion="7.0.2"
+    TheVersion="7.0.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -1860,6 +1862,8 @@ def parse(String description) {
       runIn(97, "purgePIN")// Purge time must allow repeating to finish
       if (state.validPIN == true){
           logging("[Valid PIN]:Name:${state.PinName} State:${state.Command}","info")
+          logging("Pressing [OFF] for you on a valid pin","info")          
+          MyDisarm()
      	  return  
         }   
       // The pin was not valid         
