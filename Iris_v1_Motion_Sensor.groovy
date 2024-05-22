@@ -16,6 +16,7 @@ Option to ignore tamper on broken cases. These are getting old.
 
 
 ======================================================
+v2.5.2 05/22/2024 Change is timming for presence
 v2.5.1 04/07/2023 Bug fix in min voltage
 v2.5.0 03/24/2023 Adjustment for voltage settings under 2v
 v2.4.9 03/24/2023 Fix for last hub update breaking low bat 
@@ -90,7 +91,7 @@ https://github.com/birdslikewires/hubitat/blob/master/alertme/drivers/alertme_mo
  */
 
 def clientVersion() {
-    TheVersion="2.5.1"
+    TheVersion="2.5.2"
     
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
@@ -250,7 +251,7 @@ def configure() {
     // Check presence in hrs
 	randomSixty = Math.abs(new Random().nextInt() % 60)
 	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
-	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${1} * * ? *", checkPresence)	
+	schedule("${randomSixty} ${randomSixty} ${randomTwentyFour}/${5} * * ? *", checkPresence)	
 
     
 	// Schedule presence check in mins
@@ -356,7 +357,7 @@ def checkPresence() {
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
-            logging("Creating presence event: ${value}  ","info")
+        logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
         return    
         }
