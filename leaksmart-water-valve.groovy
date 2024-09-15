@@ -12,13 +12,24 @@
 | |    / _ \/ _` | |/ /`--. \ '_ ` _ \ / _` | '__| __| | | | |/ _` | \ \ / / _ \
 | |___|  __/ (_| |   </\__/ / | | | | | (_| | |  | |_  \ \_/ / (_| | |\ V /  __/
 \_____/\___|\__,_|_|\_\____/|_| |_| |_|\__,_|_|   \__|  \___/ \__,_|_| \_/ \___|
+
+
+
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
+
 tested on firmware 
 113B-03E8-0000001D (01-1D-01-0A) false mains flag sent
 113B-03E8-00000019 valid mains flag 
+
+
+
+
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
+
+
 web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
 import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
+
 
   Changelog:
     3.3.2 09/15/2024   Fix for 'Device XXX generates excessive hub load' 
@@ -59,7 +70,8 @@ False mains flags seen on v1 valves but v2.1 works.
 Warning:
 Valve has internal testing routines Appliance Alerts not implimented in any other driver.
 Code has been added to read detect falures but is still being debugged. Device will send failed test messages
-and should detect stuck valves. More work is needed. No documentation exist for this I am creating my own.
+and should detect stuck valves. No documentation exist for this I am creating my own.
+
 
 
 Valves need to be manualy tested to make sure the water does shut off. Dont rely on the CLOSED report.
@@ -67,6 +79,8 @@ If the valve sticks remove the 4 screws on the motor. Take photos of what it loo
 Remove the gear then remove the 3 screws and turn the valve around several times with a wrench to free the valve.
 You may have to rotate it back and forth several times to get it free. 
 Afterward test often making sure the water goes off.
+
+Update its possible for the valve to stick and the motor to still function. Testing is importiant!
 
 
 Post comments here
@@ -88,9 +102,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =======================================================================================================
 
-Iris source code
-https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_Waxman_SmartValve.driver
-https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_Waxman_SmartValveHA.driver
+
 def final short CLUSTER_BASIC_CNFG                  = 0x0000
 def final short CLUSTER_PWR_CNFG                    = 0x0001
 def final short CLUSTER_ON_OFF                      = 0x0006
@@ -101,6 +113,10 @@ def final short CLUSTER_APPLIANCE_ALERTS            = 0x0B02
 
 Much of this code is my own but parts will contain code from 
 
+    Forked fromIris source code
+ *  https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_Waxman_SmartValve.driver
+ *  https://github.com/arcus-smart-home/arcusplatform/blob/a02ad0e9274896806b7d0108ee3644396f3780ad/platform/arcus-containers/driver-services/src/main/resources/ZB_Waxman_SmartValveHA.driver
+ *
  *  forked from https://github.com/krlaframboise/SmartThings/tree/master/devicetypes/krlaframboise/leaksmart-water-valve.src
  *  Author:Kevin LaFramboise (krlaframboise)(from 1.3 orginal)    (Mode: 8830000L)
  *
