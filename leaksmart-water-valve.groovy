@@ -18,7 +18,7 @@
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
 
 tested on firmware 
-113B-03E8-0000001D false mains flag sent (detect mains by voltage)
+113B-03E8-0000001D (01-1D-01-0A) false mains flag sent
 113B-03E8-00000019 valid mains flag 
 
 
@@ -32,6 +32,8 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.3.2 09/15/2024   Fix for 'Device XXX generates excessive hub load' 
+    3.3.1 12/08/2022   rewrites of parsing code Presence added. Bat% changed to automatic
     3.3.0 10/28/2022   Removed code to detect false mains flag. It was not working on all valves
                        If your valve sends false mains flags you will just have to ignore them.
     3.2.3 10/18/2022   Test attribute added for routines to monitor. true when running
@@ -55,7 +57,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
     2.2.1 08/08/2021 Changed logging on battery routines
     2.1   05/03/2021   
     2.0   04/12/2021   Ported to Hubitat
-
+    
 
 To reset the valve for repairing, rapidly press the center button 5 times. The Blue LED light will begin to flash
 indicating it is reset and ready to join.
@@ -118,7 +120,7 @@ Much of this code is my own but parts will contain code from
  *
  */
 def clientVersion() {
-    TheVersion="3.3.0"
+    TheVersion="3.3.2"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -139,8 +141,14 @@ metadata {
 		capability "Valve"
 		capability "Polling"
         capability "Power Source"
+        capability "Health Check"
+        capability "Initialize"
+	    capability "PresenceSensor"
+        
      
-        command "test"   
+        command "test"
+        command "checkPresence"
+        command "uninstall"
 
 //    attribute "lastPollD", "string"
 	attribute "batteryVoltage", "string"
@@ -167,11 +175,13 @@ fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02",
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
         
 
-	input name: "calBat",       type: "bool", title: "Calculate Bat%", description: "If you do not receive bat% reports create them", defaultValue: true
-	input name: "reportWD",     type: "bool", title: "Report WET/DRY", description: "Send the wet dry signal", defaultValue: false,required: true
+	input name: "reportWD",     type: "bool", title: "Report WET/DRY", description: "Send the wet dry signal", defaultValue: false,required: false
     input(  "testMonths", "enum", title: "Test every x months", description: "set Chron for a valve test every x months. Events are hidden during test to stop scripts from running. Valve may still run its own internal 1 year test. Press save then config", options: ["1","2","3","4","5","6","7","8","9","10"],defaultValue: 6,required: true)
     input(  "testHr", "enum", title: "Test Hour", description: "The hr of the day to run the test", options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","14","15","16","17","18","19","20","21","22","23"],defaultValue: 0,required: true)
-     
+   
+    input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
+    input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 10 ,required: true 
+    
         
     }
 //testMonths	
@@ -185,93 +195,213 @@ private getTYPE_U8() { 0x20 }
 private getTYPE_ENUM8() { 0x30 }
 
 
-def updated() {
-   if (!state.configured) {	return response(configure())}
-   loggingUpdate()
+def installed() {
+logging("Installed ", "warn")    
+state.DataUpdate = false
+pollHR = 10
+pingIt = 30    
+configure()   
+updated()
+    
 }
+def initialize(){
+    pollHR = 10
+    pingIt = 30
+    installed()
+}
+
+
+
+
+def uninstall() {// need to clear everything before manual driver change. 
+  delayBetween([
+    unschedule(),
+    state.icon = "",
+    state.donate = "",
+    state.remove("minVoltTest"), 
+    state.remove("presenceUpdated"),    
+	state.remove("version"),
+    state.remove("checkPhase"),
+    state.remove("lastCheckInMin"),
+    state.remove("icon"),
+    state.remove("logo"),  
+    state.remove("DataUpdate"),
+    state.remove("lastCheckin"),
+    state.remove("lastPoll"),
+    state.remove("donate"),
+    state.remove("model"),
+    state.remove("MFR"),
+    state.remove("poll"),
+    state.remove("ping"),
+    state.remove("tempAdj"),
+    logging("Uninstalled - States removed you may now switch drivers", "info") , 
+    ], 200)  
+}
+
+def updated(){
+    logging("Updated ", "info")
+    loggingUpdate()
+    clientVersion()
+    if (!state.configured) {	return response(configure())}
+}
+
+
 
 // CLUSTER_APPLIANCE_ALERTS            = 0x0B02
 def parse(String description) {
-    logging ("${device} : ${description}","trace") 
-	clientVersion()
-    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
-    def evt = zigbee.getEvent(description)
-    if (evt) {
-        processEvt(evt)// if its a known event get out
-        return
-        }
+    logging("Parse: [${description}]", "trace")
+    state.lastCheckin = now()
+    checkPresence()
+    clientVersion()
     
-    Map map = zigbee.parseDescriptionAsMap(description)
-    if (map) {   
-        logging ("${device} : MAP: clusterId:${map.clusterId} clusterInt:${map.clusterInt} options:${map.options} command:${map.command} data:${map.data}","debug")  
- 
+    if (description?.startsWith('enroll request')) { 
+     zigbee.enrollResponse()
+     return  
+    }  
+	
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+  
+    Map descMap = zigbee.parseDescriptionAsMap(description) 
+    logging("MAP: ${descMap}", "trace")    
+    if (!descMap) {return}
+    
+     // fix parse Geting 2 formats so merge them
+    if (descMap.clusterId) {descMap.cluster = descMap.clusterId}
+
+ if (descMap.cluster == "0000" ) {
+      if (descMap.attrId== "0000" && descMap.attrInt ==0){
+          state.v1 = descMap.value
+          logging("Firmware ZCL v${descMap.value}", "debug") 
+       }      
+      if (descMap.attrId== "0001" && descMap.attrInt ==1){
+          state.v2 = descMap.value
+          logging("Firmware APP v${descMap.value}", "debug")
+      }
+      if (descMap.attrId== "0002" && descMap.attrInt ==2){
+          state.v3 = descMap.value
+          logging("Firmware STACK v${descMap.value}", "debug")
+      }
+      if (descMap.attrId== "0003" && descMap.attrInt ==3){
+          logging("Firmware Hardware v${descMap.value}", "debug")
+          state.v4 = descMap.value
+      }
+
+     if(state.v1 && state.v2 && state.v3 && state.v4){
+         state.firmware = "${state.v1}-${state.v2}-${state.v3}-${state.v4}"
+         logging("Firmware  v${state.firmware}", "debug")
+         state.remove("v1") 
+         state.remove("v2")
+         state.remove("v3")
+         state.remove("v4")
+     } 
+             
+     
+        if (descMap.attrId== "0004" && descMap.attrInt ==4){
+        state.MFR = descMap.value     
+        logging("Manufacturer :${state.MFR}", "debug") 
+        updateDataValue("manufacturer", state.MFR)
+        state.DataUpdate = true 
+        return    
+        } 
+        if (descMap.attrId== "0005" && descMap.attrInt ==5){
+        state.model = descMap.value 
+        logging("Model :${state.model}", "debug")   
+        updateDataValue("model", state.model)
+        state.DataUpdate = true    
+        return    
+        } 
+        if (descMap.attrId== "0007" && descMap.attrInt ==7){
+        logging("Mains :${descMap.value}", "debug")   
+        }
+     
+     // Cluster 0000 attrID:0007 attrInt7 value01 (power source mains)
+     logging("Cluster 0000  attrID:${descMap.attrId} attrInt${descMap.attrInt} value${descMap.value}", "trace")
+
+} 
+
+def evt = zigbee.getEvent(description)
+           if (evt){
+               logging("Event: ${evt}", "debug")
+               processEvt(evt)
+               return// we stop here if valid event
+           } 
 
 
-       
-if (map.clusterId == "0001"){
-    if(map.command == "07"){
-     logging ("${device} : Replying to Set bat reporting times. command:${map.command} Int:${clusterInt} data:${map.data}","debug")
-     }
-        else {logging ("${device} : Battery% report with no EVENT. command:${map.command} Int:${clusterInt} data:${map.data}","debug")}
-   
-}
-if (map.clusterId == "0000"){ logging ("${device} : Replying to Set PowerSource reporting times. command:${map.command} data:${map.data}","debug")}
-        
- //MAP: clusterId:8021 clusterInt:32801 options:0040 command:00 data:[AA, 00]        
-if (map.clusterId == "8021"){ logging ("${device} : Replying to Set reporting times. command:${map.command} Int:${clusterInt} data:${map.data}","debug")}
 
+// only undetected events here
 
+    
+    
 // reverse engenered from iris source code (no one else has this working) We have only seen yearly test not monthly
 // clusterId:0B02 clusterInt:2818 options:0040 command:01 data:[00, 00, 86]     
-if (map.clusterId == "0B02"){
-        logging ("${device} : Alerts clusterInt:${map.clusterInt} options:${map.options} command:${map.command} data:${map.data}","debug")  
-        msgId = map.command // We dont have a msgID value use command?
-//        msgId = map.data[0] 
-        dataByte = map.data[1]
-        logging ("${device} : Alerts msgId:${msgId} dataByte:${dataByte} data:${map.data}","debug")  
+ if (descMap.clusterId == "0B02"){
+        logging ("Alerts clusterInt:${descMap.clusterInt} options:${descMap.options} command:${descMap.command} data:${descMap.data}","debug")  
+        msgId = descMap.command // We dont have a msgID value use command? Why does byte2 have a 86 in it
+        dataByte0 = descMap.data[0]
+        dataByte1 = descMap.data[1]
+        dataByte2 = descMap.data[2]
+        state.alarms = descMap.data // For testing
+        logging ("Alerts msgId:${msgId} data:${descMap.data}","debug")  
 //      sendEvent(name: "Alert",value: map.data,descriptionText: "command:${map.command} data:${map.data}", isStateChange: true, displayed: true) 
-        if (msgId == "00" || msgId == "01"){
-          if (dataByte == "00") {
-              logging ("${device} : Status: Clear","info")
-              sendEvent(name: "Alert",value: "clear" ,descriptionText: "clear command:${map.command} data:${map.data}", isStateChange: true, displayed: true)
-		 } else {
-         logging ("${device} : Valve Operation Failure Alert","warn") 
-          sendEvent(name: "Alert",value: "fail",descriptionText: "Valve Operation Failure Alert", isStateChange: true, displayed: true)
-			}   
-        }
-        if (msgId == "02") {// Events Notification
-			if (dataByte == "80") {// 0x80 (-128)
-					logging ("${device} : Starting Monthly Test","info") 
+//        if (msgId == "00" || msgId == "01"){
+          if (dataByte1 == "00") {
+              logging ("Status: Clear","info")
+              sendEvent(name: "Alert",value: "clear" ,descriptionText: "clear command:${descMap.command} data:${descMap.data}", isStateChange: true, displayed: true)
+          
+//		 } else {
+//         logging ("Valve Operation Failure Alert","warn") 
+//          sendEvent(name: "Alert",value: "fail",descriptionText: "Valve Operation Failure Alert", isStateChange: true, displayed: true)
+
+//        if (msgId == "02") {// Events Notification
+           }else if (dataByte1 == "80" ) {// 0x80 (-128)
+					logging ("Starting Monthly Test","info") 
 					state.lastTest = new Date().format("MM/dd/yyyy", location.timeZone)
                     sendEvent(name: "Alert",value: "test",descriptionText: "Starting Monthly Test", isStateChange: true, displayed: true)
-            }else if (dataByte == "81") {// 0x81 (-127)
-                	logging ("${device} : Valve Operation Failure Event","warn") 
+            }else if (dataByte1 == "81") {// 0x81 (-127)
+                	logging ("Valve Operation Failure Event","warn") 
                     sendEvent(name: "Alert",value: "fail",descriptionText: "Valve Operation Failure Event", isStateChange: true, displayed: true)
-            }else if (dataByte == "82") {// 0x82 (-126)
-                    logging ("${device} : Monthly Test NOT performed","warn") 
+            }else if (dataByte1 == "82") {// 0x82 (-126)
+                    logging ("Monthly Test NOT performed","warn") 
                     sendEvent(name: "Alert",value: "none",descriptionText: "Monthly Test NOT performed", isStateChange: true, displayed: true)
-            }else if (dataByte == "83") {// 0x83 (-125)
-                	logging ("${device} : Monthly Test Completed Successfully","info") 
+            }else if (dataByte1 == "83") {// 0x83 (-125)
+                	logging ("Monthly Test Completed Successfully","info") 
                      sendEvent(name: "Alert",value: "ok",descriptionText: "Monthly Test Completed Successfully", isStateChange: true, displayed: true)
 					state.lastTest = new Date().format("MM/dd/yyyy", location.timeZone)
             }else{
-                logging ("${device} : Unexpected Event Data:${dataByte}","info" )
-                sendEvent(name: "Alert",value: "unknown",descriptionText: "Unexpected Event Data:${dataByte}", isStateChange: true, displayed: true)       
-                       
-            
+                logging ("Unexpected Event Data:${dataByte1}","info" )
+                sendEvent(name: "Alert",value: "unknown",descriptionText: "Unexpected Event Data:${dataByte1}", isStateChange: true, displayed: true)       
             }
-        }// end msg2
-  }//end 0B02 
- }// end map    
-}
+     
+ 
+
+// just ignore these unknown clusters for now
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8013") {
+   text= ""
+      if (descMap.cluster =="8001"){text="GENERAL"}
+ else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
+ else if (descMap.cluster =="8031"){text="Link Quality"}
+ else if (descMap.cluster =="8032"){text="Routing Table"}
+ else if (descMap.cluster =="8013"){text="Multistate event"} 
+ else if (descMap.cluster =="0001"){text="Powercluster with no event"}
+   
+   if (descMap.data){text ="${text} clusterInt:${descMap.clusterInt} command:${descMap.command} options:${descMap.options} data:${descMap.data}" }
+   logging("Cluster${descMap.cluster} Ignoring ${descMap.data} ${text}", "debug") 
+
+
+ }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
+
+    }    
+    
+    
+
 
 // test for known events
 def processEvt(evt) { 
-    
         if (evt.name == "switch") {// valve status 
+          if ( state.valve != device.currentState("switch")?.value){state.value= device.currentState("switch")?.value}  // try to stop exesive hub events
 		 def val2 = (evt.value == "on") ? "open" : "closed"
 		 def val3 = (evt.value == "on") ? "wet" : "dry"
-         logging ("${device} : Valve: ${val2} Water:${val3} Switch:${evt.value} Contact:${val2}","debug")
+         logging ("Valve: ${val2} Water:${val3} Switch:${evt.value} Contact:${val2}","debug")
            // Prevent repeaded events
            if(state.valve != val2 && !state.test ){
             sendEvent(name: "contact",value: val2, isStateChange: true, displayed: true)
@@ -283,19 +413,18 @@ def processEvt(evt) {
             return   
             } 
             else{
-                logging ("${device} : Received Valve:${val2} Our State:${state.valve}","info")
+                logging ("Received Valve:${val2} Our State:${state.valve}","info")
             return
             }
 		}
 // This should be the battery % 
   if (evt.name == "battery") {
-            def val3 = evt.value
-            if(!calBat){
-            sendEvent(name: "battery", value: val3,unit:"%",isStateChange: true,displayed: true) 
-            }
-      logging ("${device} : Rec Battery:${val3}%   ${evt}","info")
-            state.BatRec = val3
-        }
+              
+        def val3 = evt.value
+        state.CalcBat = false 
+        if ( evt.value != device.currentState("battery")?.value){ sendEvent(name: "battery", value: val3,unit:"%",isStateChange: true,displayed: true) }// stop overload
+        logging ("Rec Battery:${val3}%   ${evt}","info")
+  }
 //  We will get 2 bat% readings (some devices dont report % so we do it also)        
 //  voltage status      
   if (evt.name == "batteryVoltage") {
@@ -307,55 +436,35 @@ def processEvt(evt) {
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
 		batteryPercentage = batteryPercentage > 100 ? 100 : batteryPercentage
-        state.BatCal = batteryPercentage
       if(state.lastBatteryVoltage != batteryVoltage){
-        if(calBat){sendEvent(name: "battery",        value: batteryPercentage ,unit:"%",isStateChange: true,displayed: true)}
-        sendEvent(name: "batteryVoltage", value: batteryVoltage    ,unit:"V",descriptionText: "Last${state.lastBatteryVoltage}v  v${state.version}",isStateChange: true,displayed: true) 
-        logging ("${device} : Battery Voltage ${batteryVoltage}v Calc ${batteryPercentage}%","info")    
-      }
-      else{logging ("${device} : Received Voltage:${batteryVoltage}v same as Last:${state.lastBatteryVoltage}v","info")}
-// Mains,Battery,DC,Unknown
+        if(state.CalcBat == true){
 
-//	def testVoltage = (state.lastBatteryVoltage - 0.2)
-// watch for battery discharging to detect mains error(bug in firmware on some models)
-// should never be under 6 if mains    
-//		if (batteryVoltage < 6 ){
-//         if (state.supplyPresent){
-//           state.supplyPresent = false
-//	       state.badSupplyFlag = true
-//           sendEvent(name: "powerSource",value: "battery",descriptionText: "discharging detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v ${state.version}", isStateChange: true)   
-//           logging ("${device} : discharging detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v","debug")    
-//            }
-//         }
-// if 6v it is on mains or full battery		
-//        if (batteryVoltage == 6){
-//         if(!state.supplyPresent){
-//           state.supplyPresent = true
-//           state.badSupplyFlag = false
-//           sendEvent(name: "powerSource",value: "mains",descriptionText: "Battery change detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v ${state.version}", isStateChange: true)   
-//          logging ("${device} : Battery change detected Last:${state.lastBatteryVoltage}v > Current:${batteryVoltage}v","debug")    
-//            }
-//           }
+            
+        if ( batteryPercentage != device.currentState("battery")?.value){ sendEvent(name: "battery",value: batteryPercentage ,unit:"%",isStateChange: true,displayed: true)}
+        }
+        if ( batteryVoltage  != device.currentState("batteryVoltage")?.value){ sendEvent(name: "batteryVoltage", value: batteryVoltage    ,unit:"V",descriptionText: "Last${state.lastBatteryVoltage}v  v${state.version}",isStateChange: true,displayed: true) }
+        logging ("Battery Voltage ${batteryVoltage}v Calc ${batteryPercentage}%","info")    
+      }
+      else{logging ("Received Voltage:${batteryVoltage}v same as Last:${state.lastBatteryVoltage}v","info")}
+
    state.lastBatteryVoltage = batteryVoltage
 }// end bat voltage	
 
+    
 // This is the mains detection mains,batterty,dc,unknown
 // Some models give false reports so we have create our own mains flags based on voltage   
    if (evt.name == "powerSource"){
         def val4 = evt.value
-       logging ("${device} : Received powerSource: ${val4}","info")
+       logging ("Received powerSource: ${val4}","info")
 		if (val4=="mains"){
-		  if (device.data.firmwareMT == "113B-03E8-0000001D"){logging ("${device} : This model reports false mains flag..","debug")}
-//          if (state.badSupplyFlag){logging ("${device} : Bat discharging/False mains report","info")}
-//		  if (!state.badSupplyFlag){
+		  if (device.data.firmwareMT == "113B-03E8-0000001D" || state.firmware == "01-1D-01-0A"){logging ("${device} : This model reports false mains flag..","debug")}
               state.supplyPresent = true
-              sendEvent(name: "powerSource",value: "mains",descriptionText: "mains ${state.version}", isStateChange: true)
-//		  }
+            
+       if ( val4 != device.currentState("powerSource")?.value){sendEvent(name: "powerSource",value: "mains",descriptionText: "mains ${state.version}", isStateChange: true)}
 		}	
 		else {
 		  state.supplyPresent = false
-//		  state.badSupplyFlag= false
-          sendEvent(name: "powerSource",value: "battery",descriptionText: "${val4} battery ${state.version}", isStateChange: true)  
+          if ( val4 != device.currentState("powerSource")?.value){sendEvent(name: "powerSource",value: "battery",descriptionText: "${val4} battery ${state.version}", isStateChange: true)}
 		  }
          }// end powersource
   }// end evt
@@ -368,31 +477,36 @@ def off()  {	close() }
 
 
 def open() {
-    logging ("${device} : Opening the valve","info") 
+    logging ("Opening the valve","info") 
 	zigbee.on()
 }
 def close() {
-    logging ("${device} : Closing the valve","info") 
+    logging ("Closing the valve","info") 
 	zigbee.off()
 }
 
 
 def poll() {
-    logging ("${device} : Polling:","info") 
+    logging ("Polling:","info") 
+    return refresh()
+}
+
+def ping() {
+    logging ("Polling:","info") 
     return refresh()
 }
 
 def testF(){
 state.lastTest =  new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
 state.test = false
-logging ("${device} : Test finished.","info") 
+logging ("Test finished.","info") 
     sendEvent(name: "Test",value: state.test ,descriptionText: "The Test has finished", isStateChange: true, displayed: true)  
 }
 
 def test(){
    state.test = true
    sendEvent(name: "Test",value: state.test ,descriptionText: "A Test is in process LAST:${state.lastTest}", isStateChange: true, displayed: true) 
-   logging ("${device} : Testing the valve. Supressing events. LAST:${state.lastTest}","info")  
+   logging ("Testing the valve. Supressing events. LAST:${state.lastTest}","info")  
    runIn(1,close)
    runIn(32,open)  
    runIn(45,testF)
@@ -402,7 +516,8 @@ def test(){
 
 
 def refresh() {
-    logging ("${device} : Refreshing","info") 
+    if(state.DataUpdate){ logging("Refreshing ${state.MFR} Model:${state.model} Ver:${state.version}", "info")}
+    else {logging("Refreshing -unknown device-  Ver:${state.version}", "info")}
 // Fixed This is the only way polling will work.
 // None of the other drivers work
 // device needs lots of time to process cmds
@@ -425,24 +540,35 @@ def configure() {
 	randomSixty = Math.abs(new Random().nextInt() % 60)
     schedule("0 ${randomSixty} ${testHr} 1 1/${testMonths} ?", test)
 
-    logging("${device} :Setting Chron Test: ${testHr}:${randomSixty}am every ${testMonths} months.", "info")
-
-
+    logging("Setting Chron Test: ${testHr}:${randomSixty}am every ${testMonths} months.", "info")
+    getIcons()
+    
     if(reportWD){removeDataValue("water")}
  	state.configured = true
 	state.supplyPresent = true
+    state.CalcBat = true // will go false if we get % report
+    // upgrade from old versions
     state.remove("badSupplyFlag")
     state.remove("paypal")
+    state.remove("BatCal")
+    state.remove("BatRec")
+    state.remove("firm")
+    state.remove("firmware1")
+
+    
+    
     state.test = false
 	state.lastBatteryVoltage = 0 // force a new event
 
     state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/leaksmart.jpg' >"
     state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
  
-    state.firm = device.data.firmwareMT
-	if(device.data.model=="House Water Valve - MDL-TBD"){state.model = "v1a"}
-    if(device.data.model=="leakSMART Water Valve v2.10"){state.model = "v2.1"}
-    logging ("${device} : ${device.data.manufacturer} Mdl: ${device.data.model} ${state.model}  Firmware: ${device.data.firmwareMT} softwareBuild: ${device.data.softwareBuild}","info") 
+    version = "?"
+	if(state.model=="House Water Valve - MDL-TBD"){state.model = "House Water Valve - MDL-TBD v1a"}// fix (TBD=To Be Determed) they forgot put the version no in the firmware
+//  if(state.model=="leakSMART Water Valve v2.10")
+    logging ("${state.MFR} Mdl: ${state.model} Firmware: ${state.firm} softwareBuild: ${device.data.softwareBuild}","info") 
+    
+    
 runIn(1,configurePowerSourceReporting)
 runIn(10,configureBatteryReporting) 
 runIn(15,getSwitchReport)    // valve
@@ -451,64 +577,154 @@ runIn(25,getBatteryReport2) // mains
 runIn(40,getBatteryReport3) // %   
 runIn(45,getApplianceAlerts)
 runIn(55,configurePowerSourceReporting)
+runIn(60,getFirmware)
+     
+ 
+    if (pollYes){ 
+	randomSixty = Math.abs(new Random().nextInt() % 60)
+    randomSixty2 = Math.abs(new Random().nextInt() % 60)    
+	randomTwentyFour = Math.abs(new Random().nextInt() % 24)
+    logging("CHRON: ${randomSixty2} ${randomSixty} ${randomTwentyFour}/${pollHR} * * ? *", "debug") 
+    schedule("${randomSixty2} ${randomSixty} ${randomTwentyFour}/${pollHR} * * ? *", checkPresence)	
+    logging("Presence Check Every ${pollHR}hrs starting at ${randomTwentyFour}:${randomSixty}:${randomSixty2} ", "info") 
+    }     
+    
     
 delayBetween([
-    zigbee.onOffConfig(), 
-    zigbee.configureReporting(CLUSTER_POWER, POWER_ATTR_BATTERY_PERCENTAGE_REMAINING, TYPE_U8, 600, 21600, 1),
-    zigbee.configureReporting(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE, TYPE_ENUM8, 5, 21600, 1),
-    zigbee.onOffRefresh(),
-    zigbee.readAttribute(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE),
-    zigbee.readAttribute(CLUSTER_POWER, POWER_ATTR_BATTERY_PERCENTAGE_REMAINING),
-	], 30000)
+    sendZigbeeCommands(zigbee.onOffConfig()), 
+    sendZigbeeCommands(zigbee.configureReporting(0x0001, 0x0021, 0x20, 600, 21600, 1)), // power bat% //U8=20
+    sendZigbeeCommands(zigbee.configureReporting(0x0000, 0x0007, 0x30, 5, 21600, 1)),// power source enum8 = 30
+    sendZigbeeCommands(zigbee.onOffRefresh()),
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0007)),// read power source
+    sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0021)),// Read battery %
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0004)),// ATTR_MANUFACTURER_NAME
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0005)),// ATTR_MODEL_IDENTIFIER
+	], 35000)
 }
+
+//   const u16 ATTR_ZCL_VERSION = 0x0000;
+//   const u16 ATTR_APPLICATION_VERSION = 0x0001;
+//   const u16 ATTR_STACK_VERSION = 0x0002;
+//   const u16 ATTR_HARDWARE_VERSION = 0x0003; 
+
+def getFirmware(){
+    logging ("Requesting Firmware ver","debug")
+    delayBetween([
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0000)),// ATTR_ZCL_VERSION 
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0001)),// 
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0002)),// 
+    sendZigbeeCommands(zigbee.readAttribute(0x0000, 0x0003)),// 
+	], 35000)
+
+
+}
+
 
 //status alearts pulled from iris source code
 def getApplianceAlerts() {
-    logging ("${device} : getApplianceAlerts","debug")
-	zigbee.readAttribute(0x0B02, 0x0000)
+    logging ("getApplianceAlerts","debug")
+	sendZigbeeCommands(zigbee.readAttribute(0x0B02, 0x0000))
 }
 
 def configurePowerSourceReporting(){
-    logging ("${device} : configurePowerSourceReporting","debug")
+    logging ("configurePowerSourceReporting","debug")
 // configure power source reporting interval from iris
-zigbee.configureReporting(CLUSTER_BASIC, BASIC_ATTR_POWER_SOURCE, TYPE_ENUM8, 5, 21600, 1)
+sendZigbeeCommands(zigbee.configureReporting(0x0000, 0x0007, 0x30, 5, 21600, 1))//basic-attr power source-ENUM8
 }
 
 
 def configureBatteryReporting() {
-    logging ("${device} : configure Battery Reporting max: 5hrs min:30sec","debug") 
+    logging ("configure Battery Reporting max: 5hrs min:30sec","debug") 
 	def minSeconds = (30 * 60) // 30 Minutes
 	def maxSeconds = (5* 60 * 60) // 5 Hours	
-	zigbee.configureReporting(0x0001, 0x0020, 0x20, minSeconds, maxSeconds, 0x01)
+	sendZigbeeCommands(zigbee.configureReporting(0x0001, 0x0020, 0x20, minSeconds, maxSeconds, 0x01))
 }
 
 def getSwitchReport() {
-    logging ("${device} : get Switch Report","debug")
-	zigbee.readAttribute(0x0006, 0x0000)
+    logging ("get Switch Report","debug")
+	sendZigbeeCommands(zigbee.readAttribute(0x0006, 0x0000))
 }
 
 def getBatteryReport() {
-    logging ("${device} : get BatteryVoltage","debug")
-    zigbee.readAttribute(0x0001, 0x0020) //Read BatteryVoltage
+    logging ("get BatteryVoltage","debug")
+    sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0020)) //Read BatteryVoltage
 }
 def getBatteryReport2() {
-    logging ("${device} : get Power Source","debug")
-    zigbee.readAttribute(0x000, 0x0007)  //Read PowerSource
+    logging ("get Power Source","debug")
+    sendZigbeeCommands(zigbee.readAttribute(0x000, 0x0007))  //Read PowerSource
 }
 def getBatteryReport3() { 
-    logging ("${device} : get Battery %","debug")
-    zigbee.readAttribute(0x0001, 0x0033)  //Read BatteryQuantity
+    logging ("get Battery %","debug")
+    sendZigbeeCommands(zigbee.readAttribute(0x0001, 0x0033))  //Read BatteryQuantity
+}
+def checkPresence() {
+    // presence routine. v5.1 11-12-22
+    // simulated 0% battery detection
+    if(!state.tries){state.tries = 0} 
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    def checkMin = 20
+    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
+    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
+    state.lastCheckInMin = timeSinceLastCheckin/60
+    logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+    if (state.lastCheckInMin <= checkMin){ 
+        state.tries = 0
+        test = device.currentValue("presence")
+        if (test != "present"){
+        value = "present"
+            logging("Creating presence event: ${value}  ","info")
+        sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        return    
+        }
+    }
+    if (state.lastCheckInMin >= checkMin) { 
+      state.tries = state.tries + 1
+      if (state.tries >=5){
+        test = device.currentValue("presence")
+        if (test != "not present" ){
+         value = "not present"
+         logging("Creating presence event: ${value}","warn")
+         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+         sendEvent(name: "battery", value: 0, unit: "%",descriptionText:"Simulated ${state.version}", isStateChange: true)    
+         return // we dont want a ping after this or it could toggle
+         }
+         
+     } 
+       
+     runIn(2,ping)
+     if (state.tries <4){
+         logging("Recovery in process Last checkin ${state.lastCheckInMin} min ago ","warn") 
+         runIn(50,checkPresence)
+     }
+    }
+}
+void sendZigbeeCommands(List<String> cmds) {
+    logging("sending:${cmds}", "trace")
+    sendHubCommand(new hubitat.device.HubMultiAction(cmds, hubitat.device.Protocol.ZIGBEE))
 }
 
-// Logging block 
-//	device.updateSetting("infoLogging",[value:"true",type:"bool"])
+
+void getIcons(){
+    state.logo ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/leaksmart.jpg' >"
+    state.donate="<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
+ }
+
+
+// Logging block  v4
+
 void loggingUpdate() {
-    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    logging("Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
     // Only do this when its needed
-    if (debugLogging){runIn(3600,debugLogOff)}
-    if (traceLogging){runIn(1800,traceLogOff)}
+    if (debugLogging){
+        logging("Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
 }
-void loggingStatus() {logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")}
+
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
@@ -518,13 +734,15 @@ void debugLogOff(){
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
 private logging(String message, String level) {
-    if (level == "infoBypass"){log.info  "$message"}
-	if (level == "error"){     log.error "$message"}
-	if (level == "warn") {     log.warn  "$message"}
-	if (level == "trace" && traceLogging) {log.trace "$message"}
-	if (level == "debug" && debugLogging) {log.debug "$message"}
-    if (level == "info"  && infoLogging)  {log.info  "$message"}
+    if (level == "infoBypass"){log.info  "${device} : $message"}
+	if (level == "error"){     log.error "${device} : $message"}
+	if (level == "warn") {     log.warn  "${device} : $message"}
+	if (level == "trace" && traceLogging) {log.trace "${device} : $message"}
+	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
+    if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
+
+
 
 
 /**
