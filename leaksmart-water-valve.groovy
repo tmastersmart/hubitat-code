@@ -12,24 +12,13 @@
 | |    / _ \/ _` | |/ /`--. \ '_ ` _ \ / _` | '__| __| | | | |/ _` | \ \ / / _ \
 | |___|  __/ (_| |   </\__/ / | | | | | (_| | |  | |_  \ \_/ / (_| | |\ V /  __/
 \_____/\___|\__,_|_|\_\____/|_| |_| |_|\__,_|_|   \__|  \___/ \__,_|_| \_/ \___|
-
-
-
 LeakSmart Valve FCC ID: W7Z-ZICM357SP2
-
 tested on firmware 
 113B-03E8-0000001D (01-1D-01-0A) false mains flag sent
 113B-03E8-00000019 valid mains flag 
-
-
-
-
 https://leaksmart.com/storage/2020/01/Protect-by-LeakSmart-Manual.pdf
-
-
 web   >   https://github.com/tmastersmart/hubitat-code/blob/main/leaksmart-water-valve.groovy
 import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-valve.groovy
-
 
   Changelog:
     3.3.2 09/15/2024   Fix for 'Device XXX generates excessive hub load' 
