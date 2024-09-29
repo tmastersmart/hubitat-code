@@ -32,6 +32,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.3.3 09/29/2024   Convert bat voltage to number not string
     3.3.2 09/15/2024   Fix for 'Device XXX generates excessive hub load' 
     3.3.1 12/08/2022   rewrites of parsing code Presence added. Bat% changed to automatic
     3.3.0 10/28/2022   Removed code to detect false mains flag. It was not working on all valves
@@ -125,7 +126,7 @@ Much of this code is my own but parts will contain code from
  *
  */
 def clientVersion() {
-    TheVersion="3.3.2"
+    TheVersion="3.3.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -156,7 +157,7 @@ metadata {
         command "uninstall"
 
 //    attribute "lastPollD", "string"
-	attribute "batteryVoltage", "string"
+	attribute "batteryVoltage", "number"
     attribute "Alert", "string"
     attribute "Test", "bool"    
 
