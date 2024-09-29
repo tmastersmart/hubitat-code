@@ -32,6 +32,7 @@ import>   https://github.com/tmastersmart/hubitat-code/raw/main/leaksmart-water-
 
 
   Changelog:
+    3.4.0 09/29/2024   Battery adjustments added
     3.3.3 09/29/2024   Convert bat voltage to number not string
     3.3.2 09/15/2024   Fix for 'Device XXX generates excessive hub load' 
     3.3.1 12/08/2022   rewrites of parsing code Presence added. Bat% changed to automatic
@@ -126,9 +127,10 @@ Much of this code is my own but parts will contain code from
  *
  */
 def clientVersion() {
-    TheVersion="3.3.3"
+    TheVersion="3.4.0"
  if (state.version != TheVersion){ 
      state.version = TheVersion
+     logging("Upgrading Driver v${state.version}", "warn") 
      configure() 
  }
 }
@@ -187,7 +189,8 @@ fingerprint profileId: "0104", inClusters: "0000, 0001, 0003, 0006, 0020, 0B02",
    
     input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
     input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 10 ,required: true 
-    
+    input name: "maxV",   type: "enum", title: "Max Voltage",description: "set the max batt voltage ", options: ["6.0","6.1","6.2","6.3","6.4","6.5","6.6","6.7"], defaultValue: "6.0" ,required: true  
+  
         
     }
 //testMonths	
@@ -233,6 +236,7 @@ def uninstall() {// need to clear everything before manual driver change.
     state.remove("logo"),  
     state.remove("DataUpdate"),
     state.remove("lastCheckin"),
+    state.remove("lastBatteryVoltage"),  
     state.remove("lastPoll"),
     state.remove("donate"),
     state.remove("model"),
@@ -438,6 +442,16 @@ def processEvt(evt) {
         BigDecimal batteryPercentage = 0
 		BigDecimal batteryVoltageScaleMin = 3.50
 		BigDecimal batteryVoltageScaleMax = 6
+      
+    if (maxV == "6.1"){batteryVoltageScaleMax = 6.10 }
+    if (maxV == "6.2"){batteryVoltageScaleMax = 6.20 }
+    if (maxV == "6.3"){batteryVoltageScaleMax = 6.30 }
+    if (maxV == "6.4"){batteryVoltageScaleMax = 6.40 }
+    if (maxV == "6.5"){batteryVoltageScaleMax = 6.50 }
+    if (maxV == "6.6"){batteryVoltageScaleMax = 6.60 }
+    if (maxV == "6.7"){batteryVoltageScaleMax = 6.70 }
+    if (maxV == "6.8"){batteryVoltageScaleMax = 6.80 }      
+      
 		
 		batteryPercentage = ((batteryVoltage - batteryVoltageScaleMin) / (batteryVoltageScaleMax - batteryVoltageScaleMin)) * 100.0
 		batteryPercentage = batteryPercentage.setScale(0, BigDecimal.ROUND_HALF_UP)
@@ -539,7 +553,7 @@ runIn(35,getApplianceAlerts)
 
 def configure() {
 
-    logging ("${device} : Configuring","info") 
+    logging ("Configuring","info") 
     // Poll the device every x min    0 0 23 ? 1/6 * *   0 0 1 */6 *
   //0 24 1 1-7/6 *
     unschedule()
