@@ -3,7 +3,7 @@
   "author": "TheMaster",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "releaseNotes": "Limited events to stop hub overload, batvoltage is a number now",
+  "releaseNotes": "Limited events to stop hub overload, batvoltage changes",
   "documentationLink": "http://www.winnfreenet.com/wp/2021/09/everspring-utilitech-water-sensor-driver-for-hubitat/",
   "version": "3.4.0",
   "dateReleased": "2024-09-29",
