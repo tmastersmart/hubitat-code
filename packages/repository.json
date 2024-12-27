@@ -18,6 +18,13 @@
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris-v1-contact.json",
 "description": "Iris v1 Contact Sensor custom. With presence and proper battery support. No more negative battery readings. Includes option to use as a mains detection swith with a relay.Note relay must have time delay so it renergised after hub has powered up. "
    },
+ {
+"name":"Third Reality Contact Sensor",
+"category": "Security",
+"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Doors & Windows", "Zigbee"],	   
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-contact-sensor.json",
+"description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
+   },	    
    {
 "name":"Iris v1 Motion Detector Custom",
 "category": "Control",
@@ -190,7 +197,7 @@
  {
 "name":"Third Reality Motion Sensor",
 "category": "Control",
-"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],	   
+"tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Motion Control", "Zigbee"],	   
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/third-reality-motion-sensor.json",
 "description": "Improved Third Reality Motion Sensor with Presence better drop out detection,battery support"
    },	 
