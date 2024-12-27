@@ -1,0 +1,21 @@
+{
+  "packageName": "Third Reality Contact Sensor",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "new",
+  "version": "1.2.4",
+  "dateReleased": "2024-27-12",
+  "category":"Doors & Windows",
+     "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Contact", "Zigbee"],
+  "drivers": [
+    {
+      "name": "Third Reality Contact Sensor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/third-reality-contact-sensor.groovy",
+      "required": "true",
+      "description": "Improved Third Reality Watercontact Sensor with Presence better drop out detection,battery support",
+      "id": "7c109326-ba26-41aa-81a6-1a8db36aaca1"
+    }
+    ]
+}
