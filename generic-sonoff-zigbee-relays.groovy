@@ -25,6 +25,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.5 03/11/2025   Added fingerprint for Sonoff Switch ZBM5-1C-120. Unknown clusters moved from warn to debug and cluster 5 added to ignore
  1.7.4 03/30/2023   Hub zigbee update. Changed how on off sent
  1.7.3 03/10/2023   Bug fix in recovery line 249
  1.7.2 02/12/2023   Cluster 8032 detection added
@@ -55,7 +56,7 @@ and press config. This repairs improper binding from other drivers. Otherwise yo
  1.1.0 10/23/2022   more fingerprintrs added eWeLink - no name - 3A Smart Home
  1.0.0 10/23/2022   Creation
 ======================================================================================================
-Copyright [2022] [tmaster winnfreenet.com]
+Copyright [2022/2025] [tmaster winnfreenet.com]
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,7 +75,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.4"
+    TheVersion="1.7.5"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -105,8 +106,9 @@ metadata {
 
 		attribute "strobe", "string"
 		attribute "siren", "string"
-
-
+        
+        fingerprint model:"ZBMINIR2",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay Tiny",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0006,0B05,FC57,FC11", outClusters:"0003,0006,0019", application:"10"
+        fingerprint model:"ZBM5-1C-120",   manufacturer:"SONOFF",          deviceJoinName:"SONOFF Wall Switch",    profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0020,0B05,FC57,FC11", outClusters:"0019",   controllerType: "ZGB"
         fingerprint model:"BASICZBR3",     manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay BASICBR3", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
 	    fingerprint model:"01MINIZB",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay MINI",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
         fingerprint model:"SA-003-Zigbee", manufacturer:"eWeLink",         deviceJoinName:"eWeLink Relay",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
@@ -115,7 +117,7 @@ metadata {
         fingerprint model:"PLUG",          manufacturer:"LEDVANCE"        ,deviceJoinName:"Sylvania Smart +",      profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0B05,FC01,FC08", outClusters:"0003,0019" 
         fingerprint model:"Plug_01",       manufacturer:"SZ",                                                      profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
 // 2 devices share the same fingerprint "SA-003-Zigbee""eWeLink" one a relay one a round outlet
-//  Plug_01   
+//  Plug_01   ZBMINI-L2
     }
 
 }
@@ -397,7 +399,7 @@ def parse(String description) {
         
       if (status == "01"){onEvents()}
       if (status == "00"){offEvents()}
-     
+                                   
 
 }else if (descMap.cluster == "0000" ) {
         if (descMap.attrId== "0001" ){
@@ -421,7 +423,7 @@ def parse(String description) {
        
  
 // just ignore these unknown clusters for now
-}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
+}else if (descMap.cluster == "0500" ||descMap.cluster == "0006" ||descMap.cluster == "0005" || descMap.cluster == "0000" ||descMap.cluster == "0001" || descMap.cluster == "0402" || descMap.cluster == "8021" || descMap.cluster == "8032" || descMap.cluster == "8038" || descMap.cluster == "8005" || descMap.cluster == "8001" ) {
    text= ""
       if (descMap.cluster =="8001"){text="GENERAL"}
  else if (descMap.cluster =="8021"){text="BIND RESPONSE"}
@@ -435,9 +437,14 @@ def parse(String description) {
 }else if (descMap.cluster =="0013"){logging("${descMap.cluster} Multistate event (Rejoining) data:${descMap.data}", "debug") 
    
         
- }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "warn")}// report to dev
+ }  else{logging("New unknown Cluster${descMap.cluster} Detected: ${descMap}", "debug")}// report to dev
 
     }
+
+// New unknown Cluster0005 Detected: [raw:catchall: 0000 0005 00 00 0040 00 FA78 00 00 0000 00 00 090000, profileId:0000, clusterId:0005, clusterInt:5, sourceEndpoint:00, destinationEndpoint:00, options:0040, messageType:00, dni:FA78, isClusterSpecific:false, isManufacturerSpecific:false, manufacturerId:0000, command:00, direction:00, data:[09, 00, 00], cluster:0
+// cluster 5 is showing up with a counter in it. ???? added to ignore. 
+
+
 
 // prevent dupe events
 def onEvents(){
@@ -520,7 +527,9 @@ void getIcons(){
     if (state.model == "Plug_01"){       state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/Plug_01.jpg' >"} 
     if (state.model == "LXN59-1S7LX1.0"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/LXN59-1S7LX1.0.jpg' >"}
     if (state.model == "PLUG" && state.MFR =="LEDVANCE"){state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sylvania-smart-plus.jpg' >"}
-    
+    if (state.model == "ZBM5-1C-120") {state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sonoff-ZBM5-1C-120.jpg' >"}
+ //   if (state.model == "ZBMINIR2")    {state.icon ="<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sylvania-smart-plus.jpg' >"}
+     
 
  }
 
