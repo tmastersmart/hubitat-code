@@ -4,7 +4,7 @@
   "releaseNotes":   "Bug fix and log updates,Power Up routine rewrite",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.7.4",
+  "version": "1.7.5",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy",
       "required": "true",
-        "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. And generic outlets. State Verify module, Power Falure recovery, Presence,Lamp_01,Plug_01 , SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE",
+        "description": "Works with Sonoff MINI ZB,ZBMINI-L2,ZBMINIR2,Light switch ZBM5-1C-120,eWeLink,3A Smart Home and other generic zigbee relays. And generic outlets. State Verify module, Power Falure recovery, Presence,Lamp_01,Plug_01 , SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE",
       "id": "9742730c-c241-4988-9c0c-53d6d93131e9"
     }
     ]
