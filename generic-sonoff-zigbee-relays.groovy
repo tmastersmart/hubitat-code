@@ -3,6 +3,7 @@ driver for hubitat
 With state verify.
 
 Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
+Sonoff ZBM5-1C-120 Light Switch
 Generic zigbee relays
 Lamp_01,Plug_01, SA-003-Zigbee, 01MINIZB, BASICZBR3, LXN59-1S7LX1.0
 Sylvania Smart + LEDVANCE
