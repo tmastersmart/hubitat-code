@@ -1,5 +1,5 @@
 # Welcome to my drivers section.
-I mostly write drivers for myself and update them from time to time depending when i see problems. If you have problems you need to let me know so i can fix them. 
+I mostly write drivers for myself and update them from time to time depending when i see problems. If you have problems you need to let me know so i can fix them. Your fingerprints for devices are always welcomed 
 
 
 # hubitat-code
