@@ -31,6 +31,7 @@ not know what to do. I think it was said after several reboots it will go away b
   sensor ignoring commands sent to fast in the orginal driver.
 
 ====================================================================
+v2.8.3 04/21/2025 Command to force DRY due to sensor not resetting
 v2.8.2 11/12/2022 Another bug fix for presence
 v2.8.0 11/11/2022 New presence routine with retry 
 v2.7.0 10/30/2022 Presence FIX was not doing warning before expiring
@@ -46,11 +47,12 @@ v2.1  08/04/2022 Total rewrite of code and cleanup for hubitat.
 v2.0  05/08/2021 Init porting to hubitat and removing smartthings routines
 
 
+
 https://github.com/tmastersmart/hubitat-code/edit/main/Everspring_Utilitech_Water_Sensor.groovy
 
 
  
-  Copyright 2022 Winnfreenet.com
+  Copyright 2022/2025 Winnfreenet.com
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
   in compliance with the License. You may obtain a copy of the License at:
@@ -74,7 +76,7 @@ Version 0.8 (2016-11-02)
  *  
  */
 def clientVersion() {
-    TheVersion="2.8.2"
+    TheVersion="2.8.3"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
@@ -92,7 +94,8 @@ metadata {
         capability "PresenceSensor"
         
         command "checkPresence"
-     
+        command "ForceDry"
+        
         fingerprint deviceId: "0xA102", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Everspring Flood Sensor"
         fingerprint mfr: "96", inClusters: "0x86,0x72,0x85,0x84,0x80,0x70,0x9C,0x20,0x71",  deviceJoinName: "Utilitech Water Leak Detector"
         
@@ -261,6 +264,12 @@ private WetDry(cmd){
     runIn(10,refresh)// polling wont work unless delayed
     runIn(15,configure)// Be sure our wake up is stored.
 }
+
+def ForceDry (){
+WetDry("dry")
+ logging("${device} : Water: Force DRY", "info")    
+}
+
 
 
 def zwaveEvent(hubitat.zwave.commands.alarmv1.AlarmReport cmd) {
