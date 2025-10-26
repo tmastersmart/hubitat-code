@@ -1,14 +1,14 @@
-/* Iris v1 Smart Plug custom with alarm
+/* Iris v1 Smart Plug custom no alarm
 
-Hubitat iris smart plug driver with siren and strobe comands
+Hubitat iris smart plug driver 
 AlertMe USA version smart plug
 Centrica Connected home Limited Wireless Smartplug SP11
 
-This version allows you to use the switch as a alarm.
-New version is not pushed out to users and i cant change the name or it 
-would break the current installs and prevent upgrades. 
-There is a new version that does not include the alarm system for
-The new dashboard
+NOTE: This is a drop in replacement to uprade drivers
+in the field to the new version without the alarm
+if you need the alarm function please install v3
+
+this code is the same as v2 code. 
 
   ___      _             _   ____                       _     ____  _             
  |_ _|_ __(_)___  __   _/ | / ___| _ __ ___   __ _ _ __| |_  |  _ \| |_   _  __ _ 
@@ -19,7 +19,7 @@ The new dashboard
 
 USA version  model# SPG800 FCC ID WJHSP11
 ====================================================================================
-v4.2.5 10/25/2025 Just a Name change to identify this driver is for alarms
+v4.2.5 10/25/2025 Modified to remove alarm for new dashboard
 v4.2.4 04/21/2023 Ranging added after power recovery
 v4.2.3 03/15/2023
 v4.2.2 03/01/2023 Added missing isStateChange to On/Off events. 
@@ -106,10 +106,6 @@ metadata {
 		capability "Refresh"
 		capability "SignalStrength"
 		capability "Switch" 
-        capability "Alarm"
-//        capability "Power Source"
-
-
 
 		command "normalMode"
 		command "rangeAndRefresh"
@@ -118,8 +114,7 @@ metadata {
         command "uninstall"
 
 
-		attribute "strobe", "string"
-		attribute "siren", "string"
+
 //        attribute "Voltage", "string"
 		attribute "power", "string"
 
@@ -349,32 +344,15 @@ def sync (){
 }
 
                    
-def siren(cmd){
-    state.alarmcmd = 1
-    sendEvent(name: "siren", value: "on")
-  on()
-}
-def strobe(cmd){
-    state.alarmcmd = 2
-    sendEvent(name: "strobe", value: "on")
-  on()
-}
-def both(cmd){
-    state.alarmcmd = 3
-    sendEvent(name: "siren", value: "on")
-    sendEvent(name: "strobe", value: "on")
-  on()
-}
+
 
 def off() {
     state.switch = false
-	state.alarmcmd = 0
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 00 01} {0xC216}"])
 }
 
 def on() {
     state.switch = true
-    state.alarmcmd = 0
 	sendZigbeeCommands(["he raw ${device.deviceNetworkId} 0 ${device.endpointId} 0x00EE {11 00 02 01 01} {0xC216}"])
 }
 
@@ -458,33 +436,19 @@ def parse(String description) {
        operatingModeCode   = receivedData[0]
                         onOff   = receivedData[1]
                         current = device.currentValue("switch")
-                   currentSiren = device.currentValue("siren")
-                  currentStrobe = device.currentValue("strobe")
+
             logging("State: mode:${state.operatingMode} On/Off:${onOff} [${map.data}]", "debug")
         if (onOff == "00" || operatingModeCode =="06" ) {
   	    if (current == "on"){
            sendEvent(name: "switch", value: "off",descriptionText: "${state.uptime} V${state.version}",isStateChange: true)
-           if (currentSiren  != "off"){sendEvent(name: "siren",  value: "off")}
-           if (currentStrobe != "off"){sendEvent(name: "strobe", value: "off")}
+
            logging("Switch : OFF ", "info")
 		   }  
         else {logging("Switch :OFF Our state:${current}", "info")}    
         }
        if (onOff == "01" || operatingModeCode =="07") {
 	   if (current != "on"){
-               if(state.alarmcmd == 1){
-                    sendEvent(name: "siren", value: "on")
-                    logging("Sirene Alarm : ON", "info")
-                }
-                if(state.alarmcmd == 2){
-                    sendEvent(name: "strobe", value: "on")
-                    logging("Strobe Alarm : ON", "info")
-                }
-                if(state.alarmcmd == 3 ){
-                    sendEvent(name: "strobe", value: "on")
-                    sendEvent(name: "siren", value: "on")
-                    logging("Siren-Strobe Alarm : ON", "info")
-                }
+  
             sendEvent(name: "switch", value: "on",descriptionText: "${state.uptime} V${state.version}",isStateChange: true)
             logging("Switch : ON", "info")
 	         }
@@ -753,4 +717,3 @@ private logging(String message, String level) {
 	if (level == "debug" && debugLogging) {log.debug "${device} : $message"}
     if (level == "info"  && infoLogging)  {log.info  "${device} : $message"}
 }
-
