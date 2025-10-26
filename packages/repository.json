@@ -63,9 +63,9 @@
      {
 "name":"Iris v1 Smart Plug custom",
 "category": "Control",
-"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
+"tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug.json",
-"description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
+"description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence. Old version for compatability same as no alarm"
    },  
      {
 "name":"Iris v1 Smart Plug custom No alarm",
@@ -73,7 +73,14 @@
 "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug2.json",
 "description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence"
-   },    
+   }, 
+      {
+"name":"Iris v1 Smart Plug custom With Alarm",
+"category": "Control",
+"tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Energy Monitoring","Zigbee"],     
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/irisv1-smart-plug3.json",
+"description": "Iris v1 Smart Plug driver With power monitoring watts and kwh, presence and support for using as a alarm or strobe using low cost strobes and sirens"
+   },     
     {
 "name":"Radio Thermostat Zwave",
 "category": "Control",
