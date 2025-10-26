@@ -4,6 +4,12 @@ Hubitat iris smart plug driver with siren and strobe comands
 AlertMe USA version smart plug
 Centrica Connected home Limited Wireless Smartplug SP11
 
+This version allows you to use the switch as a alarm.
+New version is not pushed out to users and i cant change the name or it 
+would break the current installs and prevent upgrades. 
+There is a new version that does not include the alarm system for
+The new dashboard
+
   ___      _             _   ____                       _     ____  _             
  |_ _|_ __(_)___  __   _/ | / ___| _ __ ___   __ _ _ __| |_  |  _ \| |_   _  __ _ 
   | || '__| / __| \ \ / / | \___ \| '_ ` _ \ / _` | '__| __| | |_) | | | | |/ _` |
@@ -79,7 +85,7 @@ notices must be preserved. Contributors provide an express grant of patent right
  *	
  */
 def clientVersion() {
-    TheVersion="4.2.4"
+    TheVersion="4.2.5"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -88,7 +94,7 @@ if (state.version != TheVersion){
 }
 
 metadata {
-	definition (name: "Iris v1 Smart Plug custom with alarm", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy") {
+	definition (name: "Iris v1 Smart Plug custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy") {
 
 		capability "Actuator"
 		capability "Configuration"
