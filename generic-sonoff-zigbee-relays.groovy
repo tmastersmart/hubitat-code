@@ -13,7 +13,7 @@ These relays all use the same formats but have diffrent problems with internal d
 
 It also works with Sylvania Smart + LEDVANCE outlets as likely many more generic outlets.
 
-Suports alarm,strobe,siren,refreash and presence.
+Suports refreash and presence.
 
 Verifies state after sending and corrects if needed. No more having to resend commands.
 Or hub getting out of sync with device.
@@ -26,6 +26,7 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.6 10/26/2025   Alarm removed due to new dashboard requirements
  1.7.5 03/11/2025   Added fingerprint for Sonoff Switch ZBM5-1C-120. Unknown clusters moved from warn to debug and cluster 5 added to ignore
  1.7.4 03/30/2023   Hub zigbee update. Changed how on off sent
  1.7.3 03/10/2023   Bug fix in recovery line 249
@@ -100,13 +101,12 @@ metadata {
 		capability "PresenceSensor"
 		capability "Refresh"
 		capability "Switch" 
-        capability "Alarm"
+
 
         command "uninstall"
         command "checkPresence"
 
-		attribute "strobe", "string"
-		attribute "siren", "string"
+
         
         fingerprint model:"ZBMINIR2",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay Tiny",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0006,0B05,FC57,FC11", outClusters:"0003,0006,0019", application:"10"
         fingerprint model:"ZBM5-1C-120",   manufacturer:"SONOFF",          deviceJoinName:"SONOFF Wall Switch",    profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0020,0B05,FC57,FC11", outClusters:"0019",   controllerType: "ZGB"
@@ -267,31 +267,8 @@ def sync (){
 }
 
 
-def alarm(cmd){
-    logging("Alarm ON", "info")
-    state.Alarm = "alarm"
-  on()
-}
-                   
-def siren(cmd){
-    logging("siren ON", "info")
-    state.Alarm = "siren"
-  on()
-}
-def strobe(cmd){
-    logging("strobe ON", "info")
-    state.Alarm = "strobe"
-  on()
-}
-def both(cmd){
-    logging("both ON", "info")
-    state.Alarm = "both"
-  on()
-}
-
 def off() {
     state.switch = false
-    state.Alarm = "off"
     runIn(20,ping)
     logging("Sending OFF", "info")
     sendZigbeeCommands(zigbee.command(0x006, 0x00))// send off
@@ -454,9 +431,7 @@ def onEvents(){
     logging("is ON our last state was:${Test}", "info")
     if (Test != "on"){sendEvent(name: "switch", value: "on",isStateChange: true)}
     
-    if (state.Alarm == "alarm"){ sendEvent(name: "alarm", value: "on",isStateChange: true)}
-    if (state.Alarm == "siren" || state.Alarm == "both"){ sendEvent(name: "siren", value: "on",isStateChange: true)}
-    if (state.Alarm == "strobe"|| state.Alarm == "both" ){sendEvent(name: "strobe", value: "on",isStateChange: true)}
+
     
     if (autoSync== true){ 
      if (state.switch == false){sync()}
@@ -464,13 +439,7 @@ def onEvents(){
 }
 def offEvents(){
     logging("OFF report", "debug")
-    alarmTest = device.currentValue("alarm")   
-    if (alarmTest != "off"){sendEvent(name: "alarm",  value: "off",isStateChange: true)}
-    alarmTest = device.currentValue("siren") 
-    if (alarmTest != "off"){sendEvent(name: "siren",  value: "off",isStateChange: true)} 
-    alarmTest = device.currentValue("strobe") 
-    if (alarmTest != "off"){sendEvent(name: "strobe", value: "off",isStateChange: true)}
-    Test = device.currentValue("switch")
+      Test = device.currentValue("switch")
     if (Test != "off"){ sendEvent(name: "switch", value: "off",isStateChange: true)}
     logging("is OFF our last state was:${Test}", "info")
     if (autoSync== true){ 
