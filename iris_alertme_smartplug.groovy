@@ -1,4 +1,4 @@
-/* Iris v1 Smart Plug custom
+/* Iris v1 Smart Plug custom with alarm
 
 Hubitat iris smart plug driver with siren and strobe comands
 AlertMe USA version smart plug
@@ -13,6 +13,7 @@ Centrica Connected home Limited Wireless Smartplug SP11
 
 USA version  model# SPG800 FCC ID WJHSP11
 ====================================================================================
+v4.2.5 10/25/2025 Just a Name change to identify this driver is for alarms
 v4.2.4 04/21/2023 Ranging added after power recovery
 v4.2.3 03/15/2023
 v4.2.2 03/01/2023 Added missing isStateChange to On/Off events. 
@@ -87,7 +88,7 @@ if (state.version != TheVersion){
 }
 
 metadata {
-	definition (name: "Iris v1 Smart Plug custom", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy") {
+	definition (name: "Iris v1 Smart Plug custom with alarm", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_alertme_smartplug.groovy") {
 
 		capability "Actuator"
 		capability "Configuration"
