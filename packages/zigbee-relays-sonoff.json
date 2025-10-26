@@ -1,13 +1,13 @@
 {
   "packageName": "Zigbee generic outlets and relays",
   "author": "TheMaster",
-  "releaseNotes":   "",
+  "releaseNotes":   "Alarm removed",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.7.4",
+  "version": "1.7.5",
   "dateReleased": "2022-10-23",
   "category":"Control",
-  "tags":["Misc. Devices","Alarm Systems","Buttons","Lights & Switches","Presence & Location","Zigbee"],
+  "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Zigbee"],
   "drivers": [
     {
       "name":"Zigbee generic outlets and relays",
