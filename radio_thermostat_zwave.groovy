@@ -58,6 +58,8 @@ Firmware fix for ct30 ct32 units that dont report states corectaly
 
 ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
 ===================================================================================================
+ v5.9.0 06/27/2026 Fix the last fix. some were still geting through causing Java errors.
+ v5.8.0 11/24/2025 Fix for invalid info being received from theremostat. Causing syntax error
  v5.7.9 03/26/2023 New firmware version ident routine. Fix bad firmware dec order
  v5.7.8 03/24/2023 Bug fix in scale in setpoint. Last update broke it
  v5.7.7 03/24/2023 Bug in scale detection causing errors in the log
@@ -100,6 +102,7 @@ ZWAVE SPECIFIC_TYPE_THERMOSTAT_GENERAL_V2
  v3.1   07/30/2022 Total rewrite of event storage and Parsing.
  v3.0   07/29/2022 Release - Major fixes and log conversion
  -----             Missing numbers are beta working local versions never released.
+
 ===================================================================================================
 Notes
 
@@ -154,7 +157,7 @@ https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/opensource_link
 */
 
 def clientVersion() {
-    TheVersion="5.7.9"
+    TheVersion="5.9.0"
  if (state.version != TheVersion){    
      logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -261,8 +264,8 @@ preferences {
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "Programming Debug logs" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 if (state.parameter[8]){
-    input(  "heatDiff", "number", title: "2 Stage Heat differential", description: "Only for 2 stage ElectHeat or HeatPumps. 2nd stage engages when x above setpoint.(2 to 6)", defaultValue: 2,required: true)
-    input(  "coolDiff", "number", title: "2 Stage Cool differential", description: "Only for 2 stage HeatPumps. (ignore if not using)(2 to 6)", defaultValue: 2,required: true)
+    input(  "heatDiff", "number", title: "2 Stage Heat differential", description: "Some Thermostats must be set manualy! Only for 2 stage ElectHeat or HeatPumps. 2nd stage engages when x above setpoint.(2 to 6)", defaultValue: 2,required: true)
+    input(  "coolDiff", "number", title: "2 Stage Cool differential", description: "Some Thermostats must be set manualy! Only for 2 stage HeatPumps. (ignore if not using)(2 to 6)", defaultValue: 2,required: true)
 }
 if (state.parameter[7]){
     input(  "swing", "enum", title: "Temperature Swing", description: "Number of degrees above (for cooling) and below (for heating) the temp will fluctuate before cycling back on.", options: ["0.5","1.0","1.5","2.0","2.5","3.0","3.5","4.0"], defaultValue: "1.0", multiple: false, required: true)
@@ -593,10 +596,10 @@ def zwaveEvent(hubitat.zwave.commands.thermostatsetpointv2.ThermostatSetpointRep
       logging("E1 ${name} Set Points Match Last:${tempCheck}=Current:${tempCheck2}", "debug") //moved to debug
       //state.error = 0 
       }
-     if(tempCheck != tempCheck2 & autocorrect == true){
+     if(tempCheck != tempCheck2 && autocorrect == true){
          if(!state.error){state.error=0}
          state.error = state.error + 1
-         logging("E1 ${map.name} Last Point does not match Last:${tempCheck}<>Current:${tempCheck2} error:${state.error} fixOn:${autocorrectNum}", "warn")
+         logging("E1 ${name} Last Point does not match Last:${tempCheck}<>Current:${tempCheck2} error:${state.error} fixOn:${autocorrectNum}", "warn")
          if (state.error >= autocorrectNum ){
           runIn(1,FixHeat)
           runIn(5,FixCool)
@@ -802,10 +805,40 @@ def zwaveEvent(hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport cmd)
 		case hubitat.zwave.commands.thermostatmodev2.ThermostatModeReport.MODE_AUTO:
 			map.value = "auto"
 			break
+        default:
+            map.value = "unknown"  // Explicit fallback
+            break
 	}
 	
     logging("E5 ${map.name} - ${map.value} ", "info")
-    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
+    
+// Validate before sending (prevents parse errors)
+//    if (map.value && map.value != "unknown") {
+//        sendEvent(name: map.name, value: map.value, descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange: true)
+//    } else {
+//        logging("E5 invalid Value from thermostat ${map.value}", "warn")
+//    }   
+    
+    
+    
+    
+    
+try {
+    sendEvent(
+        name: map.name,
+        value: map.value,
+        descriptionText: "${map.name} ${map.value} ${state.version}",
+        isStateChange: true
+    )
+}
+catch (Exception e) {
+    logging("sendEvent FAILED", "error")
+    logging("name=${map.name}", "error")
+    logging("value=${map.value}", "error")
+//    logging("class=${map.value?.getClass()?.name}", "error")
+    logging("exception=${e}", "error")
+}    
+
 }
 // auto, low, autoHigh, high, autoMedium, medium, circulation, humidityCirculation
 def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport cmd) {
@@ -829,11 +862,19 @@ def zwaveEvent(hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeRepor
 		case hubitat.zwave.commands.thermostatfanmodev3.ThermostatFanModeReport.FAN_MODE_CIRCULATION:// Dont thinmk rT supports this
 			map.value = "fanCirculate"
 			break
+        default:
+            map.value = "unknown"  // Explicit fallback
+            break
 	}
 	
     logging("E6 ${map.name} - ${map.value} ", "info2")
-    sendEvent(name: map.name, value: map.value,descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange:true)
- 
+// Validate before sending (prevents parse errors)
+    if (map.value && map.value != "unknown") {
+        sendEvent(name: map.name, value: map.value, descriptionText: "${map.name} ${map.value} ${state.version}", isStateChange: true)
+    } else {
+        logging("E5 invalid Value from thermostat ${map.value}", "warn")
+    }    
+    
     fanStateFix()
 
 }
@@ -981,27 +1022,29 @@ def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
      state.parameter[8]=1   
      def testHeat = cmd.configurationValue[0] * 0.5
      def testCool = cmd.configurationValue[1] * 0.5  
-       logging("E10-8 DiffReport Heat:${testCool}° Cool:${testHeat}°  [RawHeat:${cmd.configurationValue[1]} RawCool:${cmd.configurationValue[1]}] ", "debug")  
+       logging("E10-8 DiffReport Heat:${testCool}° Cool:${testHeat}°  [RawHeat:${cmd.configurationValue[0]} RawCool:${cmd.configurationValue[1]}] ", "debug")  
 // -------------heat       
-     if (state.heatDiff == testHeat) {
+     
          logging("E10-8-0 (2 stage Heat Differential) :${testHeat} °", "info2")
          sendEvent(name: "recoveryTempDiffHeat", value: "${testHeat}",descriptionText: "heat ${testHeat}°  ${state.version}",displayed: true, isStateChange:true)
-     }
-     else {
+     
+     if (state.heatDiff != testHeat) {
            if (debugLogging){
-           logging("E10-8-0 Report ERROR (2 stage Differential) Heat:${testHeat} [should be ${state.heatDiff}]", "warn")
+           logging("E10-8-0 (2 stage Diff) Heat:${testHeat} [should be ${state.heatDiff}] Try manual set on Thermostat", "warn")
            }
-     }   
-// ------------cool       
-     if (state.coolDiff == testCool) {
+     }
+// ------------cool    
          logging("E10-8-1 (2 stage Cool Differential) :${testCool} °", "info2")
          sendEvent(name: "recoveryTempDiffCool", value: "${testCool}", descriptionText: "cool ${testCool}  ${state.version}",displayed: true, isStateChange:true)
-     }
-     else {
-           if (debugLogging){
-           logging("E10-8-1 Report ERROR (2 stage Differential) Cool:${testCool} [should be ${state.coolDiff}]", "warn")
-           }
+       
+     if (state.coolDiff != testCool) {
+      if (debugLogging){
+           logging("E10-8-1 (2 stage Diff) Cool:${testCool} [should be ${state.coolDiff}] Try manual set on Thermostat", "warn")
        }
+     }
+   
+           
+      
     
    }
     
@@ -1467,14 +1510,30 @@ def setDiff(cmd){
    if (heatDiff >2){coolDiff =2}  
    state.heatDiff = heatDiff
    state.coolDiff = coolDiff 
-   logging("E22 Set (2 stage Differential) Heat:${heatDiff} Cool:${coolDiff}", "info")
-   logging("E22 Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x00, ${heatDiff}]) ", "trace")    
-   logging("E22 Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x01, ${coolDiff}])  Get(config 8)", "trace")  
-    delayBetween([    
-   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
-   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
-   zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
-	], 2500)    
+
+    
+// bug fix we were not sending raw data    
+   def rawHeat = (heatDiff * 2) as Integer
+   def rawCool = (coolDiff * 2) as Integer
+   logging("E22 Set (2 stage Differential) Heat:${heatDiff} Cool:${coolDiff} RAWHeat:${rawHeat} Cool:${rawCool}", "info")
+    
+//   logging("E22 Set Dif RAWHeat:${rawHeat} Cool:${rawCool} ", "info")     
+    
+    
+
+    
+ delayBetween([
+    zwave.configurationV2.configurationSet(parameterNumber: 8,size: 2,configurationValue: [rawHeat, rawCool]).format(),
+    zwave.configurationV2.configurationGet(parameterNumber: 8).format()
+    ], 1500)   
+   
+//   logging("E22 Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x00, ${rawHeat}]) ", "trace")    
+//   logging("E22 Sending >>  configurationSet (parameterNumber: 8, size: 2, configurationValue: [0x01, ${rawCool}])  Get(config 8)", "trace")  
+//    delayBetween([    
+//   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x00, heatDiff]).format(),
+//   zwave.configurationV2.configurationSet(parameterNumber: 8, size: 2, configurationValue: [0x01, coolDiff]).format(), 
+//   zwave.configurationV2.configurationGet(parameterNumber: 8).format(),    
+//	], 2500)    
 
 }
 
