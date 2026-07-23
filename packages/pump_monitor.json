@@ -1,0 +1,23 @@
+{
+  "packageName": "Pump Monitor",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "Smart scheduler for Pool Pump, Spa Pump, Septic Aerator,Drainage Pumps with daily runtime and cooldown periods",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.6.0",
+  "dateReleased": "2026-23-07",
+  "category":"Conveniencey",
+  "tags": [ "Pump", "Pool","Spa","Dranage","" ],
+  "apps": [
+    {
+      "name":"Pump Monitor",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/pump_scheduler.groovy",
+      "required": "true",
+      "description": "Smart scheduler for Pool Pump, Spa Pump, Septic Aerator,Drainage Pumps with daily runtime and cooldown periods",
+      "id": "e23cd6b5-3182-429f-9cd4-4daaf27d829c"
+    }
+    ]
+}
