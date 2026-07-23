@@ -9,7 +9,7 @@
   "version": "1.6.0",
   "dateReleased": "2026-07-23",
   "category": "Convenience",
-  "tags": [ "Pump", "Pool","Pools & Spas","Spa","Dranage","Septic Aerator","timer" ],
+  "tags": [ "Pump", "Pool","Pools & Spas","Spa","Water","Dranage","Septic Aerator","timer" ],
   "apps": [
     {
       "name":"Pump Monitor",
