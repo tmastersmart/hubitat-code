@@ -42,7 +42,7 @@ preferences {
 
 
 // ====================== VERSION CONTROL ======================
-def version() { "1.6" }  
+def version() { "1.7" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump Scheduler Updated to v${version()}","warn")
@@ -294,7 +294,7 @@ def updated() {
     unschedule()
     initialize()
     restoreMonitor()
-//    loggingUpdate()
+    loggingUpdate()
     
 }
 
