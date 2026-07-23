@@ -141,7 +141,7 @@
  {
 "name":"Pump Scheduler",
 "category": "Convenience",
-"tags": [ "Pump", "Pool","Pools & Spas","Spa","Dranage","Septic Aerator","timer" ],
+"tags": [ "Pump", "Pool","Pools & Spas","Spa","Water","Dranage","Septic Aerator","timer" ],
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/pump_scheduler.grovey",
 "description": "Smart scheduler for pool pumps, spa pumps, septic aerators, drainage pumps, and other motorized equipment. Supports daily runtime targets, maximum cycle length, cooldown periods, sunrise/sunset scheduling, monitoring, and automatic recovery after hub reboots or app updates.",
  }, 
