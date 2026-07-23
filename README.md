@@ -1,4 +1,4 @@
-# Welcome to my drivers section.
+# Welcome to my Hubitat aps & drivers section.
 I mostly write drivers for myself and update them from time to time depending when i see problems. If you have problems you need to let me know so i can fix them. Your fingerprints for devices are always welcomed 
 
 
@@ -65,6 +65,19 @@ I mostly write drivers for myself and update them from time to time depending wh
 * SAGE Doorbell Sensor 
 * SAGE Light Switch 
 
+# Pools & Spas
+Pump manager to control the low cost amazon pumps. And others 
+ For swiming pool pumps that dont have a timer,Check your pools specs
+ On how long it should run per day and its max run time.
+ 
+ For drainage pumps. If the area cant be drained in several hrs the pump 
+ will over heat and trip the reset so a cool down time is needed. 
+ Set max run time and max time per day.
+ 
+ Air pumps for septic systems. Once that expensive controler fails
+ you can just add a relay and use your hub to control it.
+ Check max air time per day and max ontime and max off time.
+
 
 Expermental todki td-ZW101  driver for hubitat
 http presence sensor for hubitat. Ads adjustable chron and login detection
@@ -72,7 +85,7 @@ lock button monitor (watches for external keypad lock and presses a button)
 
 
 Started in 2021 
-Updated 2025
+Updated 2026
 
 
 
