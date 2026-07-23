@@ -16,6 +16,7 @@
  * v1.2 7/19/2026   Int version
  * v1.5 7/22/2026   Much debuging changes in monitor and more debug code
  * v1.6 7/23/2026   Insert into Hubitat Package Manager
+ * v1.7            
  */
 
 
@@ -286,15 +287,17 @@ def installed() {
     clientVersion()
     logging("Pump - ${pump.displayName} Scheduler Installed","info")
     initialize()
+    loggingUpdate()
 }
 
 def updated() {
-    logging("Pump - ${pump.displayName} Scheduler Updated - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle","info")
     unsubscribe()
     unschedule()
     initialize()
     restoreMonitor()
+    logging("Pump - ${pump.displayName} Scheduler Updated - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle","info")    
     loggingUpdate()
+
     
 }
 
@@ -546,27 +549,27 @@ if (state.isRunning) {
 // ====================== LOGGING ROUTINE (App Version) ======================
 
 def loggingUpdate() {
-    log.info "Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]"
+    log.info "Pump - ${pump.displayName} Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]"
     
     if (debugLogging) {
-        log.warn "Debug logging will auto-disable in 50 minutes"
+        log.warn "Pump - ${pump.displayName} Debug logging will auto-disable in 50 minutes"
         runIn(3000, debugLogOff)   // 3000 seconds = 50 minutes
     }
     
     if (traceLogging) {
-        log.warn "Trace logging will auto-disable in 30 minutes"
+        log.warn "Pump - ${pump.displayName} Trace logging will auto-disable in 30 minutes"
         runIn(1800, traceLogOff)   // 1800 seconds = 30 minutes
     }
 }
 
 void debugLogOff() {
     app.updateSetting("debugLogging", [value: "false", type: "bool"])
-    log.debug "Debug Logging Automatically Disabled"
+    log.debug "Pump - ${pump.displayName} Debug Logging Automatically Disabled"
 }
 
 void traceLogOff() {
     app.updateSetting("traceLogging", [value: "false", type: "bool"])
-    log.trace "Trace Logging Automatically Disabled"
+    log.trace "Pump - ${pump.displayName} Trace Logging Automatically Disabled"
 }
 
 private logging(String message, String level = "info") {
