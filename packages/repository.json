@@ -139,7 +139,7 @@
    }, 
 
  {
-"name":"Pump Monitor",
+"name":"Pump Scheduler",
 "category": "Convenience",
 "tags": [ "Pump", "Pool","Spa","Dranage","Septic Aerator","timer" ],
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/pump_monitor.json",
