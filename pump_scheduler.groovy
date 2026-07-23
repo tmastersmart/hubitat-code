@@ -1,5 +1,5 @@
 /**
- *  Pool / Spa / Drainage Pump Scheduler v2.1
+ *  Pool / Spa / Drainage Pump Scheduler 
  * 
  *  For swiming pool pumps that dont have a timer,Check your pools specs
  *  On how long it should run per day and its max run time.
@@ -15,6 +15,7 @@
  *
  * v1.2 7/19/2026   Int version
  * v1.5 7/22/2026   Much debuging changes in monitor and more debug code
+ * v1.6 7/23/2026   Insert into Hubitat Package Manager
  */
 
 
@@ -24,7 +25,7 @@ definition(
     namespace: "tmastersmart",
     author: "Tmaster",
     importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/pump_scheduler.groovy",
-    description: "Smart scheduler for Pool, Spa, Drainage Pumps with daily runtime and cooldown periods",
+    description: "Smart scheduler for pool pumps, spa pumps, septic aerators, drainage pumps, and other motorized equipment. Supports daily runtime targets, maximum cycle length, cooldown periods, sunrise/sunset scheduling, monitoring, and automatic recovery after hub reboots or app updates.",
     category: "Convenience",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
@@ -41,7 +42,7 @@ preferences {
 
 
 // ====================== VERSION CONTROL ======================
-def version() { "1.5" }  
+def version() { "1.6" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump Scheduler Updated to v${version()}","warn")
