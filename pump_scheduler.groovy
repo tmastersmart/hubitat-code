@@ -57,17 +57,50 @@ def clientVersion() {
 def mainPage() {
 
     dynamicPage(name: "mainPage", title: "Pump Scheduler", install: true, uninstall: true) {
-         section("Diagnostics"){
+    
+section("Diagnostics") {
 
-            paragraph """
-Current Runtime:${state.totalRuntimeToday}
-Current Cycle:${state.cyclesToday}
-Running:${state.isRunning}
-Stop Timer:${state.stopTime}
-Next Start:${state.nextStartTime}
+    def runtimeHours = (state.totalRuntimeToday ?: 0) / 3600
+
+    // Add current cycle time if running
+    if (state.isRunning && state.currentCycleStart) {
+        runtimeHours += (now() - state.currentCycleStart) / 3600000
+    }
+
+    def runtimeStr = String.format("%.2f", runtimeHours)
+    def targetStr  = String.format("%.2f", dailyHours ?: 0)
+    def remainingStr = String.format("%.2f", Math.max(0, (dailyHours ?: 0) - runtimeHours))
+
+    def stopStr = state.stopTime ?
+        new Date(state.stopTime).format("h:mm:ss a", location.timeZone) :
+        "None"
+
+    def nextStr = state.nextStartTime ?
+        new Date(state.nextStartTime).format("h:mm:ss a", location.timeZone) :
+        "None"
+
+    def startStr = state.currentCycleStart ?
+        new Date(state.currentCycleStart).format("h:mm:ss a", location.timeZone) :
+        "None"
+
+    paragraph """
+<b>Status</b>
+
+Pump: ${pump?.displayName ?: "Not Selected"}
+State: ${state.isRunning ? "🟢 Running" : "⚪ Stopped"}
+
+Runtime Today: ${runtimeStr} hrs of ${targetStr} hrs
+Remaining: ${remainingStr} hrs
+Cycles: ${state.cyclesToday ?: 0} / ${maxCyclesPerDay ?: "Unlimited"}
+
+Current Cycle Started: ${startStr}
+Scheduled Stop: ${stopStr}
+Next Start: ${nextStr}
 """
-        }       
-        section("Maintenance") {
+}
+        
+        
+    section("Maintenance") {
 
     paragraph "Recovery tools for the scheduler."
 
