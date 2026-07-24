@@ -132,7 +132,7 @@ def appButtonHandler(btn) {
 
 def defaultsPage() {
 
-    dynamicPage(name: "defaultsPage", title: "Equipment Defaults") {
+    dynamicPage(name: "defaultsPage", title: "Equipment Defaults", nextPage: "mainPage",    uninstall: false,    install: false) {
 
         section("Choose Equipment") {
 
@@ -186,8 +186,8 @@ def defaultsPage() {
 
 
 def setupPage() {
+    dynamicPage(name: "setupPage", title: "Pump Scheduler Configuration",  nextPage: "mainPage") {
 
-    dynamicPage(name: "setupPage", title: "Pump Scheduler Configuration", install: true, uninstall: true) {
 
         section("Pump") {
 
