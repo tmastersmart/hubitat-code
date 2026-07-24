@@ -8,8 +8,8 @@
   "communityLink": "",
   "version": "1.8.0",
   "dateReleased": "2026-07-23",
-  "category": "Convenience",
-  "tags": [ "Pump", "Pool","Pools & Spas","Spa","Water","Dranage","Septic Aerator","timer" ],
+"category": "Utility",
+"tags": ["Pools & Spas","Water","Timers","Monitoring","Tools & Utilities"],
   "apps": [
     {
       "name":"Pump Monitor",
