@@ -16,7 +16,7 @@
  * v1.2 7/19/2026   Int version
  * v1.5 7/22/2026   Much debuging changes in monitor and more debug code
  * v1.6 7/23/2026   Insert into Hubitat Package Manager
- * v1.7            
+ * v1.8 7/24/2026   Bugs fixed/ Manual buttons added.
  */
 
 
@@ -43,10 +43,10 @@ preferences {
 
 
 // ====================== VERSION CONTROL ======================
-def version() { "1.7" }  
+def version() { "1.8" }  
 def clientVersion() {
     if (state.version != version()) {
-        logging("Pump Scheduler Updated to v${version()}","warn")
+        logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
         state.version = version()
     }
 }
@@ -57,34 +57,29 @@ def clientVersion() {
 def mainPage() {
 
     dynamicPage(name: "mainPage", title: "Pump Scheduler", install: true, uninstall: true) {
-
-        section("Current Status") {
+         section("Diagnostics"){
 
             paragraph """
-Pump: ${pump ? pump.currentSwitch.toUpperCase() : "Not Configured"}
-
-Today's Runtime:
-${String.format("%.2f", (state.totalRuntimeToday ?: 0)/3600)} hrs / ${dailyHours ?: 0} hrs
-
-Cycles Today:
-${state.cyclesToday ?: 0}
-
-Running:
-${state.isRunning ? "YES" : "NO"}
+Current Runtime:${state.totalRuntimeToday}
+Current Cycle:${state.cyclesToday}
+Running:${state.isRunning}
+Stop Timer:${state.stopTime}
+Next Start:${state.nextStartTime}
 """
-        }
+        }       
+        section("Maintenance") {
 
-        if(state.stopTime) {
-            section("Current Cycle") {
-                paragraph "Stops: ${new Date(state.stopTime)}"
-            }
-        }
+    paragraph "Recovery tools for the scheduler."
 
-        if(state.nextStartTime) {
-            section("Cooldown") {
-                paragraph "Next Start: ${new Date(state.nextStartTime)}"
-            }
-        }
+    input "restartMonitor", "button",
+          title: "Restart Monitor"
+
+    input "restartDay", "button",
+          title: "Restart Today's Schedule"
+
+}
+
+
 
         section("Menu") {
 
@@ -92,16 +87,48 @@ ${state.isRunning ? "YES" : "NO"}
                 title: "Configuration",
                 description: "Pump settings"
 
-            href "advancedPage",
-                title: "Advanced",
-                description: "Logging and diagnostics"
+
 
             href "defaultsPage",
                 title: "Equipment Defaults",
                 description: "Load preset values"
         }
     }
+
+    
+    
 }
+
+def appButtonHandler(btn) {
+
+    switch(btn) {
+
+        case "restartDay":
+
+            logging("Pump - ${pump.displayName} Manual daily restart requested", "warn")
+
+            unschedule("monitorPump")
+
+            state.lastRunDate = null
+            state.totalRuntimeToday = 0
+            state.cyclesToday = 0
+            state.stopTime = null
+            state.nextStartTime = null
+            state.currentCycleStart = null
+            state.isRunning = false
+
+            startDailySchedule()
+            break
+
+
+        case "restartMonitor":
+
+            logging("Pump - ${pump.displayName} Manual monitor restart requested", "warn")
+            restoreMonitor()
+            break
+    }
+}
+
 
 def defaultsPage() {
 
@@ -228,17 +255,8 @@ def setupPage() {
                   defaultValue: 30,
                   required: true
         }
-    }
-}
-
-
-
-def advancedPage(){
-
-    dynamicPage(name:"advancedPage",title:"Advanced"){
-
         
-section("Limits") {
+       section("Limits") {
 
     input "maxCyclesPerDay",
           "number",
@@ -265,21 +283,23 @@ section("Logging") {
           "bool",
           title: "Enable Trace Logging",
           defaultValue: (settings.traceLogging != null ? settings.traceLogging : false)
+    input "lockLogging",
+          "bool",
+          title: "Dont disable debugging",
+          defaultValue: (settings.lockLogging != null ? settings.lockLogging : false)
 }
 
-        section("Diagnostics"){
 
-            paragraph """
-Current Runtime:${state.totalRuntimeToday}
-Current Cycle:${state.cyclesToday}
-Running:${state.isRunning}
-Stop Timer:${state.stopTime}
-Next Start:${state.nextStartTime}
-"""
-        }
 
+   
+        
+        
+        
     }
 }
+
+
+
 
 
 
@@ -388,21 +408,16 @@ def startDailySchedule(evt = null) {
         logging("Pump - ${pump.displayName} Today's schedule already started. Runtime ${state.totalRuntimeToday} Cycles ${state.cyclesToday}","warn")
         return
     }
-
+ 
     state.lastRunDate = today
-
     state.totalRuntimeToday = 0.0
     state.cyclesToday = 0
-
     state.isRunning = false
     state.stopTime = null
     state.nextStartTime = null
     state.currentCycleStart = null
-
-
     logging("Pump - ${pump.displayName} Daily cycle started","info")
     startPumpCycle()
-
     
 }
 
@@ -449,7 +464,7 @@ def stopPumpCycle() {
     
     pump.off()  // do after to make sure theres no bounce
     
-    logging("Pump - ${pump.displayName} turned OFF after ${actualRun/3600} hours","info")
+    logging("Pump - ${pump.displayName} turned OFF after ${actualRun/3600} Hrs Runtime:${state.totalRuntimeToday}hrs","info")
     
  
     if (state.totalRuntimeToday < dailyHours * 3600) {
@@ -468,12 +483,21 @@ else {
 
 def monitorPump() {
 def debugRuntime = state.totalRuntimeToday ?: 0
-
+def today = new Date().format("yyyy-MM-dd", location.timeZone)
+    
     if (state.lastMonitorRun && (now() - state.lastMonitorRun) < 60) {
     logging("Pump - ${pump.displayName} Monitor skipped - ran recently", "debug")
     return
 }
+    
+if (state.lastRunDate != today) {
+    logging("Pump - ${pump.displayName} New day not initialized yet - monitor exiting", "warn")
+    logging("Pump - ${pump.displayName} lastRunDate=${state.lastRunDate} today=${today}", "debug")
 
+    return
+}    
+    
+    
 state.lastMonitorRun = now()
     
 if (state.isRunning && state.currentCycleStart) {
@@ -549,17 +573,19 @@ if (state.isRunning) {
 // ====================== LOGGING ROUTINE (App Version) ======================
 
 def loggingUpdate() {
-    log.info "Pump - ${pump.displayName} Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]"
-    
-    if (debugLogging) {
+    log.info "Pump - ${pump.displayName} Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}] Locked:[${lockLogging}]"
+ //lock code  
+    if (!lockLogging){
+     if (debugLogging) {
         log.warn "Pump - ${pump.displayName} Debug logging will auto-disable in 50 minutes"
         runIn(3000, debugLogOff)   // 3000 seconds = 50 minutes
     }
     
-    if (traceLogging) {
+     if (traceLogging) {
         log.warn "Pump - ${pump.displayName} Trace logging will auto-disable in 30 minutes"
         runIn(1800, traceLogOff)   // 1800 seconds = 30 minutes
     }
+  }     
 }
 
 void debugLogOff() {
