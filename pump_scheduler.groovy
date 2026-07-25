@@ -104,6 +104,9 @@ Next Start: ${nextStr}
 
     paragraph "Recovery tools for the scheduler."
 
+    input "forceMonitor", "button",
+          title: "Run Monitor"
+        
     input "restartMonitor", "button",
           title: "Restart Monitor"
 
@@ -159,6 +162,15 @@ def appButtonHandler(btn) {
             logging("Pump - ${pump.displayName} Manual monitor restart requested", "warn")
             restoreMonitor()
             break
+        
+       case "forceMonitor":
+
+            logging("Pump - ${pump.displayName} Force monitor requested", "warn")
+            monitorPump()
+            break     
+        
+        
+        
     }
 }
 
@@ -348,7 +360,7 @@ def updated() {
     unschedule()
     initialize()
     restoreMonitor()
-    logging("Pump - ${pump.displayName} Scheduler Updated - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle","info")    
+    logging("Pump - ${pump.displayName} Scheduler Updated - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle","trace")    
     loggingUpdate()
 
     
@@ -362,12 +374,15 @@ def restoreMonitor() {
     if (state.isRunning) {
         unschedule("monitorPump")
         schedule("0 0/10 * * * ?", "monitorPump")
-        logging("Pump - ${pump.displayName} Monitor restored - Pump Running Runtime=${String.format('%.2f', runtime/3600)}h","warn")
+        logging("Pump - ${pump.displayName} Monitor schedule reset","info")
+ //       logging("Pump - ${pump.displayName} Runtime=${String.format('%.2f', runtime/3600)}h NextStart=${new Date(state.nextStartTime).format('HH:mm:ss', location.timeZone)} Remaining=${String.format('%.2f', remaining/3600)}h","debug")
     }
     else if (remaining > 60 && state.nextStartTime) {
         unschedule("monitorPump")
         schedule("0 0/10 * * * ?", "monitorPump")
-        logging("Pump - ${pump.displayName} Monitor restored - Cooldown active NextStart=${new Date(state.nextStartTime).format('HH:mm:ss', location.timeZone)} Remaining=${String.format('%.2f', remaining/3600)}h","warn")
+        logging("Pump - ${pump.displayName} Monitor restored (Cooldown active)","info")
+        logging("Pump - ${pump.displayName} NextStart=${new Date(state.nextStartTime).format('HH:mm:ss', location.timeZone)} Remaining=${String.format('%.2f', remaining/3600)}h","debug")
+ 
     }
     else {
         state.nextStartTime = null
@@ -382,11 +397,10 @@ def initialize() {
     if (state.totalRuntimeToday == null){ state.totalRuntimeToday = 0.0 }
           if (state.cyclesToday == null){ state.cyclesToday = 0 }
            if (state.isRunning == null){  state.isRunning = false }
-    logging("Pump - ${pump.displayName} Runtime ${state.totalRuntimeToday} Cycles ${state.cyclesToday}", "debug")
+//    logging("Pump - ${pump.displayName} Runtime ${state.totalRuntimeToday} Cycles ${state.cyclesToday}", "debug")
     clientVersion()
     scheduleStartTime()
     logging("Pump - ${pump.displayName} Scheduler initialized - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle", "info")
-        // Restore monitor if pump was running
 
 
 }
@@ -538,8 +552,9 @@ if (state.isRunning && state.currentCycleStart) {
 }
 
     def debugHours = debugRuntime / 3600
-    logging("Pump - ${pump.displayName} Monitor: Switch=${pump.currentSwitch} Running=${state.isRunning} Runtime=${String.format('%.3f', debugHours)} hrs Cycles=${state.cyclesToday}","debug")     
-    logging("Pump - ${pump.displayName} Monitor: StopTime=${state.stopTime ? new Date(state.stopTime) : 'NONE'} NextStart=${state.nextStartTime ? new Date(state.nextStartTime) : 'NONE'}", "trace")
+    logging("Pump - ${pump.displayName} Monitor: Switch=${pump.currentSwitch} Runtime=${String.format('%.3f', debugHours)} hrs Cycles=${state.cyclesToday} NextStart=${state.nextStartTime ? new Date(state.nextStartTime) : 'NONE'}","info") 
+
+    logging("Pump - ${pump.displayName} Monitor: Running=${state.isRunning} StopTime=${state.stopTime ? new Date(state.stopTime) : 'NONE'}", "trace")
 
     
 if (state.isRunning) {
@@ -559,10 +574,10 @@ if (state.isRunning) {
         stopPumpCycle()
     }
 
-    // Clear bad cooldown state
+
     if (state.nextStartTime) {
-        logging("Pump - ${pump.displayName} Clearing stale NextStart while running", "warn")
-        state.nextStartTime = null
+        logging("Pump - ${pump.displayName} Detected NextStart while running ${state.nextStartTime}", "debug")
+ //       state.nextStartTime = null
     }
 
 
