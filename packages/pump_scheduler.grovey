@@ -6,7 +6,7 @@
   "releaseNotes": "Smart scheduler for Pool Pump, Spa Pump, Septic Aerator,Drainage Pumps with daily runtime and cooldown periods",
   "documentationLink": "",
   "communityLink": "",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "dateReleased": "2026-07-23",
 "category": "Utility",
 "tags": ["Pools & Spas","Water","Timers","Monitoring","Tools & Utilities"],
