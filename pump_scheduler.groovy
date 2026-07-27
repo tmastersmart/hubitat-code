@@ -19,6 +19,7 @@
  * v1.8 7/24/2026   Bugs fixed/ Manual buttons added.
  * v1.9 7/25/2026   Log fixes and status page improvements
  * v2.0.0           Manual start stop added
+ * v2.0.1           Adjusting monitor. 
  */
 
 definition(
