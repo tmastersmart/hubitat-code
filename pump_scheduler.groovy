@@ -1,6 +1,6 @@
 /**
  *  Pool / Spa / Drainage Pump Scheduler (c) 2026 All rights reserved
- * 
+ *  
  *  For swiming pool pumps that dont have a timer,Check your pools specs
  *  On how long it should run per day and its max run time.
  *
