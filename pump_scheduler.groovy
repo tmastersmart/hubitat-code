@@ -1,6 +1,6 @@
 /**
  *  Pool / Spa / Drainage Pump Scheduler (c) 2026 All rights reserved
- *  
+ * 
  *  For swiming pool pumps that dont have a timer,Check your pools specs
  *  On how long it should run per day and its max run time.
  *
@@ -41,7 +41,7 @@ preferences {
     page(name: "advancedPage")
 }
 
-def version() { "2.0.3" }  
+def version() { "2.0.4" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
@@ -370,7 +370,7 @@ def restoreMonitor() {
 
     if (state.isRunning) {
 
-        schedule("0 0/30 * * * ?", "monitorPump")
+        schedule("0 0/25 * * * ?", "monitorPump")
         logging("Pump - ${pump.displayName} Monitor restored (Pump Running)", "info")
 
     }
@@ -382,7 +382,7 @@ def restoreMonitor() {
     }
     else if (state.nextStartTime) {
 
-        schedule("0 0/30 * * * ?", "monitorPump")
+        schedule("0 0/25 * * * ?", "monitorPump")
         logging("Pump - ${pump.displayName} Monitor restored (Cooldown active)","info")
         logging("Pump - ${pump.displayName} NextStart=${new Date(state.nextStartTime).format('HH:mm:ss', location.timeZone)} Remaining=${String.format('%.2f', remaining/3600)}h","debug")
 
@@ -393,7 +393,7 @@ def restoreMonitor() {
 
         state.nextStartTime = now() + (cooldownMinutes * 60 * 1000)
 
-        schedule("0 0/30 * * * ?", "monitorPump")
+        schedule("0 0/25 * * * ?", "monitorPump")
 
         logging("Pump - ${pump.displayName} Rebuilt cooldown. NextStart=${new Date(state.nextStartTime)}","info")
     }
@@ -439,8 +439,8 @@ def startDailySchedule(evt = null) {
     // Always make sure the monitor is running
     state.manualMode = false
     unschedule("monitorPump")
-    schedule("0 0/30 * * * ?", "monitorPump")
-    logging("Pump - ${pump.displayName} Monitor reset - 30m", "debug")
+    schedule("0 0/25 * * * ?", "monitorPump")
+    logging("Pump - ${pump.displayName} Monitor reset", "debug")
     
  //   runIn(60, "monitorPump") // lets not do this now
     
