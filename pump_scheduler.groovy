@@ -20,6 +20,7 @@
  * v1.9 7/25/2026   Log fixes and status page improvements
  * v2.0.0           Manual start stop added
  * v2.0.1           Adjusting monitor. 
+ * v2.0.3           Reduced monitor scheduling to 30m. 
  */
 
 definition(
@@ -40,7 +41,7 @@ preferences {
     page(name: "advancedPage")
 }
 
-def version() { "2.0.1" }  
+def version() { "2.0.3" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
@@ -237,7 +238,11 @@ case "stopScheduler":
     state.stopTime = null
     state.nextStartTime = null
     state.currentCycleStart = null
-
+    // Make sure the pump is off
+    if (pump.currentSwitch == "on") {
+        pump.off()
+        logging("Pump - ${pump.displayName} Pump turned OFF by stop scheduler ", "info")
+    }
         return mainPage()
 
 
@@ -365,7 +370,7 @@ def restoreMonitor() {
 
     if (state.isRunning) {
 
-        schedule("0 0/10 * * * ?", "monitorPump")
+        schedule("0 0/30 * * * ?", "monitorPump")
         logging("Pump - ${pump.displayName} Monitor restored (Pump Running)", "info")
 
     }
@@ -377,7 +382,7 @@ def restoreMonitor() {
     }
     else if (state.nextStartTime) {
 
-        schedule("0 0/10 * * * ?", "monitorPump")
+        schedule("0 0/30 * * * ?", "monitorPump")
         logging("Pump - ${pump.displayName} Monitor restored (Cooldown active)","info")
         logging("Pump - ${pump.displayName} NextStart=${new Date(state.nextStartTime).format('HH:mm:ss', location.timeZone)} Remaining=${String.format('%.2f', remaining/3600)}h","debug")
 
@@ -388,7 +393,7 @@ def restoreMonitor() {
 
         state.nextStartTime = now() + (cooldownMinutes * 60 * 1000)
 
-        schedule("0 0/10 * * * ?", "monitorPump")
+        schedule("0 0/30 * * * ?", "monitorPump")
 
         logging("Pump - ${pump.displayName} Rebuilt cooldown. NextStart=${new Date(state.nextStartTime)}","info")
     }
@@ -434,8 +439,8 @@ def startDailySchedule(evt = null) {
     // Always make sure the monitor is running
     state.manualMode = false
     unschedule("monitorPump")
-    schedule("0 0/10 * * * ?", "monitorPump")
-    logging("Pump - ${pump.displayName} Monitor reset - 10m", "debug")
+    schedule("0 0/30 * * * ?", "monitorPump")
+    logging("Pump - ${pump.displayName} Monitor reset - 30m", "debug")
     
  //   runIn(60, "monitorPump") // lets not do this now
     
@@ -445,7 +450,7 @@ def startDailySchedule(evt = null) {
         logging("Pump - ${pump.displayName} Today's schedule already started. Runtime ${state.totalRuntimeToday} Cycles ${state.cyclesToday}","warn")
         return
     }
- 
+    state.monitorCount =0
     state.lastRunDate = today
     state.totalRuntimeToday = 0.0
     state.cyclesToday = 0
@@ -562,8 +567,8 @@ if (state.manualMode) {
     return
 }       
 if (state.lastRunDate != today) {
-    unschedule("monitorPump")
-    logging("Pump - ${pump.displayName} Error New day not initialized - Forcing Monitor:off ", "warn")
+//    unschedule("monitorPump")
+    logging("Pump - ${pump.displayName} Error New day not yet initialized  ", "info")
     logging("Pump - ${pump.displayName} lastRunDate=${state.lastRunDate} today=${today}", "debug")
     return
 }    
@@ -584,17 +589,18 @@ if (state.isRunning && state.currentCycleStart) {
     if (state.stopTime) {
     next = "Next Stop:" + new Date(state.stopTime).format("h:mm a", location.timeZone)
     }
-// reduce info logs but keep debug 
-    if(!debugLogging){
-    state.monitorCount = (state.monitorCount ?: 0) + 1   
-        if (state.monitorCount >= 3) {
+ state.monitorCount = (state.monitorCount ?: 0) + 1 
+// monitor now runs ever 30 not 10    
+//    if(!debugLogging){
+//    state.monitorCount = (state.monitorCount ?: 0) + 1   
+//       if (state.monitorCount >= 3) {
     logging("Pump - ${pump.displayName} Monitor: Switch:${pump.currentSwitch} Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}","info") 
-    state.monitorCount =0
-        }    
-    }
-    else{
-    logging("Pump - ${pump.displayName} Monitor: Switch:${pump.currentSwitch} Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}","debug") 
-    }
+//    state.monitorCount =0
+//        }    
+//    }
+//    else{
+//    logging("Pump - ${pump.displayName} Monitor: Switch:${pump.currentSwitch} Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}","debug") 
+//    }
     
     logging("Pump - ${pump.displayName} Monitor: Running:${state.isRunning} ${next}", "trace")
 
