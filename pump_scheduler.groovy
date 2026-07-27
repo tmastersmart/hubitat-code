@@ -39,7 +39,7 @@ preferences {
     page(name: "advancedPage")
 }
 
-def version() { "2.0.0" }  
+def version() { "2.0.1" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
@@ -532,7 +532,9 @@ def stopPumpCycle() {
     runIn(cooldownMinutes * 60, startPumpCycle)
 }
 else {
+    unschedule("monitorPump")
     logging("Pump - ${pump.displayName} Daily runtime complete", "info")
+    
 }
     logging("Pump - ${pump.displayName} After Stop: Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}", "debug")
 }
