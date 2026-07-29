@@ -1,5 +1,4 @@
 /** Zigbee Sonoff - generic Relays/Outlets
-Without alarm for new dashboard
 driver for hubitat
 With state verify.
 
@@ -27,7 +26,8 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
- 1.7.6 10/25/2025   Removed alarm for new dashboard
+ 1.7.7 07/29/2026   Added detection of Sonoff i Plug
+ 1.7.6 10/26/2025   Alarm removed due to new dashboard requirements
  1.7.5 03/11/2025   Added fingerprint for Sonoff Switch ZBM5-1C-120. Unknown clusters moved from warn to debug and cluster 5 added to ignore
  1.7.4 03/30/2023   Hub zigbee update. Changed how on off sent
  1.7.3 03/10/2023   Bug fix in recovery line 249
@@ -78,7 +78,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.6"
+    TheVersion="1.7.7"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -91,7 +91,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 metadata {
     
-	definition (name: "Zigbee - Sonoff - generic Relays/Outlets no alarm", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays2.groovy") {
+	definition (name: "Zigbee - Sonoff - generic Relays/Outlets", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-zigbee-relays.groovy") {
 
         capability "Health Check"
 		capability "Actuator"
@@ -103,6 +103,7 @@ metadata {
 		capability "Refresh"
 		capability "Switch" 
 
+
         command "uninstall"
         command "checkPresence"
 
@@ -112,6 +113,7 @@ metadata {
         fingerprint model:"ZBM5-1C-120",   manufacturer:"SONOFF",          deviceJoinName:"SONOFF Wall Switch",    profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,0020,0B05,FC57,FC11", outClusters:"0019",   controllerType: "ZGB"
         fingerprint model:"BASICZBR3",     manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay BASICBR3", profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006",outClusters:"0000"
 	    fingerprint model:"01MINIZB",      manufacturer:"SONOFF",          deviceJoinName:"SONOFF Relay MINI",     profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57",outClusters:"0019"	
+        fingerprint model:"S40LITE",       manufacturer:"SONOFF",          deviceJoinName:"SONOFF iPlug",          profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006,FC57,FCA0", outClusters:"0019"
         fingerprint model:"SA-003-Zigbee", manufacturer:"eWeLink",         deviceJoinName:"eWeLink Relay",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000"
         fingerprint model:"Lamp_01",       manufacturer:"SZ",              deviceJoinName:"Generic Relay",         profileId:"0104", endpointId:"0B", inClusters:"0000,0003,0004,0005,0006", outClusters:"0000", application:"01"
         fingerprint model:"LXN59-1S7LX1.0",manufacturer:"3A Smart Home DE",deviceJoinName:"Inline Switch",         profileId:"0104", endpointId:"01", inClusters:"0000,0003,0004,0005,0006", outClusters:"", application:"01"
@@ -129,7 +131,7 @@ metadata {
 
 preferences {
 	
-  input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
@@ -267,11 +269,8 @@ def sync (){
 }
 
 
-
-
 def off() {
     state.switch = false
-    state.Alarm = "off"
     runIn(20,ping)
     logging("Sending OFF", "info")
     sendZigbeeCommands(zigbee.command(0x006, 0x00))// send off
@@ -442,7 +441,7 @@ def onEvents(){
 }
 def offEvents(){
     logging("OFF report", "debug")
-    Test = device.currentValue("switch")
+      Test = device.currentValue("switch")
     if (Test != "off"){ sendEvent(name: "switch", value: "off",isStateChange: true)}
     logging("is OFF our last state was:${Test}", "info")
     if (autoSync== true){ 
