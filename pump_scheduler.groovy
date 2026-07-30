@@ -13,15 +13,19 @@
  *  Check max air time per day and max ontime and max off time. 
  *
  *
- * v1.2 7/19/2026   Int version
- * v1.5 7/22/2026   Much debuging changes in monitor and more debug code
- * v1.6 7/23/2026   Insert into Hubitat Package Manager
- * v1.8 7/24/2026   Bugs fixed/ Manual buttons added.
- * v1.9 7/25/2026   Log fixes and status page improvements
- * v2.0.0           Manual start stop added
- * v2.0.1           Adjusting monitor. 
+ * v2.0.6           GUI rebuild. Start/Stop doesnt stop scheduler.Bug fix on daily time minor amounts
+ * v2.0.5 7/29/26   Fix reboot droping scvhedule
  * v2.0.3           Reduced monitor scheduling to 30m. 
- */
+ * v2.0.1           Adjusting monitor.
+ * v2.0.0           Manual start stop added
+ * v1.9 7/25/2026   Log fixes and status page improvements
+ * v1.8 7/24/2026   Bugs fixed/ Manual buttons added.
+ * v1.6 7/23/2026   Insert into Hubitat Package Manager
+ * v1.5 7/22/2026   Much debuging changes in monitor and more debug code
+ * v1.2 7/19/2026   Int version
+
+ * 
+*/
 
 definition(
     name: "Pump Scheduler",
@@ -41,7 +45,7 @@ preferences {
     page(name: "advancedPage")
 }
 
-def version() { "2.0.4" }  
+def version() { "2.0.6" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
@@ -76,77 +80,52 @@ def mainPage() {
 
     int filled = Math.round(percentInt / 10.0)
     int empty = 10 - filled
-
     def progressBar = ("█" * filled) + ("░" * empty)
+def mode = "⏳ Waiting"
+if (state.manualMode) {             mode = "🔧 Manual Mode"}
+else if (state.schedulerPaused) {   mode = "⛔ Scheduler Paused"}
+else if (state.isRunning) {         mode = "🟢 Running"}
+else if (state.nextStartTime && remainingHours > 0) {    mode = "⛔ Cooldown"}
+else if (remainingHours <= 60) {     mode = "✅ Daily Complete"}
+           
+    def status = "<table style='border-collapse: collapse; border: 2px solid #808080; box-shadow: 4px 4px 10px rgba(0,0,0,.4);'>"
+    def td = "style='border:1px solid #666;padding:6px;'"   
+        
+    status += "<tr>"
+            status += "<td ${td}><b>Pump:</b> ${pump?.displayName ?: "Not Selected"}</td>"    
+    status += "<td ${td}><b>Mode:</b> ${mode} </td>"
+    status += "<td ${td}><b>Today's Progress</b> "
+    status += "${progressBar} ${percentInt}% <br>"
+    status += "<center>(${runtimeStr} of ${targetStr} hrs) </center></td>"
 
-// Determine current mode
-def mode = "⏳ Waiting for Start"
+    status += "<td ${td}><b>Remaining:</b> ${remainingStr} hrs</td> "
 
-if (state.manualMode) {
-    mode = "🔧 Manual Mode"
-}
-else if (state.schedulerPaused) {
-    mode = "⛔ Scheduler Paused"
-}
-else if (state.isRunning) {
-    mode = "🟢 Running"
-}
-else if (state.nextStartTime && remainingHours > 0) {
-    mode = "⏸ Cooldown"
-}
-else if (remainingHours <= 0) {
-    mode = "✅ Daily Complete"
-}
-
-    def status = ""
-
-    status += "<b>Status</b> - "
-    status += "<b>Mode:</b> ${mode} "
-    status += "<b>Pump:</b> ${pump?.displayName ?: "Not Selected"}<br>"
-
-    status += "<b>Today's Progress</b> "
-    status += "${progressBar} ${percentInt}% "
-    status += "(${runtimeStr} of ${targetStr} hrs) "
-
-    status += "<b>Remaining:</b> ${remainingStr} hrs "
-
-    status += "<b>Cycles:</b> ${state.cyclesToday ?: 0}"
+    status += "<td ${td}><b>Cycles:</b> ${state.cyclesToday ?: 0}"
     if (maxCyclesPerDay) {
-        status += " / ${maxCyclesPerDay}"
+        status += " / ${maxCyclesPerDay}</td>"
     }
-    status += "<br>"
-
-    if (state.currentCycleStart) {
-        status += "<b>Started:</b> " +
-            new Date(state.currentCycleStart).format("h:mm:ss a", location.timeZone) + "<br>"
-    }
-
-    if (state.stopTime) {
-        status += "<b>Stops:</b> " +
-            new Date(state.stopTime).format("h:mm:ss a", location.timeZone) + "<br>"
-    }
-
-    if (state.nextStartTime) {
-        status += "<b>Next Start:</b> " +
-            new Date(state.nextStartTime).format("h:mm:ss a", location.timeZone) + "<br>"
-    }
-
-    if (startOption == "Specific Time" && startTime) {
-        status += "<b>Daily Start:</b> " +
-            timeToday(startTime, location.timeZone).format("h:mm a", location.timeZone)
-    }
-    else if (startOption == "Sunrise") {
-        status += "<b>Daily Start:</b> Sunrise"
-    }
-    else if (startOption == "Sunset") {
-        status += "<b>Daily Start:</b> Sunset"
-    }
-
+    status += "</tr>"
+    status += "<tr>"
+    if (state.currentCycleStart) {status += "<td ${td}><b>Started:</b> " + new Date(state.currentCycleStart).format("h:mm:ss a", location.timeZone) + "</td> "}
+            else{                 status += "<td ${td}> </td> " }
+    if (state.stopTime) {         status += "<td ${td}><b>Stops:</b> " + new Date(state.stopTime).format("h:mm:ss a", location.timeZone) + "</td> " }
+            else{                 status += "<td ${td}><b> </td> " }
+    if (state.nextStartTime) {    status += "<td ${td}><b>Next Start:</b> " + new Date(state.nextStartTime).format("h:mm:ss a", location.timeZone) + "</td>" }
+            else{                 status += "<td ${td}><b> </td> " }
+    if (state.lastRunDate){       status += "<td ${td}><b>Last Run:</b> ${state.lastRunDate}</td>" } 
+            else{                 status += "<td ${td}><b> </td> " }           
+    if (startOption == "Specific Time" && startTime) { 
+                                  status += "<td ${td}><b>Daily Start:</b> " + timeToday(startTime, location.timeZone).format("h:mm a", location.timeZone)+"</td>"}
+    else if (startOption == "Sunrise") { 
+                                  status += "<td ${td}><b>Daily Start:</b> Sunrise</td>"}
+    else if (startOption == "Sunset") {  
+                                  status += "<td ${td}><b>Daily Start:</b> Sunset </td>"}
+    status += "</tr></table>"
     paragraph status
 }
         
     section("Maintenance") {
-    paragraph "Recovery tools for the scheduler."
+    paragraph "Recovery tools for the scheduler. Start and Stop doesnt stop the schedule"
     input "forceMonitor", "button",  title: "Run Monitor"
     input "restartMonitor", "button",title: "Restart Monitor"
     input "restartDay", "button",    title: "Restart Today's Schedule"
@@ -170,7 +149,7 @@ else if (remainingHours <= 0) {
 def appButtonHandler(btn) {
     switch(btn) {
         case "restartDay":
-            logging("Pump - ${pump.displayName} Manual daily restart requested", "warn")
+            logging("Pump - ${pump.displayName} Manual daily restart requested. Clear all", "warn")
             unschedule("monitorPump")
             state.lastRunDate = null
             state.totalRuntimeToday = 0
@@ -179,6 +158,9 @@ def appButtonHandler(btn) {
             state.nextStartTime = null
             state.currentCycleStart = null
             state.isRunning = false
+            state.schedulerPaused = false
+            state.manualMode = false
+            initialize()
             startDailySchedule()
             return mainPage()
         
@@ -191,38 +173,17 @@ def appButtonHandler(btn) {
             logging("Pump - ${pump.displayName} Force monitor requested", "warn")
             monitorPump()
             return mainPage()   
+
         
-        case "manualStart":
-    logging("Pump - ${pump.displayName} Manual START requested", "warn")
+      
+case "manualStart":
+    startPumpMan()
+    return mainPage()
 
-    unschedule()
-    pump.on()
-
-    state.isRunning = false
-    state.stopTime = null
-    state.nextStartTime = null
-    state.currentCycleStart = null
-    state.manualMode = true
-
-    logging("Pump - ${pump.displayName} Scheduler disabled - Manual mode", "info")
-        return mainPage()
-
-
+// Just stop dont stop the schedule
 case "manualStop":
-    logging("Pump - ${pump.displayName} Manual STOP requested", "warn")
-
-    unschedule("monitorPump")
-    unschedule("startPumpCycle")
-    pump.off()
-
-    state.isRunning = false
-    state.stopTime = null
-    state.nextStartTime = null
-    state.currentCycleStart = null
-    state.manualMode = true
-
-    logging("Pump - ${pump.displayName} Scheduler disabled - Manual mode", "info")
-        return mainPage()
+    stopPumpMan()
+    return mainPage()
 
 
 case "stopScheduler":
@@ -234,7 +195,7 @@ case "stopScheduler":
     unschedule("startDailySchedule")
 
     state.schedulerPaused = true
-    state.manualMode = false
+    state.manualMode = true
     state.stopTime = null
     state.nextStartTime = null
     state.currentCycleStart = null
@@ -248,11 +209,10 @@ case "stopScheduler":
 
 case "resumeScheduler":
     logging("Pump - ${pump.displayName} Scheduler resumed", "warn")
-
     state.schedulerPaused = false
     state.manualMode = false
     state.nextStartTime = now() + 2
-    scheduleStartTime()
+//    scheduleStartTime()
     restoreMonitor()
     runIn(1, "monitorPump")
     return mainPage()
@@ -403,11 +363,16 @@ def restoreMonitor() {
 def initialize() {
     if (state.totalRuntimeToday == null){ state.totalRuntimeToday = 0.0 }
           if (state.cyclesToday == null){ state.cyclesToday = 0 }
-           if (state.isRunning == null){  state.isRunning = false }
-//    logging("Pump - ${pump.displayName} Runtime ${state.totalRuntimeToday} Cycles ${state.cyclesToday}", "debug")
+            if (state.isRunning == null){  state.isRunning = false }
     clientVersion()
+// fix the schedule after a reboot
     scheduleStartTime()
     logging("Pump - ${pump.displayName} Scheduler initialized - ${dailyHours} hrs/day | Max ${maxRunPerCycle} hrs per cycle", "info")
+    restoreMonitor()
+   
+    runIn(30, "monitorPump")
+
+    
 }
 
 
@@ -463,20 +428,52 @@ def startDailySchedule(evt = null) {
     
 }
 
+def startPumpMan() {
+if (state.isRunning) return      
+pump.on()
+state.isRunning = true    
+    def debugRuntime = state.totalRuntimeToday ?: 0
+    def debugHours = debugRuntime / 3600   
+logging("Pump - ${pump.displayName} Manual ON. Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ","warn")    
+}
+
+def stopPumpMan() {
+if (!state.isRunning) return      
+pump.off()
+state.isRunning = false    
+    def debugRuntime = state.totalRuntimeToday ?: 0
+    def debugHours = debugRuntime / 3600
+logging("Pump - ${pump.displayName} Manual STOP. Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ","warn")    
+}
+
 
 
 def startPumpCycle() {
-    if (state.isRunning) return
+  if (state.isRunning) return  
+    
+    def target = dailyHours * 3600
+    def remaining = target - (state.totalRuntimeToday ?: 0)   
+    
+    
 if (maxCyclesPerDay && state.cyclesToday >= maxCyclesPerDay) {
-    state.nextStartTime = null
-    unschedule("monitorPump")
-    logging("Pump - ${pump.displayName} Max cycles reached! Monitor:off Increase cycles if needed. ${state.cyclesToday}", "info")
-    return
+        state.totalRuntimeToday = target
+        state.nextStartTime = null
+        state.stopTime = null
+        unschedule("monitorPump")
+        logging("Pump - ${pump.displayName} Max cycles reached! Runtime:${String.format('%.2f', state.totalRuntimeToday / 3600)}h Cycles#${state.cyclesToday}", "info")
+        return
 }
 
+    if (remaining <= 60){
+        state.totalRuntimeToday = target
+        state.nextStartTime = null
+        state.stopTime = null
+        unschedule("monitorPump")
+        logging("Pump - ${pump.displayName} Daily runtime complete Runtime:${String.format('%.2f', target / 3600)}h Cycles#${state.cyclesToday}","info")
+        return
+    }
     
-    def remaining = (dailyHours * 3600) - state.totalRuntimeToday
-    if (remaining <= 0) return
+
     
     def runSeconds = Math.min(remaining, maxRunPerCycle * 3600)
     
@@ -500,7 +497,7 @@ if (maxCyclesPerDay && state.cyclesToday >= maxCyclesPerDay) {
     
     runIn(runSeconds.toInteger(), stopPumpCycle)
 
-    logging("Pump - ${pump.displayName} turned on. Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}","info")
+    logging("Pump - ${pump.displayName} turned ON. Runtime:${String.format('%.3f', debugHours)} hrs Cycle#${state.cyclesToday} ${next}","info")
 }
 
 
@@ -568,7 +565,7 @@ if (state.manualMode) {
 }       
 if (state.lastRunDate != today) {
 //    unschedule("monitorPump")
-    logging("Pump - ${pump.displayName} Error New day not yet initialized  ", "info")
+    logging("Pump - ${pump.displayName} Error New day not yet initialized  ", "debug")
     logging("Pump - ${pump.displayName} lastRunDate=${state.lastRunDate} today=${today}", "debug")
     return
 }    
@@ -604,67 +601,78 @@ if (state.isRunning && state.currentCycleStart) {
     
     logging("Pump - ${pump.displayName} Monitor: Running:${state.isRunning} ${next}", "trace")
 
-    
+def target = dailyHours * 3600
+def remaining = target - (state.totalRuntimeToday ?: 0)
+
 if (state.isRunning) {
 
+    // Pump should be ON
     if (pump.currentSwitch != "on") {
         logging("Pump - ${pump.displayName} was OFF but schedule says ON - turning ON ${next}", "warn")
         pump.on()
     }
 
+    // Lost stop timer?
     if (!state.stopTime) {
         logging("Pump - ${pump.displayName} StopTime missing - rebuilding from current cycle", "warn")
         state.stopTime = state.currentCycleStart + (maxRunPerCycle * 3600 * 1000)
     }
 
+    // Stop timer expired?
     if (now() >= state.stopTime) {
-        logging("Pump - ${pump.displayName} Fixing Stop timer expired ${Next}", "warn")
+        logging("Pump - ${pump.displayName} Fixing Stop timer expired ${next}", "warn")
         stopPumpCycle()
     }
 
-
+    // Debounce check
     if (state.nextStartTime) {
         logging("Pump - ${pump.displayName} Detected NextStart while running ${next}", "debug")
- //       state.nextStartTime = null  Just ignore. Its a debounce problem
+        // Ignore. This is a debounce issue.
+        // state.nextStartTime = null
     }
 
-
-
-    } else {
-
-        // Pump should be OFF
-        if (pump.currentSwitch != "off") {
-            logging("Pump - ${pump.displayName} was ON but schedule says OFF - turning OFF ${next}", "warn")
-            pump.off()
-        }
-
-        // More runtime needed today?
-        if (state.totalRuntimeToday < (dailyHours * 3600)) {
-
-            // Lost cooldown timer?
-            if (!state.nextStartTime) {
-                logging("Pump - ${pump.displayName} Next Start missing - rebuilding cooldown", "warn")
-                state.nextStartTime = now() + (cooldownMinutes * 60 * 1000)
-            }
-
-           
-           // Is the cooldown finished?
- if (state.nextStartTime && now() >= state.nextStartTime) {
-    logging("Pump - ${pump.displayName} cooldown expired - starting next cycle ${next}", "warn")
-    startPumpCycle()
-}                 
-            
-
-        } else {
-
-            logging("Pump - ${pump.displayName} Daily runtime complete Runtime:${state.totalRuntimeToday} Cycles#${state.cyclesToday}", "info")
-            unschedule("monitorPump")
-            logging("Pump - ${pump.displayName} Monitor stopped", "info")
-
-
-        }
-    }
 }
+else {
+
+    // Pump should be OFF
+    if (pump.currentSwitch != "off") {
+        logging("Pump - ${pump.displayName} was ON but schedule says OFF - turning OFF ${next}", "warn")
+        pump.off()
+    }
+
+    // More than 60 seconds of runtime remaining?
+    if (remaining > 60) {
+
+        // Lost cooldown timer?
+        if (!state.nextStartTime) {
+            logging("Pump - ${pump.displayName} Next Start missing - rebuilding cooldown", "warn")
+            state.nextStartTime = now() + (cooldownMinutes * 60 * 1000)
+        }
+
+        // Cooldown complete?
+        if (state.nextStartTime && now() >= state.nextStartTime) {
+            logging("Pump - ${pump.displayName} Cooldown expired - starting next cycle ${next}", "warn")
+            startPumpCycle()
+        }
+
+    }
+    else {
+
+        // Close enough to today's target
+        state.totalRuntimeToday = target
+        state.nextStartTime = null
+        state.stopTime = null
+        logging("Pump - ${pump.displayName} Daily runtime complete Runtime:${String.format('%.2f', target / 3600)}h Cycles#${state.cyclesToday}","info")
+        unschedule("monitorPump")
+        logging("Pump - ${pump.displayName} Monitor stopped", "info")
+    }
+
+}
+    
+
+}
+
+
 def footer() {
     section("Support Development") {
         paragraph """
