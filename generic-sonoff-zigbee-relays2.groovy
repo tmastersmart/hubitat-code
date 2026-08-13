@@ -2,6 +2,9 @@
 driver for hubitat
 With state verify.
 
+moved to https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/generic-sonoff-zigbee-relays.groovy
+Please use new location this one to be deleted
+
 Sonoff MINI ZB ,eWeLink ,3A Smart Home ,Generic
 Sonoff ZBM5-1C-120 Light Switch
 Generic zigbee relays
