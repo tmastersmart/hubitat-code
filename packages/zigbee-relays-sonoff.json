@@ -1,10 +1,10 @@
 {
   "packageName": "Zigbee generic outlets and relays",
   "author": "TheMaster",
-  "releaseNotes":   "Alarm removed",
+  "releaseNotes":   "Alarm removed. New devices",
   "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
   "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
-  "version": "1.7.7",
+  "version": "1.7.8",
   "dateReleased": "2022-10-23",
   "category":"Control",
   "tags":["Misc. Devices","Buttons","Lights & Switches","Presence & Location","Zigbee"],
@@ -14,7 +14,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/generic-sonoff-zigbee-relays.groovy",
       "required": "true",
-                "description": "Works with Sonoff MINI ZB,eWeLink,3A Smart Home and other generic zigbee relays. And generic outlets. Presence,Lamp_01,SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE",
+                "description": "Works with Sonoff MINI ZB,eWeLink,Iplug S40Z Lite,3A Smart Home and other generic zigbee relays. And generic outlets. Presence,Lamp_01,SA-003-Zigbee,01MINIZB,BASICZBR3,LXN59-1S7LX1.0, Sylvania SMART + LEDVANCE",
  
       "id": "9742730c-c241-4988-9c0c-53d6d93131e9"
     }
