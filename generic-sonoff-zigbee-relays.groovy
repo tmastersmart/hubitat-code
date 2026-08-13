@@ -26,6 +26,8 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.7.8 08/13/2026   Fixed bug in hub where if you swap a iris plug using my driver
+                    for one using this driver the schedule from the other driver doesnt get erased.
  1.7.7 07/29/2026   Added detection of Sonoff i Plug
  1.7.6 10/26/2025   Alarm removed due to new dashboard requirements
  1.7.5 03/11/2025   Added fingerprint for Sonoff Switch ZBM5-1C-120. Unknown clusters moved from warn to debug and cluster 5 added to ignore
@@ -229,7 +231,14 @@ def updated() {
     getIcons()
 }
 
-
+// Bug fix for hub swaping devices 
+// If swaping a iris plug for a sonoff 
+// The old schedule will not get removed, this fixes that bug
+def rangeAndRefresh() {
+    logging("Removing left over schedule (ranging) from old IRIS device", "warn")
+    unschedule(rangeAndRefresh)
+    runIn(20,ping)
+}
 
 
 
