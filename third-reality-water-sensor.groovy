@@ -3,10 +3,13 @@
 A Third Reality Water Sensor Driver For Hubitat
 
 ZCL version:03
-Software Build Id:v1.00.24
-Model:3RWS18BZ
+Tested on these sensors
+Software Build Id: v1.00.24 Model:3RWS18BZ
+Software Build Id: v1.00.17 Model:3RWS0218Z
+
 Manufacturer:Third Reality, Inc
 ===================================================================================================
+v1.2.4  08/26/2026 Added new sensor fingerprint for 3RWS0218Z 
 v1.2.3  03/25/2023 Low bat setting
 v1.2.2  01/29/2023 Changed anti dupe routines to adding State change.
 v1.2.1  01/23/2023 Power up init rewriten
@@ -35,7 +38,7 @@ import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion="1.2.3"
+    TheVersion="1.2.4"
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -70,7 +73,7 @@ command "uninstall"
 attribute "batteryVoltage", "string"
     
         fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0500", outClusters:"0019,0006", model:"3RWS18BZ", manufacturer:"Third Reality, Inc"
-    
+        fingerprint profileId:"0104", endpointId:"01", inClusters:"0000,0001,0003,0500", outClusters:"0019", model:"3RWS0218Z", manufacturer:"Third Reality, Inc"   
 }
 preferences {
 		
