@@ -1,58 +1,162 @@
-/*
+  /*
  Iris v2 - v3 keypad driver
-==================================================================================================
+=============================================================
 Driver supports model# 1112-S and model# 3405-L iris keypads
+Maker iMagic by GreatStar
 
-supports both the v2 and v2 keypads in one driver.
+ v1.6 09/13/2026 Debuging and rewriting parts of the code.
+ V1.2 02/25/2022 V2 working. v3 Working.
+ v1.1 02/23/2022 Tested on v2 and v3 kaypads. 
+ v1.0 02/22/2022 Beta test copy 
 
-<<<<<<<<<<<<<<<<
-not for release This is a beta test BUGS exist
-I have decided not to have v2 and v3 in the same driver many problems.
-This is delayed until later.....
+   ========================================================================
+   Driver Improvements Over Stock Keypad Drivers
+   ========================================================================
 
+   • Fixes inability to cancel alarms on Iris V3.
+   • Restores proper beep behavior on models that normally stay silent.
+   • Adds Iris-style door chime support (legacy Iris behavior).
+   • Adds Panic support for button controllers (silent alarm mode).
+   • Improves entry countdown timing and LED behavior.
+   • Filters out bad temperature and battery garbage values
+     produced by some Iris keypads.
 
+   ========================================================================
+   Iris V3 Keypad Behavior Notes
+   ========================================================================
 
+   • Iris V3 does NOT support true Night mode.
+     - ACE cmd 02 (setArmedNight) → treated as Stay/Partial.
+     - ACE cmd 09 (Exit Night) → ignored entirely.
 
-Improvments over default drivers.
+   • Iris V3 uses ACE cmd 07 (with empty data) as a motion wake‑up ping.
+     - This is NOT an alarm.
+     - Driver must respond with a panel ACK.
 
-v3 fix for being unable to cancel alarms
-chimes added
-Panic support added for button controler. silent alarm
+   • Exit delay beeps accelerate during the final 10 seconds.
+     - Applies to Stay (cmd 08) and Away (cmd 10).
+     - Iris V3 LED behavior differs from Centralite.
 
-note:
-The Iris v3 keypad is hardwired to not send disarm commands when unarmed.
-In order to disable a safety alert you must set keypad to Alarm on water/smoke alerts.
-When the driver sees the alarm and water/smoke it will arm the keypad. 
-You will then be able to disarm Alerts..
+   • Panic (cmd 04) and Alarm (cmd 07) behave differently on V2 vs V3.
+     - Iris V3 uses a beep‑based alarm tone instead of full siren.
 
-The v3 keypad can only send disarm once then it has to be rearmed. Remember you
-cant send disarm over and over it will be ignored by the hardware. This is the
-cause of runaway alarms.The driver will try to rearm the keypad on most events.
+   • LED behavior differs significantly between keypad families.
+     - Centralite: Stay/Night/Away icons.
+     - Iris V3: Partial/On/Off LEDs only.
 
+   • ACE commands are server → client (hub → keypad).
+     - Keypad → hub uses IAS Zone, IAS ACE, and manufacturer clusters.
+
+   ========================================================================
+   Iris V3 PIN / Arming Quirk
+   ========================================================================
+
+   • Iris V3 is hardwired to reject PIN entry while unarmed.
+     - A valid PIN immediately disarms the keypad.
+     - To stop an Alert, the driver must temporarily arm the keypad
+       and wait for a PIN.
+     - The keypad can only perform one disarm action per cycle.
+
+   ========================================================================
 
 
 
   v3 softwareBuild: 10036230 firmwareMT: 123B-0012-10036230  tested working 
   v2 softwareBuild: 10025310 firmwareMT: 104E-0021-10025310  tested working
-  v2 softwareBuild: 140B5310 has a mute volume problem (alt firmware)
-holding 2 raises volume but it goes back to 0.
-Have been unable to fix volume on alt v2 firmware. 
-
-
-
- v1.6 03/01/2022 more debuging. Alt v2 firmware detection
- V1.2  2/25/2022 V2 working. v3 Working.
- v1.1  2/23/2022 Tested on v2 and v3 kaypads. 
- v1.0  2/22/2022 Beta test copy 
-
-
+  v2 softwareBuild: 140B5310 has a volume problem holding 2 raises volume but it goes back to 0
 
 Iris v3 fccid:2AMI2IL02 model:3405-L marked model:IL02_01
-Iris v2 fccid: model:3405-L
+Iris v2 fccid:_________ model:3405-L marked model:_______
+
+
+   ========================================================================
+   Iris / Centralite / UEI Keypad – ACE (0x0501) Command Reference
+   ========================================================================
+
+   These notes document how different keypads respond to ACE commands
+   sent from the hub (server → client). Behavior varies between models.
+
+   ------------------------------------------------------------------------
+   00 – setDisarmed
+   ------------------------------------------------------------------------
+   Centralite: All icons off
+   Iris V2/V3: “Off” LED on
+   Meaning: Ready to arm
+
+   ------------------------------------------------------------------------
+   01 – setArmedStay
+   ------------------------------------------------------------------------
+   Centralite: Stay icon lit
+   Iris V2/V3: Partial LED lit
+   Meaning: Arm Stay
+
+   ------------------------------------------------------------------------
+   02 – setArmedNight
+   ------------------------------------------------------------------------
+   Centralite: Night icon lit
+   Iris V2: No response
+   Iris V3: Lights Partial (same as Stay)
+   Meaning: Arm Night (Iris V3 does NOT support true Night mode)
+
+   ------------------------------------------------------------------------
+   03 – setArmedAway
+   ------------------------------------------------------------------------
+   Centralite: Away icon lit
+   Iris V2/V3: ON LED lit
+   Meaning: Arm Away
+
+   ------------------------------------------------------------------------
+   04 – Panic Sound
+   ------------------------------------------------------------------------
+   Duration: seconds (0–255)
+   Iris V2/V3: Siren tone (V3 may use beep instead of full siren)
+   Centralite: Siren tone
+   Used for panic or alarm confirmation
+
+   ------------------------------------------------------------------------
+   05 – Entry Delay Beep
+   ------------------------------------------------------------------------
+   Fast beep (1/sec), duration in seconds
+   Iris V2/V3: Keeps status LEDs unchanged
+   Used when system is armed and a door opens
+
+   ------------------------------------------------------------------------
+   06 – Not Ready to Arm
+   ------------------------------------------------------------------------
+   Centralite: Amber blink
+   Iris V3: Refuses to arm
+   Meaning: Open sensor or fault condition
+
+   ------------------------------------------------------------------------
+   07 – Zigbee In Alarm
+   ------------------------------------------------------------------------
+   Iris V2/V3: Full siren/beep alarm
+   Centralite: Siren
+   NOTE: Iris V3 also sends cmd:07 with empty data as a motion wake‑up ping
+
+   ------------------------------------------------------------------------
+   08 – setExitStay (Exit Delay – Stay)
+   ------------------------------------------------------------------------
+   Slow beep → fast beep last 10 seconds
+   Iris V3: Partial LED blinks, red status flash
+   Duration: seconds
+
+   ------------------------------------------------------------------------
+   09 – setExitNight (Exit Delay – Night)
+   ------------------------------------------------------------------------
+   Centralite: Night icon blink
+   Iris V3: No response
+   Duration: seconds
+
+   ------------------------------------------------------------------------
+   10 – setExitAway (Exit Delay – Away)
+   ------------------------------------------------------------------------
+   Slow beep → fast beep last 10 seconds
+   Iris V3: ON LED blinks, red status flash
+   Duration: seconds
 
 
 
-================================================================================================= 
 --Forked from example drivers at 
 https://github.com/hubitat/HubitatPublic/tree/master/examples/drivers
 https://github.com/hubitat/HubitatPublic/blob/master/examples/drivers/irisKeypadV3.groovy
@@ -94,7 +198,7 @@ metadata {
         command "armNight"
         command "setArmNightDelay", ["number"]
         command "setArmHomeDelay", ["number"]
-        command "entry" //fired from HSM on system entry
+        command "entry" 
         command "setPartialFunction"
 
         attribute "armingIn", "NUMBER"
@@ -104,25 +208,25 @@ metadata {
         fingerprint model:"1112-S", manufacturer:"iMagic by GreatStar",profileId:"0104", inClusters:"0000,0001,0003,0020,0402,0405,0500,0501,0B05,FC01,FC02",      outClusters:"0003,0019,0501", deviceJoinName:"Iris V3 Keypad old firmware"
         fingerprint model:"3405-L", manufacturer:"CentraLite",         profileId:"0104", inClusters:"0000,0001,0003,0020,0402,0500,0501,0B05,FC04",                outClusters:"0019,0501",      deviceJoinName:"Iris V2 Keypad"
         fingerprint model:"3405-L", manufacturer:"CentraLite",         profileId:"0104", inClusters:"0000,0001,0003,0020,0402,0500,0501,0B05,FC04,FC05",           outClusters:"0019,0501",      deviceJoinName:"Iris V2 Keypad"
-//        fingerprint model:"1112-S", manufacturer:"iMagic by GreatStar",profileId:"0104", inClusters:"0000,0001,0003,0020,0402,0405,0500,0501,0B05,FC01,FC02",      outClusters:"0003,0019,0501", deviceJoinName:"Iris V3 Keypad"
+
     
     }
 
     preferences{
-        input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true
-	    input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false
-	    input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false
+    input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
+	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: true,required: true
+    input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
 
-// not yet implimented        
-//      input name: "SilentArmHome", type: "bool", title: "Silent Arming Home", description: "No beep while arming", defaultValue: false
-//	    input name: "SilentArmAway", type: "bool", title: "Silent Arming Away", description: "No beep while arming", defaultValue: false
-//	    input name: "SilentArmNight",type: "bool", title: "Silent Arming Night",description: "No beep while arming", defaultValue: false
+
+        input name: "SilentArmHome", type: "bool", title: "Silent Arming Home", description: "No beep while arming", defaultValue: false
+	    input name: "SilentArmAway", type: "bool", title: "Silent Arming Away", description: "No beep while arming", defaultValue: false
+	    input name: "SilentArmNight",type: "bool", title: "Silent Arming Night",description: "No beep while arming", defaultValue: false
     
         input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
         input name: "OnSet",   type: "enum", title: "On Button", description: "Customize ON Button",  options: ["Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
 
         input name: "optEncrypt", type: "bool", title: "Enable lockCode encryption", defaultValue: false, description: "Hides code from log"
-        input "refTemp", "decimal", title: "Reference temperature", description: "Adjust the temp", range: "*..*"
+        input "refTemp", "decimal", title: "Reference temperature", defaultValue: "0" , description: "Adjust the temp", range: "*..*"
 
     }
 }
@@ -139,15 +243,15 @@ def initialize() {
     state.entryDelay = 0
     state.armNightDelay = 0
     state.armHomeDelay = 0
+    state.bin = -1
     state.armMode = "00"
     state.fnPartial = "01"
-    state.v2alt = false
+    
     sendEvent(name:"maxCodes", value:20)
     sendEvent(name:"codeLength", value:4)
     sendEvent(name:"alarm", value: "off")
-    sendEvent(name:"tamper", value: "clear")
     sendEvent(name:"securityKeypad", value: "disarmed")  
-    sendEvent(name: "numberOfButtons", value: "1", isStateChange: false)
+    sendEvent(name:"numberOfButtons", value: "1", isStateChange: false)
     
    	device.updateSetting("infoLogging",[value:"true",type:"bool"])
 	device.updateSetting("debugLogging",[value:"true",type:"bool"])
@@ -160,74 +264,145 @@ def initialize() {
 def uninstalled(){
     return zigbee.command(0x0000,0x00)
 }
-// Statuses:
-// 00 - Command: setDisarmed   Centralite all icons off / Iris Off button on, Ready to Arm
-// 01 - Command: setArmedStay  lights Centralite Stay button / Iris Partial
-// 02 - Command: setArmedNight lights Centralite Night button / Iris V2 does nothing / Iris V3 lights Partial
-// 03 - Command: setArmedAway  lights Centralite Away button / Iris ON
-// 04 - Panic Sound, uses seconds for duration (siren on everything but 3400 use beep instead, max 255)
-// 05 - Command: Beep and SetEntryDelay Fast beep (1 per second, uses seconds for duration, max 255) Appears to keep the status lights as it was, used for entry delay command
-// 06 - Not ready to Arm Centralite - Amber status blink (Runs forever until Off or some command issued on Centralite, Iris V3 wont Arm)
-// 07 - Zigbee In Alarm: sounds Siren on Iris V2/V3
-// 08 - Command: setExitStay  Blink Stay Icon/Partial light all devices, Slow beep on Iris only (1 per second, accelerating to 2 beep per second for the last 10 seconds) - With red flashing status - lights Stay icon/Iris Partial Uses seconds
-// 09 - Command: setExitNight Blink Night Icon on Centralite and UEI devices no beeps, with red flashing status - lights Night icon/ Uses seconds  (does nothing on Iris)
-// 10 - Command: setExitAway  Blink Away Icon / ON light on all devices (1 per second, accelerating to 2 beep per second for the last 10 seconds) - With red flashing status - lights Away Uses/Iris ON seconds
-
 
 def parse(String description) {
 
     if (description.startsWith("zone status")) {
+        logging ("${device} : description: ${description}","trace")  
         def zoneStatus = zigbee.parseZoneStatus(description)
+        if (state.model == "1112-S"){
+        logging ("${device} : Ignoring tamper on 1112-S ","debug") 
+        return
+        }// just ignore its always inactive
+        
+        
         getTamperResult(zoneStatus.tamper)
+        return
     } else if (description.startsWith("enroll request")) {
+        logging ("${device} : description: ${description}","trace")  
         return
     } else {
         def descMap = zigbee.parseDescriptionAsMap(description)
+        logging ("${device} : descMap: ${descMap}","trace")
+       
+def clusterId = descMap.clusterId ?: descMap.cluster
 
-        def resp = []
-        def clusterId = descMap.clusterId ?: descMap.cluster
-        def cmd = descMap.command
-        def des = cmd
-        if (cmd == "00") {des ="keypad action"}
-        if (cmd == "01") {des ="battery/temp"}
-        if (cmd == "04") {des ="panic"}
-        if (cmd == "07"){ des ="motion"}
-        if (cmd == "0B"){ des ="AltFirm"}
+// Normalize clusterId BEFORE any logging or lookup
+clusterId = clusterId.toString().toUpperCase().replace("0X", "").padLeft(4, '0')
+
+def cmd = descMap.command
+def resp = []
+def clusterName = [
+    "0501": "Keypad (ACE)",
+    "0500": "IAS Zone",
+    "0402": "Temperature",
+    "0001": "Power Configuration",
+    "0013": "Device Announce",
+    "0006": "On/Off (Housekeeping)",
+    "0020": "Poll Control",
+    "8021": "ZDO Route Record / LQI",
+    "0000": "ZDO (General Command)",
+    "8020": "ZDO Bind/Unbind Response",
+    "8038": "ZDO Leave/Join",
+    "8035": "ZDO Mgmt Permit Join",
+    "8034": "ZDO Mgmt LQI Response",
+    "8032": "ZDO Mgmt Routing Response",
+    "8031": "ZDO Mgmt Bind Response"
+][clusterId] ?: "Unknown Cluster"
+
+logging("${device} : Cluster ${clusterId} (${clusterName}) cmd:${cmd} value:${descMap.value} data:${descMap.data} state${state.bin}", "trace")
+
+
+    switch (clusterId) {
         
-            logging ("${device} : parse >> cluster:${clusterId} cmd:${des}  state${state.bin}","trace")     
+case "0001":
+    if (descMap.command == "01" &&
+        descMap.attrId == "0020" &&
+        descMap.value &&
+        descMap.value.matches(/[0-9A-Fa-f]+/)
+    ) {
+        def raw = hexStrToUnsignedInt(descMap.value)
+        if (raw == null) {
+            logging("${device} : 0001 Unknown Power - frame value:${descMap.value} raw:${raw}", "debug")
+            break
+        }
+
+        // sanity filter: ignore impossible battery voltages
+        if (raw < 20 || raw > 65) {  
+            logging("${device} : 0001 Bad battery - value value:${descMap.value} raw:${raw}", "debug")
+            break
+        }
+
+        getBatteryResult(raw)
+    } else {
+        logging("${device} : 0001 Unknown Power - cmd:${descMap.command} value:${descMap.value}", "debug")
+    }
+    break
+
+            
+case "0402":
+    if (descMap.command == "01" && descMap.value) {
+        def raw = hexStrToUnsignedInt(descMap.value)
+        if (raw == null) {
+            logging("${device} : 0402 Bad Temp frame value:${descMap.value}", "debug")
+            break
+        }
+
+        // sanity filter: ignore impossible temps
+        if (raw < 500 || raw > 4000) {   // 5°C to 40°C
+            logging("${device} : 0402 Bad temp raw:${raw} out of range", "debug")
+            break
+        }
+
+        getTemperatureResult(raw)
+    } else {
+        logging("${device} : 0402 Unknown temp cmd:${descMap.command} value:${descMap.value}", "debug")
+    }
+    break
+
+            
+    case "0013":
+    state.ieee = descMap.data[0..7].join()
+    state.nwk = descMap.data[8..9].join()
+    state.capabilities = descMap.data[11]
+    logging("${device} : Device Announce IEEE:${state.ieee} NWK:${state.nwk}", "trace")
+    break
+
+    case "0006":
+    state.parent = descMap.data[1..2].join()
+    state.lqi = descMap.data[3]
+    logging("${device} : On/Off housekeeping parent:${state.parent} LQI:${state.lqi}", "trace")
+    logging("${device} : LQI:${state.lqi}", "info")
+    break         
+
+    // not all keypads even use this but they report all clear    
+    case "0500":       
+    def raw = zigbee.convertHexToInt(descMap.data[0])
+    def tamperActive = (raw & 0x04) != 0
+    logging("${device} : IAS Zone tamper raw:${raw} active:${tamperActive}", "trace")
+    getTamperResult(tamperActive)
+    break
         
-
-   
-
-        switch (clusterId) {
-            case "0001":
-                if (descMap.value) {
-                    value = hexStrToUnsignedInt(descMap.value)
-                    getBatteryResult(value)
-                }
-                break
-            case "0501":
-                if (cmd == "07" && descMap.data.size() == 0) { //get panel status client -> server
-                    if (state.bin == -1) getMotionResult()// send motion event
+      
+   case "0501":
+            // motion comes in we must respond back
+                if (cmd == "07" && descMap.data.size() == 0) { 
+                    if (state.bin == -1) getMotionResult()
                     resp.addAll(sendPanelResponse(false))
-                } else if (cmd == "00") {
+                    
+                }   else if (cmd == "00") {
                     state.bin = -1
-                    def armRequest = descMap.data[0] // will be 00 disarm or 01 part  03 on  (no 2 key)
+                    def armRequest = descMap.data[0] 
                     def asciiPin = "0000"
-                    logging ("${device} : Keypad requesting ${getArmText(armRequest)}","info")
-//                    if (armRequest == 1) {countdown(state.armNightDelay)}// start the countdown
-//                    if (armRequest == 3) {countdown(state.armAwayDelay)}
+                    def modeName = ["00": "Disarm","01": "Arm Partial","03": "Arm Away"][armRequest] ?: "Unknown (${armRequest})"// Beter log support
+                    logging("${device} : Received ${modeName} (${armRequest})", "info")
 
+                    if (armRequest == "01") { countdown(state.armNightDelay) }
+                    if (armRequest == "03") { countdown(state.armAwayDelay) }
                     if (armRequest == "00") { asciiPin = descMap.data[2..5].collect{ (char)Integer.parseInt(it, 16) }.join()} // if disarm need a pin
                     
                     resp.addAll(sendArmResponse(armRequest,isValidPin(asciiPin, armRequest)))
-                } else if (cmd =="0B") {
-                // we get this with alt firmware. We respond to it
-                // This firmware has a mute problem     
-                state.v2alt = true 
-                logging ("${device} : 0501 0B :${descMap.data} Alt firmware detected","trace") 
-                resp.addAll(sendPanelResponse(false))   
-                
+
                 } else if (cmd == "04") { //panic button
                     logging ("${device} : Panic button pressed (pushed)","warn")
                     createEvent(name: "button", value: "pushed", data: [buttonNumber: 1], descriptionText: "panic button was pushed", isStateChange: true)
@@ -235,147 +410,105 @@ def parse(String description) {
                   state.panic = "active"
                   sendEvent(name: "alarm",value: "alarm",descriptionText: "panic button was pushed")  
                   runIn(9,buttonRelease)
-//                  modified for button support silent alarm                    
-//                    resp.addAll(siren())
-                } else {
-                    logging ("${device} : cmd:${cmd} untrapped  ${descMap}","debug")
-                    if (logEnable) log.warn "${device.displayName} 0501 skipped: cmd:${cmd}  ${descMap}"
-                }
+//                modified for silent alarm                    
+//                resp.addAll(siren())
+                }  
+                    
+                else {logging ("${device} : 0501 cmd:${cmd} untrapped  ${descMap}","debug")}
                 break
-            case "0402":
-                if (descMap.value) {
-                    def tempC = hexStrToSignedInt(descMap.value)
-//                    logging ("${device} : Received temp ${tempC}","trace")
-                    getTemperatureResult(tempC)
-                }
-                break
-            case "FC04":
-            logging ("${device} : ERROR FC04","warn")
-                break
-            case "0013":
-            logging ("${device} : 0013 (Sends this while arming) Idevent:${description}","trace")
-            break
+
+
+
             
             default :
-           if (cmd == 0x0B) { 
-            if (descMap.data[1] == 0x81) {logging ("${device} : Unknown cmd","warn")}
-            else if (descMap.data[1] == 0x80)  {logging ("${device} : Malformed cmd","warn")}
-         }
-            logging ("${device} : Untrapped cluster ${clusterId} Idevent:${description}","trace")
+             logging("${device} : Untrapped Cluster ${clusterId} (${clusterName}) cmd:${cmd} value:${descMap.value} data:${descMap.data} state${state.bin}", "trace")
         }
-        if (resp){
-            sendHubCommand(new hubitat.device.HubMultiAction(resp, hubitat.device.Protocol.ZIGBEE))
-        }
+        
+        if (resp){ 
+           sendHubCommand(new hubitat.device.HubMultiAction(resp, hubitat.device.Protocol.ZIGBEE)) 
+            logging ("${device} : send Response ${resp}","trace")
+           }
     }
 }
+
+
+
+
 
 def beep(){
     state.model = getDataValue("model")
-
-    // v2 alt doesnt support beeps at all
-//    if (state.v2alt == true){BeepCode = "2"} 
     if (state.model == "1112-S"){
         if (BeepCode == "2"){BeepCode = "3"} // v3 doesnt support beep 2   
     }
+  
     cmd = BeepCode
-    logging ("${device} : beep ","info") 
     playSound(cmd)
+    logging ("${device} : beep cmd ${cmd}","info") 
 }
+
 
 void beepBad(){
-//playSound(3) 
-
+playSound(3) 
 }
+
 def stop(){
-stopBee()
-
+stopBeep()
 }
+
 void stopBeep(){
     stopBee()
 }
 def stopBee(){
-    logging ("${device} : beep stop","info") 
-
-     cmds = [
-        			"raw 0x0501 {09 01 04 05 00 01}", // 
-        			"delay 200",
-			        "send 0x${device.deviceNetworkId} ${device.endpointId as int} 1",
-			        "delay 500"
-    			] 
-    logging ("${device} : ${cmds}","trace")
+    logging ("${device} : Beep Stop","info") 
+    cmds = ["raw 0x0501 {09 01 04 05 00 01}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"] 
+    logging ("${device} :Send ${cmds}","trace")
     return cmds   
 }
 
 def countdown(delay){
     logging ("${device} : countdown ${delay}","info")
-    def cmds = [
-        "raw 0x0501 {09 01 04 05 ${delay} 01}", // Fast beep (1 per second)
-        			"delay 200",
-			        "send 0x${device.deviceNetworkId} ${device.endpointId as int} 1",
-			        "delay 500"
-    			] 
-    logging ("${device} : ${cmds}","trace")
+    def cmds = ["raw 0x0501 {09 01 04 05 ${delay} 01}", "delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"] 
+    logging ("${device} :Send ${cmds}","trace")
     return cmds
 }
     
 
 def playSound(cmd){
-  
     if (cmd == null){cmd=1}
     if (cmd >= 6){cmd=1}
-//    if (state.v2alt == true){ cmd=2}
-    if (state.model == "1112-S"){
-
-    if (cmd == 2){
-     cmd = 3
-        logging ("${device} : chime 2 not supported on ${state.model}","warn") // v3 doesnt support beep 2   
-    }
-    }
-    logging ("${device} : playing chime ${cmd}","info") 
-    runIn(9,stopBeep) // stops the countdown timmer or you get 2nd beep in 10 sec
-      /*
-    	09 - Frame Ctl
-		01 - Transaction
-        00 - Cmd Arm response
-        0x - Arm Notification  (armMode)  (5=entry delay + a delay code fast beep)
-    */
-  if (cmd==1) { len ="01"}
-  if (cmd==3) { len ="03"}
-  if (cmd==4) { len ="05"}
-  if (cmd==5) { len ="07"}  
     
-    def cmds = [
-        "raw 0x0501 {09 01 04 05 ${len} 01}", // Fast beep (1 per second)
-        			"delay 200",
-			        "send 0x${device.deviceNetworkId} ${device.endpointId as int} 1",
-			        "delay 500"
-    			]    
- //      0x0501 {09 01 04 05 01 01 01}"  
-//  [raw 0x0501 {09 01 04 05 1}, delay 200, send 0xB7AA 1 1, delay 500]   
+    state.model = getDataValue("model")
+    if (state.model == "1112-S"){
+        if (BeepCode == "2"){BeepCode = "3"} // v3 doesnt support beep 2   
+    }
+    
+    runIn(9,stopBeep) // stops the countdown timmer or you get 2nd beep in 10 sec
+    // Length mapping
+    def lenMap = [1: "01",2: "02",3: "03",4: "05",5: "07"]
+    def len = lenMap[cmd]
+    logging ("${device} : Playing chime ${cmd} Len ${len}","info") 
 
-    /*
-    	09 - Frame Ctl
-		01 - Transaction
-		04 - Cmd Panel Status Changed Cmd
-		05 - Entry Delay
-        01 - Seconds
-	*/     
+// Fast beep (1 per second)  
+ def cmds
+    if (cmd == 2 && state.model != "1112-S") {
+        // V2 special beep
+        cmds = ["raw 0xFC04 {15 4E 10 00 00 00}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
+    } else {
+        // Standard chime
+        cmds = ["raw 0x0501 {09 01 04 05 ${len} 01}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
+    }
+    
+// notes:
+//  [raw 0x0501 {09 01 04 05 01}, delay 200, send 0xB7AA 1 1, delay 500]   
+//    	09 - Frame Ctl
+//		01 - Transaction
+//		04 - Cmd Panel Status Changed Cmd
+//		05 - Entry Delay
+//      01 - Seconds
   
 
-   
-    if (cmd==2) {
-        
-    cmds = [
-        			"raw 0xFC04 {15 4E 10 00 00 00}", // 
-        			"delay 200",
-			        "send 0x${device.deviceNetworkId} ${device.endpointId as int} 1",
-			        "delay 500"
-    			] 
-   }
-    
-logging ("${device} : ${cmds}","trace")     
+logging ("${device} :Send ${cmds}","trace") 
 return cmds
- 
 
 }
 
@@ -412,14 +545,12 @@ void setArmHomeDelay(delay){
 
 }
 
-// whats this for?
+
 void setPartialFunction(mode = null) {
     logging ("${device} : set Partial ${mode}","trace") 
-    if ( !(mode in ["armHome","armNight"]) ) {
-    logging ("${device} : custom command used by HSM","trace")
-    } else if (mode in ["armHome","armNight"]) {
-        state.fnPartial = mode == "armHome" ? "01" : "02"
-    }
+    if ( !(mode in ["armHome","armNight"]) ) {logging ("${device} : custom command used by HSM","trace")}
+    else if (mode in ["armHome","armNight"]) { state.fnPartial = mode == "armHome" ? "01" : "02" }
+    
 }
 
 void setCodeLength(length){
@@ -486,7 +617,7 @@ def getCodes(){
 def entry(entranceDelay){
     if (state.entryDelay  == 0 ){state.entryDelay  = 30}
     if (entranceDelay == NULL ){entranceDelay = state.entryDelay}
-    logging ("${device} : >> HUB Entry in progress delay:${entranceDelay}","info")
+    logging ("${device} : HSM Entry in progress delay:${entranceDelay}","info")
 
     if (entranceDelay) {
         def ed = entranceDelay.toInteger()
@@ -511,15 +642,15 @@ def entry(entranceDelay){
 
 
 
-// HUB says DISARM do only once
+
 def disarm(exitDelay = null) {
         if (state.armMode == "00") {
         sendPanelResponse(false)
-        logging ("${device} : >> Hub send Disarm (already disarmed)","info")
+        logging ("${device} : HSM Disarm (ignored)","info")
         return
     }
 
-    logging ("${device} : >> Hub sent disarm","info")
+    logging ("${device} : HSM disarm armMode:${state.armMode})","info")
     state.armPending = false
     state.bin = 1
     sendArmResponse("00",getDefaultLCdata())// disarm should not have a delay
@@ -528,10 +659,11 @@ def disarm(exitDelay = null) {
 def armHome(exitDelay = null) {
     if (state.armMode == "01") {
         sendPanelResponse(false)
-        logging ("${device} : >> Hub sent ArmHome (already armed)","info")
+        logging ("${device} : HSM armHome (ignored)","info")
         return
     }
-    logging ("${device} : >> Hub sent armHome delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
+    logging ("${device} : HSM armHome delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
+
     state.bin = 1
     if (exitDelay == null) sendArmResponse("01",getDefaultLCdata())
     else sendArmResponse("01",getDefaultLCdata(),exitDelay.toInteger())
@@ -540,11 +672,10 @@ def armHome(exitDelay = null) {
 def armNight(exitDelay = null) {
     if (state.armMode == "01") {
         sendPanelResponse(false)
-        logging ("${device} : >> Hub sent armNight (already armed)","info")
- 
+        logging ("${device} : HSM armNight (ignored)","info")
         return
     } 
-    logging ("${device} : >> Hub sent armNight delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
+    logging ("${device} : HSM armNight delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
  
     state.bin = 1
     if (exitDelay == null) sendArmResponse("01",getDefaultLCdata())
@@ -552,20 +683,21 @@ def armNight(exitDelay = null) {
 }
 
 def armAway(exitDelay = null) {
-    
     if (state.armMode == "03") {
         sendPanelResponse(false)
-        logging ("${device} : >> Hub sent armAway (already armed)","info")
- 
+        logging ("${device} : HSM armAway (ignored)","info")
         return
     }
 
-    logging ("${device} : >> Hub sent armAway delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
- 
+    logging ("${device} : HSM armAway delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
     state.bin = 1
     if (exitDelay == null) sendArmResponse("03",getDefaultLCdata())
     else sendArmResponse("03",getDefaultLCdata(),exitDelay.toInteger())
 }
+
+
+
+
 
 //alarm commands
 void buttonRelease(){
@@ -603,22 +735,22 @@ def siren(){
         state.bin = 1
 //        state.panic = "active"
 
-// v3 rearm fix to allow canceling alarms when keypad is disarmed    
+
+  
   if (state.model == "1112-S"){  
 //===============================SMOKE detection=============================================    
 //    hsmAlert intrusion intrusion-home intrusion-night smoke water
     if (location.hsmAlert == "smoke" | location.hsmAlert == "water"){
         if(state.armMode == "00"){
-        armAway(0) // make sure keypad is armed so it can disarm smoke alarm
-        logging ("${device} : ALARM${location.hsmAlert}. Arming keypad so it can disable!","warn")
+        armAway(0) // make sure keypad is armed so it can disarm a smoke alarm
+        logging ("${device} : HSM Alert${location.hsmAlert}. Arming keypad so it can disable!","warn")
      }
     }
-// ==============================fix being unable to disarm keypad already off========================    
+// ==============================fix being unable to disarm with keypad out of sync===========    
     if (location.hsmAlert == "intrusion" | location.hsmAlert == "intrusion-home"| location.hsmAlert == "intrusion-night"){
-
         if(state.armMode == "00"){
         armAway(0) // make sure keypad is armed 
-        logging ("${device} : ALARM${location.hsmAlert}. Keypad was disarmed out of sync rearming","warn")
+        logging ("${device} : HSM Alert${location.hsmAlert}. Keypad was out of sync rearming","warn")
        }
     }    
 // ==========================================================================================  
@@ -646,7 +778,7 @@ def strobe(){
 
 def both(){
     siren()
-//    strobe()
+//    strobe() // strobe doesnt work
 }
 
 //private
@@ -680,12 +812,9 @@ private changeIsValid(codeMap,codeNumber,code,name){
 }
 
 private getCodeMap(lockCodes,codeNumber){
-  
     def codeMap = [:]
     def lockCode = lockCodes?."${codeNumber}"
-    if (lockCode) {
-        codeMap = ["name":"${lockCode.name}", "code":"${lockCode.code}"]
-    }
+    if (lockCode) { codeMap = ["name":"${lockCode.name}", "code":"${lockCode.code}"] }
     logging ("${device} : Get code map ${codemap}","trace")
     return codeMap
 }
@@ -711,13 +840,9 @@ private updateLockCodes(lockCodes){
 private updateEncryption(){
     def lockCodes = device.currentValue("lockCodes") //encrypted or decrypted
     if (lockCodes){
-        if (optEncrypt && lockCodes[0] == "{") {	//resend encrypted
-            sendEvent(name:"lockCodes",value: encrypt(lockCodes), isStateChange:true)
-        } else if (!optEncrypt && lockCodes[0] != "{") {	//resend decrypted
-            sendEvent(name:"lockCodes",value: decrypt(lockCodes), isStateChange:true)
-        } else {
-            sendEvent(name:"lockCodes",value: lockCodes, isStateChange:true)
-        }
+        if (optEncrypt && lockCodes[0] == "{") {      sendEvent(name:"lockCodes",value: encrypt(lockCodes), isStateChange:true)}
+        else if (!optEncrypt && lockCodes[0] != "{") {sendEvent(name:"lockCodes",value: decrypt(lockCodes), isStateChange:true)}
+        else {sendEvent(name:"lockCodes",value: lockCodes, isStateChange:true)}
     }
 }
 
@@ -730,9 +855,9 @@ private isValidPin(code, armRequest){
             data.codeNumber = lockCode.key
             data.name = lockCode.value.name
             data.code = code
-            descriptionText = "${device.displayName} disarmed by ${data.name}"
+            descriptionText = "${device.displayName} was disarmed by ${data.name}"
             sendEvent(name: "lastCodeName", value: data.name, descriptionText: descriptionText, isStateChange: true)
-            logging ("${device} : -Disarmed- by [${data.name}]","info")
+            logging ("${device} : was disarmed by ${data.name}","info")
         } else {
             data.isValid = false
             logging ("${device} : Invalid pin entered [${code}]","warn")
@@ -748,18 +873,16 @@ private sendPanelResponse(alert = false){
     def resp = []
     def remaining = (state.delayExpire ?: now()) - now()
     remaining = Math.ceil(remaining /= 1000).toInteger()
-    if (remaining < 0) { remaining = 0} // get rid of - nos in the log
-//    logging ("${device} : Send panel response ${alert}","trace")
+    if (remaining < 0) { remaining = 0} 
+
     if (remaining > 3) {
         runIn(2,"sendPanelResponse")
         resp.add("he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 ${state.armingMode} ${intToHexStr(remaining)} 01 01}")
-        logging ("${device} : Send panel response ${remaining} alert:${alert}","info")
+        logging ("${device} : Send panel response remaining:${remaining} alert:${alert}","trace")
     } else {
-        if (alert) {
-            resp.addAll(["he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 05 01 01 01}","delay 400"])
-        }
+        if (alert) {resp.addAll(["he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 05 01 01 01}","delay 400"])}
         resp.add("he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 ${state.armMode ?: "00"} 00 00 00}")
-        logging ("${device} : Send panel response ${remaining} alert:${alert}","trace")
+        logging ("${device} : send Panel response remaining:${remaining} alert:${alert}","trace")
     }
     return resp
 }
@@ -783,13 +906,7 @@ def clearPending(){
 }
 
 private getDefaultLCdata(){
-    return [
-            isValid:true
-            ,isInitiator:false
-            ,code:"0000"
-            ,name:"not required"
-            ,codeNumber: -1
-    ]
+    return [isValid:true,isInitiator:false,code:"0000",name:"not required",codeNumber: -1]
 }
 
 private sendArmResponse(armRequest,lcData, exitDelay = null) {
@@ -798,11 +915,7 @@ private sendArmResponse(armRequest,lcData, exitDelay = null) {
         isInitiator = true
         switch (armRequest) {
             case "01": //armNight
-                if (state.fnPartial == "02") {
-                    exitDelay = (state.armNightDelay ?: 0).toInteger()
-                } else {
-                    exitDelay = (state.armHomeDelay ?: 0).toInteger()
-                }
+                exitDelay = (state.armNightDelay ?: 0).toInteger()
                 break
             case "03": //armAway
                 exitDelay = (state.exitDelay ?: 0).toInteger()
@@ -831,7 +944,7 @@ private sendArmResponse(armRequest,lcData, exitDelay = null) {
             changeText = "invalid pin code"
         }
     }
-    logging ("${device} : Password:${changeText} bin:${state.bin} armMode:${state.armMode} armRequest:${armRequest} exitDelay:${exitDelay}","trace")
+    logging ("${device} : sendArmResponse Password:${changeText} bin:${state.bin} armMode:${state.armMode}  armRequest:${armRequest} exitDelay:${exitDelay}","debug")
 
     if (changeIsValid) {
         state.armMode = armRequest
@@ -877,7 +990,7 @@ private sendArmResponse(armRequest,lcData, exitDelay = null) {
             
               data = [armMode:"${getArmText(armRequest)}",armCmd:"${getArmCmd(armRequest)}"]
               sendEvent(name:"armingIn", value: value,data: data, delay: value ,isStateChange:true,descriptionText: data ) // hubitat HSM control cmd
-              logging ("${device} : << send HSM event[${data}] sendArmResponce","info")
+              logging ("${device} : send HSM event armingIn [${data}] sendArmResponce","info")
 
         }
     }
@@ -904,9 +1017,8 @@ def updated(){
         //clear refTemp so it doesn't get changed later...
         device.removeSetting("refTemp")
     }
-	loggingStatus()
-	runIn(3600,debugLogOff)
-	runIn(3500,traceLogOff)
+
+    loggingUpdate()
 	refresh()    
 }
 
@@ -914,7 +1026,7 @@ def updated(){
 
 
 def getArmCmd(armMode){
-   // partset ["Arm Night", "Arm Home"]  
+// partset ["Arm Night", "Arm Home"]  
 // onset   ["Arm Night", "Arm Home", "Arm Away"]    
     if (armMode == "00"){ return "disarm"}  
     if (armMode == "01"){ 
@@ -926,19 +1038,12 @@ def getArmCmd(armMode){
         if (OnSet == "Arm Home") {return "armHome"}
         if (OnSet == "Arm Away") {return "armAway"} 
     }
-    if (armMode =="02"){ 
-        logging ("${device} : Error getArmCmd(${ParmMode})","debug")// 
-        return "armHome"
-    } 
-    
-    
-    
-    
- 
+    if (armMode =="02"){return "armHome"} 
 }
-// modified to match v2 keyboard PART is 01 ON is 03   (02 is not used)
+
+
 def getArmText(armMode){
-    
+  
 // partset ["Arm Night", "Arm Home"]  
 // onset   ["Arm Night", "Arm Home", "Arm Away"]    
     if (armMode == "00"){ return "disarm"}  
@@ -951,10 +1056,7 @@ def getArmText(armMode){
         if (OnSet == "Arm Home") {return "armed home"}
         if (OnSet == "Arm Away") {return "armed away"} 
     }
-    if (armMode == "02"){ 
-        logging ("${device} : Error getArmText(${ParmMode})","debug")// 
-        return "armed home"
-    }
+    if (armMode == "02"){return "armed home"}
 }
 
 private getArmResult(){
@@ -979,8 +1081,9 @@ private getArmResult(){
     data = [armMode:arm1,armCmd:arm2]
     
 //    data = "[armMode:"getArmText(armRequest)",armCmd:"getArmCmd(armRequest)"]"
-    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
-    logging ("${device} : << send HSM event [${data}] getArmResult","info")
+// remove the duplication of events
+//    sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
+//    logging ("${device} : send HSM event armingIn [${data}] getArmResult","info")
     
     
     if (value == "disarmed"){
@@ -1002,13 +1105,14 @@ private cancelAlert(){
     logging ("${device} : << send HSM event ${data}","info")
 }
 
-// v2 only v3 doesnt send that i can see
+
+// v3 tamper doesnt actualy work but it will send the clear message
+// v2 only
 private getTamperResult(rawValue){
     def value = rawValue ? "detected" : "clear"
     def descriptionText = "${device.displayName} tamper is ${value}"
     sendEvent(name: "tamper",value: value,descriptionText: "${descriptionText}")
-    if (value =="detected"){logging ("${device} : Tamper: [${value}]","warn")}
-    else{logging ("${device} : Tamper: [${value}]","info")}
+    logging ("${device} : tamper:${value}","info")
 }
 
 private getTemperatureResult(valueRaw){
@@ -1019,39 +1123,57 @@ private getTemperatureResult(valueRaw){
         value =  (value.toFloat() + state.tempOffset.toFloat()).round(2).toString()
     }
     def name = "temperature"
-    def descriptionText = "${device.displayName} temperature is ${value}°${location.temperatureScale}"
+    def descriptionText = "${device.displayName} ${name} is ${value}°${location.temperatureScale}"
     sendEvent(name: name,value: value,descriptionText: descriptionText, unit: "°${location.temperatureScale}")
-    logging ("${device} : temperature: ${value}°${location.temperatureScale}","info")
+    logging ("${device} : temp:${value}°${location.temperatureScale}","info")
 }
 
+
 private getBatteryResult(rawValue) {
-    if (rawValue == null) return
+    if (!rawValue || rawValue == "null") {
+    logging("Battery report ignored: rawValue was null","warn")
+    return
+}
+    
+
     def descriptionText
     def value
     def minVolts = 20
     def maxVolts = 30
+
+    if (state.model == "1112-S"){  // this model uses AA batteries and 64 = 6.4 volts
+    minVolts = 43
+    maxVolts = 64
+    } 
+    
+    logging ("${device} : battery tracing  ${rawValue} - ${minVolts}) / (${maxVolts} - ${minVolts} ","trace")
     def pct = (((rawValue - minVolts) / (maxVolts - minVolts)) * 100).toInteger()
     value = Math.min(100, pct)
-    def volts = (rawValue / 10) // voltage fix
-    descriptionText = "${device.displayName} battery is ${value}% ${volts}volts"
+    descriptionText = "${device.displayName} battery is ${value}%"
     sendEvent(name:"battery", value:value, descriptionText:descriptionText, unit: "%", isStateChange: true)
-    logging ("${device} : battery is [${value}%] ${volts}volts","info")
+    logging ("${device} : battery is ${value}% ","info")// volts removed ${rawValue}volts
 }
 
 // changed old code generated false results
 // Call now creates motion and then times out with inactive.
 private getMotionResult() {
-   runIn(20,motionOff)// safety always make sure off runs
+   runIn(5,motionOff)// safety always make sure off runs
    def value = "active"
-   def descriptionText = "${device.displayName} is ${value}"
+   def descriptionText = "${device.displayName}  Motion is active"
    sendEvent(name: "motion",value: value,descriptionText: "${descriptionText}")
    //       sendPanelResponse()		//Iris V3 needs a response (sent elsewhere?)
-   logging ("${device} : motion ${value}","info") 
+   logging ("${device} : motion active","info") 
 }
+
+
+
+
+
+
 
 def motionOff(){
     def value = "inactive"
-    def descriptionText = "${device.displayName} motion is ${value}"
+    def descriptionText = "${device.displayName} motion is inactive"
     sendEvent(name: "motion",value: value,descriptionText: "${descriptionText}")
     logging ("${device} : motion inactive","info")
     
@@ -1064,22 +1186,31 @@ def motionOff(){
 
 def configure() {
     initialize()
-    logging ("${device} : configure","info")
-    def cmd = zigbee.enrollResponse(1500) + [
-            "zdo bind 0x${device.deviceNetworkId} 1 1 0x0001 {${device.zigbeeId}} {}", "delay 200",
-            "zdo bind 0x${device.deviceNetworkId} 1 1 0x0402 {${device.zigbeeId}} {}", "delay 200",
-            "zdo bind 0x${device.deviceNetworkId} 1 1 0x0500 {${device.zigbeeId}} {}", "delay 200",
-            "zdo bind 0x${device.deviceNetworkId} 1 1 0x0501 {${device.zigbeeId}} {}", "delay 200",
+    logging("${device} : configure","info")
 
-            "he cmd 0x${device.deviceNetworkId} 1 0x0020 0x03 {04 00}","delay 200",  						//short poll interval
-            "he cmd 0x${device.deviceNetworkId} 1 0x0020 0x02 {13 00 00 00}","delay 200", 					//long poll interval
-            "he raw 0x${device.deviceNetworkId} 1 1 0x0020 {00 01 02 00 00 23 E0 01 00 00}","delay 200",	//check in interval
+    def cmds = []
 
-            //reporting
-            "he cr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0001 0x0020 0x20 1 86400 {01}","delay 200",//battery
-            "he cr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0402 0x0000 0x29 60 0xFFFE {3200}", "delay 500" //temp
-    ] + refresh()
-    return cmd
+    // IAS enroll
+    cmds += zigbee.enrollResponse(1500)
+
+    // Required binds
+    cmds += [
+        "zdo bind 0x${device.deviceNetworkId} 1 1 0x0001 {${device.zigbeeId}} {}", "delay 200",
+        "zdo bind 0x${device.deviceNetworkId} 1 1 0x0402 {${device.zigbeeId}} {}", "delay 200",
+        "zdo bind 0x${device.deviceNetworkId} 1 1 0x0500 {${device.zigbeeId}} {}", "delay 200",
+        "zdo bind 0x${device.deviceNetworkId} 1 1 0x0501 {${device.zigbeeId}} {}", "delay 200"
+    ]
+
+    // Reporting
+    cmds += [
+        "he cr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0001 0x0020 0x20 1 86400 {01}", "delay 200",
+        "he cr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0402 0x0000 0x29 60 0xFFFE {3200}", "delay 200"
+    ]
+
+    // Optional: refresh
+    cmds += refresh()
+
+    return cmds
 }
 
 
@@ -1094,49 +1225,35 @@ def refresh() {
     ] + sendPanelResponse(false)
 }
 
-void loggingStatus() {
-	log.info "${device} : Logging : ${infoLogging == true}"
-	log.debug "${device} : Debug Logging : ${debugLogging == true}"
-	log.trace "${device} : Trace Logging : ${traceLogging == true}"
-}
+// Logging block  v4
 
+void loggingUpdate() {
+    logging("${device} : Logging Info:[${infoLogging}] Debug:[${debugLogging}] Trace:[${traceLogging}]", "infoBypass")
+    // Only do this when its needed
+    if (debugLogging){
+        logging("${device} : Debug log:off in 3000s", "warn")
+        runIn(3000,debugLogOff)
+    }
+    if (traceLogging){
+        logging("${device} : Trace log: off in 1800s", "warn")
+        runIn(1800,traceLogOff)
+    }
+}
 
 void traceLogOff(){
 	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
 }
-
-
 void debugLogOff(){
 	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
 }
-
-
-
-private boolean logging(String message, String level) {
-	boolean didLog = false
-	if (level == "error") {
-		log.error "$message"
-		didLog = true
-	}
-	if (level == "warn") {
-		log.warn "$message"
-		didLog = true
-	}
-	if (traceLogging && level == "trace") {
-		log.trace "$message"
-		didLog = true
-	}
-	if (debugLogging && level == "debug") {
-		log.debug "$message"
-		didLog = true
-	}
-	if (infoLogging && level == "info") {
-		log.info "$message"
-		didLog = true
-	}
-	return didLog
+private logging(String message, String level) {
+    if (level == "infoBypass"){log.info  "$message"}
+	if (level == "error"){     log.error "$message"}
+	if (level == "warn") {     log.warn  "$message"}
+	if (level == "trace" && traceLogging) {log.trace "$message"}
+	if (level == "debug" && debugLogging) {log.debug "$message"}
+    if (level == "info"  && infoLogging)  {log.info  "$message"}
 }
-
 
