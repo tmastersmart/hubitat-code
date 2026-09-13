@@ -246,6 +246,7 @@ def initialize() {
     state.bin = -1
     state.armMode = "00"
     state.fnPartial = "01"
+    state.v2alt = false
     
     sendEvent(name:"maxCodes", value:20)
     sendEvent(name:"codeLength", value:4)
@@ -307,7 +308,8 @@ def clusterName = [
     "8035": "ZDO Mgmt Permit Join",
     "8034": "ZDO Mgmt LQI Response",
     "8032": "ZDO Mgmt Routing Response",
-    "8031": "ZDO Mgmt Bind Response"
+    "8031": "ZDO Mgmt Bind Response",
+    "FC04": "Manufacturer error frame"
 ][clusterId] ?: "Unknown Cluster"
 
 logging("${device} : Cluster ${clusterId} (${clusterName}) cmd:${cmd} value:${descMap.value} data:${descMap.data} state${state.bin}", "trace")
@@ -365,7 +367,7 @@ case "0402":
     state.ieee = descMap.data[0..7].join()
     state.nwk = descMap.data[8..9].join()
     state.capabilities = descMap.data[11]
-    logging("${device} : Device Announce IEEE:${state.ieee} NWK:${state.nwk}", "trace")
+    logging("${device} : (${clusterName}) IEEE:${state.ieee} NWK:${state.nwk}", "trace")
     break
 
     case "0006":
@@ -379,7 +381,7 @@ case "0402":
     case "0500":       
     def raw = zigbee.convertHexToInt(descMap.data[0])
     def tamperActive = (raw & 0x04) != 0
-    logging("${device} : IAS Zone tamper raw:${raw} active:${tamperActive}", "trace")
+    logging("${device} : (${clusterName}) raw:${raw} active:${tamperActive}", "trace")
     getTamperResult(tamperActive)
     break
         
@@ -402,7 +404,14 @@ case "0402":
                     if (armRequest == "00") { asciiPin = descMap.data[2..5].collect{ (char)Integer.parseInt(it, 16) }.join()} // if disarm need a pin
                     
                     resp.addAll(sendArmResponse(armRequest,isValidPin(asciiPin, armRequest)))
-
+ 
+                } else if (cmd =="0B") {
+                // Dont know what it is. This firmware has a mute problem     
+                state.v2alt = true 
+                logging ("${device} : 0501 0B Alt firmware detected","trace") 
+                resp.addAll(sendPanelResponse(false))   
+                break
+  
                 } else if (cmd == "04") { //panic button
                     logging ("${device} : Panic button pressed (pushed)","warn")
                     createEvent(name: "button", value: "pushed", data: [buttonNumber: 1], descriptionText: "panic button was pushed", isStateChange: true)
@@ -414,12 +423,17 @@ case "0402":
 //                resp.addAll(siren())
                 }  
                     
-                else {logging ("${device} : 0501 cmd:${cmd} untrapped  ${descMap}","debug")}
+                else {logging ("${device} : 0501 (${clusterName}) cmd:${cmd} untrapped  ${descMap}","debug")}
                 break
 
+case "0013":
+    logging("${device} : 0013 (${clusterName})", "debug")
+    break
 
-
-            
+case "FC04":
+    logging("${device} : FC04 (${clusterName})", "debug")
+    break
+        
             default :
              logging("${device} : Untrapped Cluster ${clusterId} (${clusterName}) cmd:${cmd} value:${descMap.value} data:${descMap.data} state${state.bin}", "trace")
         }
@@ -437,6 +451,7 @@ case "0402":
 
 def beep(){
     state.model = getDataValue("model")
+    if (state.v2alt == true){BeepCode = "2"} // v2 alt doesnt support beeps at all
     if (state.model == "1112-S"){
         if (BeepCode == "2"){BeepCode = "3"} // v3 doesnt support beep 2   
     }
@@ -476,6 +491,7 @@ def countdown(delay){
 def playSound(cmd){
     if (cmd == null){cmd=1}
     if (cmd >= 6){cmd=1}
+    if (state.v2alt == true){BeepCode = "2"} // v2 alt doesnt support beeps at all
     
     state.model = getDataValue("model")
     if (state.model == "1112-S"){
@@ -1112,7 +1128,8 @@ private getTamperResult(rawValue){
     def value = rawValue ? "detected" : "clear"
     def descriptionText = "${device.displayName} tamper is ${value}"
     sendEvent(name: "tamper",value: value,descriptionText: "${descriptionText}")
-    logging ("${device} : tamper:${value}","info")
+    if (value =="detected"){logging ("${device} : Tamper: [${value}]","warn")}
+    else{logging ("${device} : Tamper: [${value}]","info")}
 }
 
 private getTemperatureResult(valueRaw){
