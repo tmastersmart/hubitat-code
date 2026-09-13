@@ -1,0 +1,21 @@
+{
+  "packageName": "Iris v2 v3 Keypad",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "Improvements to iris keypads",
+  "version": "1.6.0",
+  "dateReleased": "2026-13-09",
+  "category": "Control",
+   "tags": ["Lights & Switches","Alarm Systems", "Presence & Location","Safety & Security","Temperature & Humidity","Motion Control", "Zigbee"],
+  "drivers": [
+    {
+      "name": "Iris v2 v3 Keypad",
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/iris_v2-v3_keypad.groovy",
+      "required": "true",
+      "description": "Driver supports model# 1112-S and model# 3405-L iris keypads v2 and v3",
+      "id": "122fe740-5083-4ed5-8978-dbab7f356c1c"
+    }
+    ]
+}
