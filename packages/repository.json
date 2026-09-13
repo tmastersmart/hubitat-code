@@ -12,6 +12,13 @@
 "description": "IRIS v1 keypad driver.Provides arm disarm and button remapping. 15 digit pins supported. Keypad supports 13 diffrent chimes under play command. Option for Silent arming. Many setup options, Info,debug,trace logs. Use as chimes or alarms, Bad pin can set tamper, Unlike newer keypads it can cancel a safety alarm if the alarm is disarmed. Supports arming with or without a valid PIN. Supports Remapping ON PART # * buttons as armaway armhome armnight as you see fit. "
    },
    {
+"name":"Iris v2 v3 Keypad",
+"category": "Security",
+"tags": [ "Buttons","Alarm Systems","Lights & Switches","Presence & Location","Safety & Security","Locks","Misc. Devices", "Zigbee" ],  
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v2-v3_keypad.groovy",
+"description": "Driver supports model# 1112-S and model# 3405-L iris keypads v2 and v3"
+   },   
+   {
 "name":"Iris v1 Contact Sensor-custom",
 "category": "Security",
 "tags": ["Buttons","Alarm Systems","Doors & Windows","Presence & Location","Safety & Security","Temperature & Humidity","Zigbee"],	   
