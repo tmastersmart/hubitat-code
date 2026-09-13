@@ -15,7 +15,7 @@
 "name":"Iris v2 v3 Keypad",
 "category": "Security",
 "tags": [ "Buttons","Alarm Systems","Lights & Switches","Presence & Location","Safety & Security","Locks","Misc. Devices", "Zigbee" ],  
-"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v2-v3_keypad.groovy",
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/iris_v2_v3_keypad.json",
 "description": "Driver supports model# 1112-S and model# 3405-L iris keypads v2 and v3"
    },   
    {
