@@ -12,7 +12,7 @@
  *  you can just add a relay and use your hub to control it.
  *  Check max air time per day and max ontime and max off time. 
  *
- *
+ * v2.0.7 9/14/26   Dispay for paused schedule fixed. 
  * v2.0.6           GUI rebuild. Start/Stop doesnt stop scheduler.Bug fix on daily time minor amounts
  * v2.0.5 7/29/26   Fix reboot droping scvhedule
  * v2.0.3           Reduced monitor scheduling to 30m. 
@@ -45,7 +45,7 @@ preferences {
     page(name: "advancedPage")
 }
 
-def version() { "2.0.6" }  
+def version() { "2.0.7" }  
 def clientVersion() {
     if (state.version != version()) {
         logging("Pump - ${pump.displayName} Scheduler Updated to v${version()}","warn")
@@ -82,11 +82,12 @@ def mainPage() {
     int empty = 10 - filled
     def progressBar = ("█" * filled) + ("░" * empty)
 def mode = "⏳ Waiting"
-if (state.manualMode) {             mode = "🔧 Manual Mode"}
-else if (state.schedulerPaused) {   mode = "⛔ Scheduler Paused"}
+
+if (state.schedulerPaused) {   mode = "⛔ Scheduler Paused"}
 else if (state.isRunning) {         mode = "🟢 Running"}
 else if (state.nextStartTime && remainingHours > 0) {    mode = "⛔ Cooldown"}
 else if (remainingHours <= 60) {     mode = "✅ Daily Complete"}
+else if (state.manualMode) {             mode = "🔧 Manual Mode"}
            
     def status = "<table style='border-collapse: collapse; border: 2px solid #808080; box-shadow: 4px 4px 10px rgba(0,0,0,.4);'>"
     def td = "style='border:1px solid #666;padding:6px;'"   
@@ -114,7 +115,7 @@ else if (remainingHours <= 60) {     mode = "✅ Daily Complete"}
             else{                 status += "<td ${td}><b> </td> " }
     if (state.lastRunDate){       status += "<td ${td}><b>Last Run:</b> ${state.lastRunDate}</td>" } 
             else{                 status += "<td ${td}><b> </td> " }           
-    if (startOption == "Specific Time" && startTime) { 
+    if (startOption == "Specific Time" && startTime &&!state.manualMode) { 
                                   status += "<td ${td}><b>Daily Start:</b> " + timeToday(startTime, location.timeZone).format("h:mm a", location.timeZone)+"</td>"}
     else if (startOption == "Sunrise") { 
                                   status += "<td ${td}><b>Daily Start:</b> Sunrise</td>"}
