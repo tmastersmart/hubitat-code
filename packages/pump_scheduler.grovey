@@ -6,7 +6,7 @@
   "releaseNotes": "Bug fixes and new GUI status bar",
   "documentationLink": "https://www.winnfreenet.com/wp/2026/07/pump-scheduler-for-hubitat/",
   "communityLink": "https://community.hubitat.com/t/pump-scheduler/165333",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "dateReleased": "2026-07-23",
 "category": "Utility",
 "tags": ["Pools & Spas","Water","Timers","Monitoring","Tools & Utilities"],
