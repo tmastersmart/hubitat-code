@@ -219,6 +219,7 @@ case "resumeScheduler":
     return mainPage()
         
 case "refreshStatus":
+    clientVersion()    
     return mainPage()        
         
     }
@@ -312,6 +313,7 @@ def installed() {
 }
 
 def updated() {
+    clientVersion()
     unsubscribe()
     unschedule()
     initialize()
