@@ -1,9 +1,15 @@
   /*
  Iris v2 - v3 keypad driver
 =============================================================
-Driver supports model# 1112-S and model# 3405-L iris keypads
-Maker iMagic by GreatStar
 
+Driver supports Iris V2 (1112-S) and Iris V3 (3405-L) keypads, including the V3 “bad firmware” variant.  
+Fully implements IAS ACE arming, disarming, PIN validation, exit delay, entry delay, and panel status.  
+Centralite 3400 series, Xfinity XHK1-UE, and other ACE compliant keypads are expected to work but are untested.  
+
+HSM compatable remember to add the keypad to HSM
+To disable alerts on v3 add the Siren for alerts and it will enable PIN during a alert.
+
+ v1.7 09/15/2026 More debuging on v2 keypads
  v1.6 09/13/2026 Debuging and rewriting parts of the code.
  V1.2 02/25/2022 V2 working. v3 Working.
  v1.1 02/23/2022 Tested on v2 and v3 kaypads. 
@@ -13,7 +19,8 @@ Maker iMagic by GreatStar
    Driver Improvements Over Stock Keypad Drivers
    ========================================================================
 
-   • Fixes inability to cancel alarms on Iris V3.
+   • Fixes inability to cancel alarms on Iris V3. You must use the Siren!
+     Or this wont work because the Siren trigers the PIN disarm function.
    • Restores proper beep behavior on models that normally stay silent.
    • Adds Iris-style door chime support (legacy Iris behavior).
    • Adds Panic support for button controllers (silent alarm mode).
@@ -67,6 +74,7 @@ Maker iMagic by GreatStar
 
 Iris v3 fccid:2AMI2IL02 model:3405-L marked model:IL02_01
 Iris v2 fccid:_________ model:3405-L marked model:_______
+
 
 
    ========================================================================
@@ -166,12 +174,15 @@ Copyright 2016 -> 2020 Hubitat Inc.  All Rights Reserved
 
 */
 def clientVersion() {
-    TheVersion="1.6"
+    TheVersion="1.7"
  if (state.version != TheVersion){ 
      state.version = TheVersion
      configure() 
  }
 }
+import hubitat.zigbee.clusters.iaszone.ZoneStatus
+import hubitat.zigbee.zcl.DataType
+import hubitat.helper.HexUtils
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 
@@ -216,18 +227,13 @@ metadata {
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: true,required: true
     input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
-
-
-        input name: "SilentArmHome", type: "bool", title: "Silent Arming Home", description: "No beep while arming", defaultValue: false
-	    input name: "SilentArmAway", type: "bool", title: "Silent Arming Away", description: "No beep while arming", defaultValue: false
-	    input name: "SilentArmNight",type: "bool", title: "Silent Arming Night",description: "No beep while arming", defaultValue: false
-    
+ 
         input name: "PartSet", type: "enum", title: "Partial Button", description: "Customize Partial Button",  options: ["Arm Night", "Arm Home"], defaultValue: "Arm Night",required: true 
         input name: "OnSet",   type: "enum", title: "On Button", description: "Customize ON Button",  options: ["Arm Night", "Arm Home", "Arm Away"], defaultValue: "Arm Away",required: true 
 
         input name: "optEncrypt", type: "bool", title: "Enable lockCode encryption", defaultValue: false, description: "Hides code from log"
         input "refTemp", "decimal", title: "Reference temperature", defaultValue: "0" , description: "Adjust the temp", range: "*..*"
-
+        input name: "onLogging", type: "bool", title: "Force log on", description: "Forces logs on with no timeouts", defaultValue: false,required: true
     }
 }
 
@@ -239,14 +245,27 @@ void installed(){
 }
 
 def initialize() {
+    
+if (!state.armNightDelay){state.armNightDelay = 30}
+if (!state.armHomeDelay){state.armHomeDelay  = 30}
+if (!state.delayEntry){state.delayEntry    = 30}
+if (!state.delayExit){state.delayExit     = 30} 
+if (!state.Command){state.Command = "unknown"}      
+ 
+state.message = "Enable [${device}] in HSM & add Siren in alerts"      
+    
     state.exitDelay = 0
     state.entryDelay = 0
-    state.armNightDelay = 0
-    state.armHomeDelay = 0
+
     state.bin = -1
     state.armMode = "00"
     state.fnPartial = "01"
     state.v2alt = false
+    
+    
+    
+    
+    
     
     sendEvent(name:"maxCodes", value:20)
     sendEvent(name:"codeLength", value:4)
@@ -266,21 +285,33 @@ def uninstalled(){
     return zigbee.command(0x0000,0x00)
 }
 
-def parse(String description) {
+def processStatus(ZoneStatus status) {
+logging("${device} : ZoneStatus Alarm1:${status.isAlarm1Set()} Alarm2:${status.isAlarm2Set()} Tamper:${status.isTamperSet()} Battery:${status.isBatterySet()} Trouble:${status.isTroubleSet()}", "debug")
+    def tamper = status.isTamperSet()
+    if (tamper) {
+        getTamperResult(true)
+        runIn(11, "autoClearTamper")
+    } else {
+        getTamperResult(false)
+    }
+}
 
+def autoClearTamper() {
+    if (device.currentValue("tamper") == "detected") { getTamperResult(false)}
+}
+
+
+def parse(String description) {
+    
     if (description.startsWith("zone status")) {
         logging ("${device} : description: ${description}","trace")  
         def zoneStatus = zigbee.parseZoneStatus(description)
-        if (state.model == "1112-S"){
-        logging ("${device} : Ignoring tamper on 1112-S ","debug") 
+        processStatus(zoneStatus)
         return
-        }// just ignore its always inactive
-        
-        
-        getTamperResult(zoneStatus.tamper)
-        return
+
     } else if (description.startsWith("enroll request")) {
-        logging ("${device} : description: ${description}","trace")  
+        logging ("${device} : description: ${description}","trace") 
+        zigbee.enrollResponse()
         return
     } else {
         def descMap = zigbee.parseDescriptionAsMap(description)
@@ -328,8 +359,6 @@ case "0001":
             logging("${device} : 0001 Unknown Power - frame value:${descMap.value} raw:${raw}", "debug")
             break
         }
-
-        // sanity filter: ignore impossible battery voltages
         if (raw < 20 || raw > 65) {  
             logging("${device} : 0001 Bad battery - value value:${descMap.value} raw:${raw}", "debug")
             break
@@ -349,8 +378,6 @@ case "0402":
             logging("${device} : 0402 Bad Temp frame value:${descMap.value}", "debug")
             break
         }
-
-        // sanity filter: ignore impossible temps
         if (raw < 500 || raw > 4000) {   // 5°C to 40°C
             logging("${device} : 0402 Bad temp raw:${raw} out of range", "debug")
             break
@@ -377,7 +404,7 @@ case "0402":
     logging("${device} : LQI:${state.lqi}", "info")
     break         
 
-    // not all keypads even use this but they report all clear    
+    // not all keypads even use this but included   
     case "0500":       
     def raw = zigbee.convertHexToInt(descMap.data[0])
     def tamperActive = (raw & 0x04) != 0
@@ -390,14 +417,14 @@ case "0402":
             // motion comes in we must respond back
                 if (cmd == "07" && descMap.data.size() == 0) { 
                     if (state.bin == -1) getMotionResult()
-                    resp.addAll(sendPanelResponse(false))
+                    resp.addAll(sendPanelResponse())
                     
                 }   else if (cmd == "00") {
                     state.bin = -1
                     def armRequest = descMap.data[0] 
                     def asciiPin = "0000"
                     def modeName = ["00": "Disarm","01": "Arm Partial","03": "Arm Away"][armRequest] ?: "Unknown (${armRequest})"// Beter log support
-                    logging("${device} : Received ${modeName} (${armRequest})", "info")
+                    logging("${device} : cmd:${armRequest} Received:${modeName}", "info")
 
                     if (armRequest == "01") { countdown(state.armNightDelay) }
                     if (armRequest == "03") { countdown(state.armAwayDelay) }
@@ -406,10 +433,13 @@ case "0402":
                     resp.addAll(sendArmResponse(armRequest,isValidPin(asciiPin, armRequest)))
  
                 } else if (cmd =="0B") {
-                // Dont know what it is. This firmware has a mute problem     
+                // Dont know what it is. but this firmware has sound problems    
+                if (state.v2alt == false){
                 state.v2alt = true 
-                logging ("${device} : 0501 0B Alt firmware detected","trace") 
-                resp.addAll(sendPanelResponse(false))   
+                logging ("${device} : 0501 0B Alt firmware detected.","warn") 
+                }
+                    else { logging ("${device} : 0501 0B Unknown command","trace")    }
+                resp.addAll(sendPanelResponse())   
                 break
   
                 } else if (cmd == "04") { //panic button
@@ -419,7 +449,7 @@ case "0402":
                   state.panic = "active"
                   sendEvent(name: "alarm",value: "alarm",descriptionText: "panic button was pushed")  
                   runIn(9,buttonRelease)
-//                modified for silent alarm                    
+//                modified for silent alarm . The hub needs to do the alarm not the driver                 
 //                resp.addAll(siren())
                 }  
                     
@@ -446,30 +476,10 @@ case "FC04":
 }
 
 
+// ========================== END Parse ======================
 
 
-
-def beep(){
-    state.model = getDataValue("model")
-    if (state.v2alt == true){BeepCode = "2"} // v2 alt doesnt support beeps at all
-    if (state.model == "1112-S"){
-        if (BeepCode == "2"){BeepCode = "3"} // v3 doesnt support beep 2   
-    }
-  
-    cmd = BeepCode
-    playSound(cmd)
-    logging ("${device} : beep cmd ${cmd}","info") 
-}
-
-
-void beepBad(){
-playSound(3) 
-}
-
-def stop(){
-stopBeep()
-}
-
+// needed to run as a schedule
 void stopBeep(){
     stopBee()
 }
@@ -487,33 +497,47 @@ def countdown(delay){
     return cmds
 }
     
+def beep(){
+    playSound(2)
+}
 
+
+// if password is bad it  beeps 
+void beepBad(){
+playSound(2) 
+}
+
+def stop(){
+stopBeep()
+}    
+
+ 
 def playSound(cmd){
-    if (cmd == null){cmd=1}
-    if (cmd >= 6){cmd=1}
-    if (state.v2alt == true){BeepCode = "2"} // v2 alt doesnt support beeps at all
-    
-    state.model = getDataValue("model")
-    if (state.model == "1112-S"){
-        if (BeepCode == "2"){BeepCode = "3"} // v3 doesnt support beep 2   
-    }
-    
-    runIn(9,stopBeep) // stops the countdown timmer or you get 2nd beep in 10 sec
-    // Length mapping
-    def lenMap = [1: "01",2: "02",3: "03",4: "05",5: "07"]
-    def len = lenMap[cmd]
-    logging ("${device} : Playing chime ${cmd} Len ${len}","info") 
+state.model = getDataValue("model")  // 3405-L or 1112-S
+if (cmd == null) cmd = 1
+if (cmd >= 6) cmd = 1
+//if (state.v2alt == true) {cmd = 2}
 
-// Fast beep (1 per second)  
+ runIn(9,stopBeep) // stop or you get 2nd beep 
  def cmds
-    if (cmd == 2 && state.model != "1112-S") {
-        // V2 special beep
-        cmds = ["raw 0xFC04 {15 4E 10 00 00 00}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
-    } else {
-        // Standard chime
-        cmds = ["raw 0x0501 {09 01 04 05 ${len} 01}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
+ def lenMap = [1:"01",2:"02",3:"03",4:"05",5:"07"]
+ cmd = cmd.toInteger()
+ def len = lenMap[cmd]
+ 
+    if (state.model == "1112-S"){
+//      if (cmd == 2){  cmd = 3  len = 4   }// in testing it looks like all chimes are working on v3   
+    logging ("${device} : Playing chime ${cmd} Len ${len}","info")
+    cmds = ["raw 0x0501 {09 01 04 05 ${len} 01}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
     }
-    
+    else  if (state.model == "3405-L" ){
+    logging ("${device} : Playing chime ${cmd} Len ${len}","info")
+    cmds = ["raw 0x0501 {09 01 04 05 ${len} 01}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
+    }
+    else {
+    logging ("${device} : Playing beep","info")
+    cmds = ["raw 0xFC04 {15 4E 10 00 00 00}","delay 200","send 0x${device.deviceNetworkId} ${device.endpointId as int} 1","delay 500"]
+    }
+ 
 // notes:
 //  [raw 0x0501 {09 01 04 05 01}, delay 200, send 0xB7AA 1 1, delay 500]   
 //    	09 - Frame Ctl
@@ -521,11 +545,9 @@ def playSound(cmd){
 //		04 - Cmd Panel Status Changed Cmd
 //		05 - Entry Delay
 //      01 - Seconds
-  
 
-logging ("${device} :Send ${cmds}","trace") 
+logging ("${device} : Send ${cmds}","trace")
 return cmds
-
 }
 
 
@@ -624,7 +646,7 @@ def deleteCode(codeNumber) {
 
 def getCodes(){
     updateEncryption()
-    logging ("${device} : get codes","info")
+    logging ("${device} : Get Codes ","info")
 }
 
 
@@ -660,22 +682,24 @@ def entry(entranceDelay){
 
 
 def disarm(exitDelay = null) {
-        if (state.armMode == "00") {
-        sendPanelResponse(false)
-        logging ("${device} : HSM Disarm (ignored)","info")
+    if (state.armMode == "00") {
+        logging ("${device} : HSM Disarm (already in that mode)","debug")
+        sendArmResponse("00", getDefaultLCdata())   // ACK required
+        
         return
     }
 
     logging ("${device} : HSM disarm armMode:${state.armMode})","info")
     state.armPending = false
     state.bin = 1
-    sendArmResponse("00",getDefaultLCdata())// disarm should not have a delay
+    sendArmResponse("00",getDefaultLCdata())
 }
 
 def armHome(exitDelay = null) {
     if (state.armMode == "01") {
-        sendPanelResponse(false)
-        logging ("${device} : HSM armHome (ignored)","info")
+        logging ("${device} : HSM armHome (already in that mode)","debug")
+        sendArmResponse("01", getDefaultLCdata())   // ACK required
+        
         return
     }
     logging ("${device} : HSM armHome delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
@@ -687,8 +711,9 @@ def armHome(exitDelay = null) {
 
 def armNight(exitDelay = null) {
     if (state.armMode == "01") {
-        sendPanelResponse(false)
-        logging ("${device} : HSM armNight (ignored)","info")
+        logging ("${device} : HSM armNight (already in that mode)","debug")
+        sendArmResponse("01", getDefaultLCdata())   // ACK required
+        
         return
     } 
     logging ("${device} : HSM armNight delay:${exitDelay} armMode:${state.armMode} armingMode:${state.armingMode})","info")
@@ -700,8 +725,9 @@ def armNight(exitDelay = null) {
 
 def armAway(exitDelay = null) {
     if (state.armMode == "03") {
-        sendPanelResponse(false)
-        logging ("${device} : HSM armAway (ignored)","info")
+        logging ("${device} : HSM armAway (already in that mode)","debug")
+        sendArmResponse("03", getDefaultLCdata())   // ACK required
+      
         return
     }
 
@@ -797,7 +823,7 @@ def both(){
 //    strobe() // strobe doesnt work
 }
 
-//private
+
 private changeIsValid(codeMap,codeNumber,code,name){
     def result = true
     def codeLength = device.currentValue("codeLength")?.toInteger() ?: 4
@@ -842,7 +868,7 @@ private getLockCodes() {
         if (lockCodes[0] == "{") result = new JsonSlurper().parseText(lockCodes)
         else result = new JsonSlurper().parseText(decrypt(lockCodes))
     }
-    logging ("${device} : Get code ${result}","trace")
+    logging ("${device} : Get Lock Codes ${result}","trace")
     return result
 }
 
@@ -861,6 +887,9 @@ private updateEncryption(){
         else {sendEvent(name:"lockCodes",value: lockCodes, isStateChange:true)}
     }
 }
+
+// links here when pin comes in <<<<<<<<<<<<<<<<<<<
+
 
 private isValidPin(code, armRequest){
     def data = getDefaultLCdata()
@@ -884,8 +913,8 @@ private isValidPin(code, armRequest){
 }
 
 
-
-private sendPanelResponse(alert = false){
+// This is always called as false. No alerts used on iris
+private sendPanelResponse(){
     def resp = []
     def remaining = (state.delayExpire ?: now()) - now()
     remaining = Math.ceil(remaining /= 1000).toInteger()
@@ -894,11 +923,11 @@ private sendPanelResponse(alert = false){
     if (remaining > 3) {
         runIn(2,"sendPanelResponse")
         resp.add("he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 ${state.armingMode} ${intToHexStr(remaining)} 01 01}")
-        logging ("${device} : Send panel response remaining:${remaining} alert:${alert}","trace")
+        logging ("${device} : Send Panel Response :${remaining}","trace")
     } else {
-        if (alert) {resp.addAll(["he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 05 01 01 01}","delay 400"])}
+//      if (alert) {resp.addAll(["he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 05 01 01 01}","delay 400"])}  (not used)
         resp.add("he raw 0x${device.deviceNetworkId} 1 1 0x0501 {19 01 05 ${state.armMode ?: "00"} 00 00 00}")
-        logging ("${device} : send Panel response remaining:${remaining} alert:${alert}","trace")
+        logging ("${device} : Send Panel Response","trace")
     }
     return resp
 }
@@ -918,6 +947,7 @@ def clearPending(){
         ])
     }
     getArmResult()
+    if(resp){logging ("${device} : Send [${resp}] clearPending","trace")}
     sendHubCommand(new hubitat.device.HubMultiAction(resp, hubitat.device.Protocol.ZIGBEE))
 }
 
@@ -1006,11 +1036,11 @@ private sendArmResponse(armRequest,lcData, exitDelay = null) {
             
               data = [armMode:"${getArmText(armRequest)}",armCmd:"${getArmCmd(armRequest)}"]
               sendEvent(name:"armingIn", value: value,data: data, delay: value ,isStateChange:true,descriptionText: data ) // hubitat HSM control cmd
-              logging ("${device} : send HSM event armingIn [${data}] sendArmResponce","info")
+              logging ("${device} : send HSM event armingIn [${data}] sendArmResponce","debug")
 
         }
     }
-
+    if(cmds){logging ("${device} : Send [${cmds}] sendArmResponce","trace")}
     return cmds
 }
 
@@ -1118,11 +1148,11 @@ private cancelAlert(){
     data = [armMode:"cancel alerts",armCmd:"CancelAlerts"]
 	sendEvent(name: "securityKeypad",value: "cancel alerts", data:lockCode , type: "physical",descriptionText: "[physical] ")
     sendEvent(name:"armingIn", value: 0,data:data, isStateChange:true,descriptionText: data) // The actual armming cmd
-    logging ("${device} : << send HSM event ${data}","info")
+    logging ("${device} : << send HSM event ${data}","debug")
 }
 
 
-// v3 tamper doesnt actualy work but it will send the clear message
+// v3 tamper doesnt actualy work 
 // v2 only
 private getTamperResult(rawValue){
     def value = rawValue ? "detected" : "clear"
@@ -1239,7 +1269,7 @@ def refresh() {
     return [
             "he rattr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0001 0x0020 {}","delay 200",  //battery
             "he rattr 0x${device.deviceNetworkId} 0x${device.endpointId} 0x0402 0 {}","delay 200",  //temp
-    ] + sendPanelResponse(false)
+    ] + sendPanelResponse()
 }
 
 // Logging block  v4
@@ -1258,12 +1288,14 @@ void loggingUpdate() {
 }
 
 void traceLogOff(){
-	device.updateSetting("traceLogging",[value:"false",type:"bool"])
+if(onLogging == false){	device.updateSetting("traceLogging",[value:"false",type:"bool"])
 	log.trace "${device} : Trace Logging : Automatically Disabled"
+    }
 }
 void debugLogOff(){
-	device.updateSetting("debugLogging",[value:"false",type:"bool"])
+if(onlogging == false){	device.updateSetting("debugLogging",[value:"false",type:"bool"])
 	log.debug "${device} : Debug Logging : Automatically Disabled"
+    }
 }
 private logging(String message, String level) {
     if (level == "infoBypass"){log.info  "$message"}
