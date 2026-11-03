@@ -2,8 +2,10 @@
  *  Frigidaire 2.0 Window AC Hubitat driver
  *  Copyright 2026 Tmaster Winnfreenet.com
  *
- *  v1.0.1  2026-11-02  First working version (beta)
- *
+   v1.0.1  2026-11-02  First working version (beta)
+   v1.0.2    ''        Logging Updates 
+
+ 
  *  Hubitat driver for Frigidaire 2.0 / Electrolux window & portable ACs.
  *  Control modes: AC Sensor | Thermostat Sensor (external on/off).
  *
@@ -27,6 +29,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =======================================================================================================
  */
+
 
 import groovy.transform.Field
 import java.security.MessageDigest
@@ -98,7 +101,7 @@ metadata {
     }
 }
 def clientVersion() {
-    TheVersion="1.0.1"
+    TheVersion="1.0.2"
  if (state.version != TheVersion){    
      logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -122,6 +125,7 @@ def initialize() {
     sendEvent(name: "controlMode", value: settings.controlMode ?: "acSensor")
     clientVersion()
     unschedule()
+    loggingUpdate()
     if (settings.pollInterval) {
         schedule("0 */${settings.pollInterval} * * * ?", "refresh")
     }
