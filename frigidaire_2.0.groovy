@@ -33,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec
 @Field static final String USER_AGENT = "Ktor client"
 
 metadata {
-    definition (name: "Frigidaire Window AC (Cloud)", namespace: "tmastersmart", author: "tmaster", importUrl: "") {
+    definition (name: "Frigidaire Window AC (Cloud)", namespace: "tmastersmart", author: "tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/frigidaire_2.0.groovy") {
 
        
         capability "Actuator"
