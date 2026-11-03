@@ -2,7 +2,7 @@
  *  Frigidaire 2.0 Window AC Hubitat driver
  *  Copyright 2026 Tmaster Winnfreenet.com
  *
- *  v1.0.1  2026-11-02  First working version
+ *  v1.0.1  2026-11-02  First working version (beta)
  *
  *  Hubitat driver for Frigidaire 2.0 / Electrolux window & portable ACs.
  *  Control modes: AC Sensor | Thermostat Sensor (external on/off).
