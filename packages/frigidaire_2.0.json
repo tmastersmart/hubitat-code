@@ -1,1 +1,28 @@
-
+{
+  "packageName": "Fridigar 2.0 AC unit driver",
+  "author": "TheMaster",
+  "gitHubUrl": "https://github.com/tmastersmart/hubitat-code",
+  "payPalUrl": "https://www.paypal.com/paypalme/tmastersat",	
+  "releaseNotes": "Ads a thermostat for your window unit",
+  "documentationLink": "",
+  "communityLink": "",
+  "version": "1.0.3",
+  "dateReleased": "2026-11-11",
+  "category": "Control",
+      "tags": [
+        "Temperature & Humidity",
+	"Climate Control",      
+        "cloud"
+      ],
+  "apps" : [],
+  "drivers": [
+    {
+      "name":"Fridigar 2.0 AC unit driver
+      "namespace": "tmastersmart",
+      "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/frigidaire_2.0.groovy",
+      "required": "true",
+  "description": "Used the fridigar APK to control your AC unit from hubitat",
+	     "id": "b7c3e912-8f46-4a2d-9c71-6e5f0a83d214"
+    }
+    ]
+}
