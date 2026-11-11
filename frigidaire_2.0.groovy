@@ -4,10 +4,12 @@
  *
    v1.0.1  2026-11-02  First working version (beta)
    v1.0.2    ''        Logging Updates 
+   v1.0.3  2026 11-11  Echo is not supported in hubitat so we need to use cool instead
 
  
  *  Hubitat driver for Frigidaire 2.0 / Electrolux window & portable ACs.
  *  Control modes: AC Sensor | Thermostat Sensor (external on/off).
+ *  Identifies as Android_6.2.1 to the cloud
  *
  *  API behavior referenced from bm1549's Frigidaire/Home Assistant work
  *  (MIT License): https://github.com/bm1549/frigidaire
@@ -101,7 +103,7 @@ metadata {
     }
 }
 def clientVersion() {
-    TheVersion="1.0.2"
+    TheVersion="1.0.3"
  if (state.version != TheVersion){    
      logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -115,12 +117,13 @@ def installed() {
 
 def updated() {
     logging("Updated", "info")
+    clientVersion()
     unschedule()
     initialize()
 }
 
 def initialize() {
-    sendEvent(name: "supportedThermostatModes", value: ["off","cool","heat","auto"])
+    sendEvent(name: "supportedThermostatModes", value: ["off","cool","heat"]) // not going to use auto
     sendEvent(name: "supportedThermostatFanModes", value: ["auto","on","circulate","low","medium","high"])
     sendEvent(name: "controlMode", value: settings.controlMode ?: "acSensor")
     clientVersion()
@@ -361,10 +364,10 @@ def tMode = "off"
 switch (mode) {
     case "COOL":    tMode = "cool"; break
     case "HEAT":    tMode = "heat"; break
-    case "ECO":     tMode = "auto"; break   // show as Auto on Hubitat
+    case "ECO":     tMode = "cool"; break   // show as Cool
     case "FANONLY": tMode = "fan"; break
-    case "DRY":     tMode = "dry"; break
-    case "AUTO":    tMode = "auto"; break
+//    case "DRY":     tMode = "dry"; break   // not sure about this yet
+//    case "AUTO":    tMode = "auto"; break
     default:
         tMode = (stateVal == "OFF" || mode == "OFF") ? "off" : "cool"
 }
@@ -401,7 +404,7 @@ def setThermostatMode(String mode) {
     logging("Set Mode: ${mode}", "info")
     switch (mode) {
         case "off":  off(); break
-        case "cool": setMode("ECO"); break
+        case "cool": setMode("ECO"); break   // cool on hubitat echo on unit
         case "heat": setMode("HEAT"); break
         case "auto": setMode("ECO"); break   // Auto on dashboard = Eco on unit
         case "fan":  setMode("FANONLY"); break
