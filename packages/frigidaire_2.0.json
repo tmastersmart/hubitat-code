@@ -21,7 +21,7 @@
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/frigidaire_2.0.groovy",
       "required": "true",
-  "description": "Used the fridigar APK to control your AC unit from hubitat",
+  "description": "Used the Fridigar 2.0 APK to control your AC unit from hubitat",
 	     "id": "b7c3e912-8f46-4a2d-9c71-6e5f0a83d214"
     }
     ]
