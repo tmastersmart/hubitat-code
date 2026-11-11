@@ -4,7 +4,7 @@
  *
    v1.0.1  2026-11-02  First working version (beta)
    v1.0.2    ''        Logging Updates 
-   v1.0.3  2026 11-11  Echo is not supported in hubitat so we need to use cool instead
+   v1.0.3  2026 11-11  Ecno is not supported in hubitat so we need to use cool instead
 
  
  *  Hubitat driver for Frigidaire 2.0 / Electrolux window & portable ACs.
