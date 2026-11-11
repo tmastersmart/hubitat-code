@@ -17,7 +17,7 @@
   "apps" : [],
   "drivers": [
     {
-      "name":"Fridigar 2.0 AC unit driver
+      "name":"Fridigar 2.0 AC unit driver"
       "namespace": "tmastersmart",
       "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/frigidaire_2.0.groovy",
       "required": "true",
