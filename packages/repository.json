@@ -95,6 +95,14 @@
 "location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/packages/radio_thermostat_driver.json",
 "description": "The Radio Thermostat Driver for most any Radio Thermostat. (ZWAVE) CT100,CT101,CT30,CT32 and more. Polling schedule and many extra options, Improved logging to detect errors info,debug,trace. Many manual options to set up device other drivers dont have. Option to use only heat or cool. Prevents dashboard getting out of sync with thermostat. If you have a RT you know all the problems other drivers have. This driver will fix your problems. Writen for my thermostats because the other drivers just did not work for me."
    },   
+    {
+"name":"Frigidaire 2.0 AC Thermostat",
+"category": "Control",
+"tags": ["Temperature & Humidity","Climate Control"],
+"location": "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/packages/frigidaire_2.0.json",
+"description": "The frigidaire 2.0 Thermostat Driver lets you control the Window AC unit. Installed as a thermostat. "
+   },   
+   
    {
 "name":"Utilitech Water Sensor",
 "category": "Control",
