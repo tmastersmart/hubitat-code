@@ -29,7 +29,7 @@ def clientVersion() {
 }
 
 metadata {
-    definition (name: "Sonoff SNZB-02DR2 Temp Humidity", namespace: "tmastersmart", author: "Tmaster", importUrl: "") {
+    definition (name: "Sonoff SNZB-02DR2 Temp Humidity", namespace: "tmastersmart", author: "Tmaster", importUrl: "https://raw.githubusercontent.com/tmastersmart/hubitat-code/refs/heads/main/sonoff_SNZB-02DR2.groovy") {
         capability "Sensor"
         capability "TemperatureMeasurement"
         capability "RelativeHumidityMeasurement"
