@@ -65,6 +65,9 @@ I mostly write drivers for myself and update them from time to time depending wh
 * SAGE Doorbell Sensor 
 * SAGE Light Switch 
 
+# Frigidaire 2.0  
+* Window AC unit driver
+
 # Pools & Spas
 Pump manager to control the low cost amazon pumps. And others 
  For swiming pool pumps that dont have a timer,Check your pools specs
