@@ -2,10 +2,18 @@
 A Sonoff SNZB-02DR2 (AirGuard TH) Driver For Hubitat
 manufacturer: SONOFF / eWeLink
 model: SNZB-02DR2
+
 ===================================================================================================
+v1.0.1  11/16/2026 Added new cluster decoding. Hi Low now imported
 v1.0.0  11/14/2026 First release - Temp / Humidity / Battery + LCD unit control
 =================================================================================================== 
+
+
+
+
 Copyright [2026] [tmaster winnfreenet.com]
+
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,12 +23,13 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
 */
 import hubitat.zigbee.zcl.DataType
 import hubitat.helper.HexUtils
 
 def clientVersion() {
-    TheVersion = "1.0.0"
+    TheVersion = "1.0.1"
     if (state.version != TheVersion) {
         logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
         state.version = TheVersion
@@ -173,7 +182,9 @@ def parse(String description) {
     logging("MAP: ${descMap}", "trace")
 
     if (descMap.clusterId) { descMap.cluster = descMap.clusterId }
-
+    
+ //   sendEvent(name: "lastUpdate", value: new Date().format("MM/dd/yyyy h:mm a", location.timeZone))
+    
     // Basic cluster - Manufacturer / Model
     if (descMap.cluster == "0000") {
         if (descMap.attrId == "0004" && descMap.attrInt == 4) {
@@ -194,7 +205,7 @@ def parse(String description) {
 
     // Power Configuration - Battery
     if (descMap.cluster == "0001") {
-        // Battery Voltage (0x0020)
+        // Battery Voltage (0x0020) We are not getting bat voltage so far
         if (descMap.attrId == "0020") {
             def rawValue = Integer.parseInt(descMap.value, 16)
             if (rawValue == 0 || rawValue == 255) return
@@ -203,7 +214,7 @@ def parse(String description) {
             sendEvent(name: "batteryVoltage", value: batteryVoltage, unit: "V")
             return
         }
-        // Battery Percentage (0x0021)
+        // Battery Percentage (0x0021) Its reporting % ok
         if (descMap.attrId == "0021") {
             def rawValue = Integer.parseInt(descMap.value, 16)
             def batteryPercentage = rawValue / 2          // Zigbee reports in 0.5% steps
@@ -213,7 +224,7 @@ def parse(String description) {
             def lastBat = device.currentValue("battery")
             def isChange = (lastBat != batteryPercentage)
 
-            logging("Battery: ${batteryPercentage}% (raw:${rawValue})", "info")
+            logging("Battery: ${batteryPercentage}% ", "info")
             sendEvent(name: "battery", value: batteryPercentage, unit: "%", isStateChange: isChange)
             return
         }
@@ -231,6 +242,7 @@ def parse(String description) {
         def displayTemp
         def unit
 
+        
         if (settings?.tempUnit == "F") {
             displayTemp = (tempC * 1.8) + 32.0 + offset
             unit = "°F"
@@ -239,13 +251,13 @@ def parse(String description) {
             unit = "°C"
         }
         displayTemp = Math.round(displayTemp * 10) / 10.0
-
+        displayTemp = String.format("%.1f", displayTemp as Double)
+        
         def lastTemp = device.currentValue("temperature")
         def isChange = (lastTemp != displayTemp)
-
         logging("Temperature: ${displayTemp}${unit} (raw C:${tempC})", "info")
         sendEvent(name: "temperature", value: displayTemp, unit: unit, isStateChange: isChange)
-        sendEvent(name: "lastUpdate", value: new Date().format("MM/dd/yyyy h:mm a", location.timeZone))
+
         return
     }
 
@@ -322,9 +334,10 @@ def parse(String description) {
         logging("FC11 attr:${attrId} (bulk/history) ignored", "debug")
         return
     }
-
+//    if (descMap.cluster == "0003") { logging("Identify cluster ${descMap.cluster} ", "debug")}
+    
     // Ignore common noise clusters
-    if (descMap.cluster in ["0013", "0006", "8021", "8038", "8005", "8013", "8032", "8031"]) {
+    if (descMap.cluster in ["0003","0013", "0006", "8021", "8038", "8005", "8013", "8032", "8031"]) {
         logging("Ignoring cluster ${descMap.cluster}", "debug")
         return
     }
@@ -394,7 +407,7 @@ void sendZigbeeCommands(List<String> cmds) {
 }
 
 void getIcons() {
-    state.icon = "<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sonoff-temp.png' >"
+    state.icon = "<img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/sonoff-temp.jpg' >"
     state.donate = "<a href='https://www.paypal.com/paypalme/tmastersat?locale.x=en_US'><img src='https://raw.githubusercontent.com/tmastersmart/hubitat-code/main/images/paypal2.gif'></a>"
 }
 
