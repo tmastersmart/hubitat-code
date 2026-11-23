@@ -26,6 +26,8 @@ If you are switching from another driver you must FIRST switch to internal drive
 and press config. This repairs improper binding from other drivers. Otherwise you will get a lot of unneeded traffic.
 
 ---------------------------------------------------------------------------------------------------------
+ 1.8.0 11/23/2026   Fixed error reset
+ 1.7.9 10/03/2026   Fixed java bug when no reports from presence
  1.7.8 08/13/2026   Fixed bug in hub where if you swap a iris plug using my driver
                     for one using this driver the schedule from the other driver doesnt get erased.
  1.7.7 07/29/2026   Added detection of Sonoff i Plug
@@ -80,7 +82,7 @@ https://github.com/tmastersmart/hubitat-code/blob/main/opensource_links.txt
  *	
  */
 def clientVersion() {
-    TheVersion="1.7.8"
+    TheVersion="1.8.0" 
 if (state.version != TheVersion){
     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
@@ -184,7 +186,7 @@ def uninstall() {
     state.remove("model")
     state.remove("MFD")
     state.remove("tries")
-
+    state.remove("error")
     logging("Uninstalled", "info")  
 }
 
@@ -202,7 +204,8 @@ state.remove("logo")
 state.remove("flashing")    
 state.remove("timeOut")
 state.remove("bin")
-state.remove("checkPhase")        
+state.remove("checkPhase")     
+state.remove("error")    
 	// Remove unnecessary device details.
     device.deleteCurrentState("alarm")    
  
@@ -263,6 +266,7 @@ def ping() {
 }
 
 // Resend the proper state to get back in sync
+// new versioin error will get reset no
 def sync (){
     if(autoSync == false){return}
     if (!state.error){state.error = 0}
@@ -312,17 +316,28 @@ private byte[] reverseArray(byte[] array) {
 
 
 def checkPresence() {
-    // presence routine. v5.1 03-10-23
-    if(!state.tries){state.tries = 0} 
-    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone) 
+    // presence routine. v5.2 10-26
+    
+    if (!state.tries) {        state.tries = 0    }
+    state.lastPoll = new Date().format('MM/dd/yyyy h:mm a',location.timeZone)
+    
+// Establish a baseline only once
+//    if (!state.lastCheckin) { 
+//        state.lastCheckin = currentTime  
+//        logging("Initial presence check-in established", "debug")
+//    }
+
     def checkMin = 200
-    def timeSinceLastCheckin = (now() - state.lastCheckin ?: 0) / 1000
-    def theCheckInterval = (checkInterval ? checkInterval as int : 2) * 60
-    state.lastCheckInMin = timeSinceLastCheckin/60
-//  logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
-    logging("Check Presence its been ${state.lastCheckInMin} Tries:${state.tries}","debug")
+    def lastCheckin = state.lastCheckin ?: now()
+    def timeSinceLastCheckin = (now() - lastCheckin) / 1000
+    def theCheckInterval = checkInterval ? checkInterval as int : 2
+
+    state.lastCheckInMin = timeSinceLastCheckin / 60
+  logging("Check Presence its been ${state.lastCheckInMin} mins Timeout:${checkMin} Tries:${state.tries}","debug")
+//    logging("Check Presence its been Mins:${state.lastCheckInMin} Tries:${state.tries}","debug")
     if (state.lastCheckInMin <= checkMin){ 
         state.tries = 0
+        state.error = 0
         test = device.currentValue("presence")
         if (test != "present"){
         value = "present"
