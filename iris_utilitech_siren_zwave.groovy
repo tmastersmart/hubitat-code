@@ -27,6 +27,7 @@ get a option to REMOVE, Remove it then the hub will now see it as a new device.
 I beleive the cause is that normal devices creating a new ID on each pair. Whatever the case the hub does
 not know what to do. I think it was said after several reboots it will go away but we need it out now.
 ---------------------------------------------------------------------------------------------------------
+ v1.1.1    11/24/2026 Fixes simulated bat saying 0 and the device returns
  v1.1.0    01/25/2023 Power Up init rewriten
  v1.0.9    01/23/2023 Adjustments to timeout
  v1.0.8    01/23/2023 Extra battery polling added / Removed dupe on-off signal bug. / Timeout code rewritten
@@ -41,7 +42,7 @@ not know what to do. I think it was said after several reboots it will go away b
 
 
 
- *  Copyright 2022 by winnfreenet.com
+ *  Copyright 2022/2026 by winnfreenet.com
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -76,30 +77,26 @@ metadata {
 		fingerprint mfr: "0060", prod: "000C", model: "0001", deviceJoinName: "Utilitech Siren" 
 		fingerprint mfr: "0060", prod: "000C", model: "0002", deviceJoinName: "Everspring Siren"//Everspring Outdoor Solar Siren
 	}
-
-
 }
 preferences {
     
     input name: "infoLogging",  type: "bool", title: "Enable info logging", description: "Recomended low level" ,defaultValue: true,required: true
 	input name: "debugLogging", type: "bool", title: "Enable debug logging", description: "MED level Debug" ,defaultValue: false,required: true
 	input name: "traceLogging", type: "bool", title: "Enable trace logging", description: "Insane HIGH level", defaultValue: false,required: true
-
     input name: "timeout" ,type: "enum", title: "Timeout Timer",description: "Driver sends off after x seconds 300=5min, 900=10min, 1200=20min, 1800=30min",options: ["300","900","1200","1800"], defaultValue: 1200 ,required: true 
-
     input name: "pollYes",type: "bool", title: "Enable Presence", description: "", defaultValue: true,required: true
     input name: "pollHR" ,type: "enum", title: "Check Presence Hours",description: "Press config after saving",options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"], defaultValue: 8 ,required: true 
-
-
 }
+
+// upgraded to new code with logs
 def clientVersion() {
-    TheVersion="1.1.0"
- if (state.version != TheVersion){ 
+    TheVersion="1.1.1" 
+ if (state.version != TheVersion){    
+     logging("Upgrading ! ${state.version} to ${TheVersion}", "warn")
      state.version = TheVersion
-     configure() 
+     runIn(10,configure)// Forces config on updates
  }
 }
-
 
 // Runs after first pairing.
 def installed() {
@@ -117,9 +114,26 @@ def initialize(){
     clientVersion()    
   	randomSixty = Math.abs(new Random().nextInt() % 180)
 	runIn(randomSixty,refresh)
+    fixBat()
 }
 
+def fixBat() {
+    def bat = device.currentValue("battery")
 
+    if (bat == null || bat.toString().toInteger() == 0) {
+        state.LastBat = 10
+
+        logging("Repair BAT state. It's not 0, simulating 10", "warn")
+
+        sendEvent(
+            name: "battery",
+            value: 10,
+            unit: "%",
+            descriptionText: "Battery cannot be 0, repairing",
+            isStateChange: true
+        )
+    }
+}
 
 def uninstall() {
  
@@ -164,7 +178,7 @@ def configure() {
 	logging("Config","info")
     state.Alarm = false
     if(!state.FalseAlarm){state.FalseAlarm = 0}
-    
+ clientVersion()   
 
     removeDataValue("manufacturerName")
     getIcons()
@@ -333,6 +347,7 @@ def checkPresence() {
         value = "present"
             logging("Creating presence event: ${value}  ","info")
         sendEvent(name:"presence",value: value , descriptionText:"${value} ${state.version}", isStateChange: true)
+        fixBat()   
         return    
         }
     }
